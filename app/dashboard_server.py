@@ -535,7 +535,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400,{"error":str(exc)[:120]})
         if path == "/api/paper-lab/run":
             from unified_paper_lab import cycle
-            return self._json(200,cycle(STATE_DIR/"paper-research"/"records.json"))
+            return self._json(200,cycle(STATE_DIR/"paper-research"/"records.json",state_dir=STATE_DIR))
         if UNIFIED_APP and path == "/api/live/activation":
             try:
                 return self._json(200,toggle_live_access(STATE_DIR,self._body()))
