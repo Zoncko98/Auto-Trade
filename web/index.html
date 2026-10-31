@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/app.css">
 <link rel="stylesheet" href="/workspace.css">
 <script defer src="/app.js"></script>
+<script defer src="/paper-research.js"></script>
 <script defer src="/local.js"></script>
 <script defer src="/forecast.js"></script>
 <script defer src="/brokers.js"></script>
@@ -53,6 +54,7 @@
         <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper overview</button>
         <button class="nav-item" data-view="trades"><span class="nav-icon">⇄</span> Paper trades <span id="trade-count-nav" class="nav-counter">0</span></button>
         <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
+        <button class="nav-item" data-view="paper-research"><span class="nav-icon">*</span> AI market research</button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
       </div>
       <button class="nav-item" data-view="brokers"><span class="nav-icon">⌘</span> Manage broker connections</button>
@@ -387,7 +389,21 @@
         </div>
         <div class="footer-note">This page is the separate paper simulation. Go to Schwab live for real-money account status, orders and rationale.</div>
       </section>
-      <section class="view hidden" id="view-trades">
+      <section class="view hidden" id="view-paper-research">
+ <div class="page-header"><div><p class="eyebrow">PAPER INTELLIGENCE</p><h1>AI market research</h1>
+ <p class="muted">Forecasts are not simulated trades and never change the paper portfolio.</p></div></div>
+ <section class="panel" style="padding:20px"><h2>Research controls</h2>
+ <button class="btn primary" id="paper-research-run" type="button">Run research</button>
+ <button class="btn secondary" id="paper-research-schedule" type="button">Enable hourly research</button>
+ <p id="paper-research-message" role="status" class="panel-note">Idle</p></section>
+ <div class="content-grid">
+ <section class="panel" style="padding:18px"><h2>Stocks and ETFs</h2><p id="paper-research-equity">No predictions</p></section>
+ <section class="panel" style="padding:18px"><h2>Crypto</h2><p id="paper-research-crypto">No predictions</p></section></div>
+ <section class="panel" style="padding:18px;margin-top:15px"><h2>Prediction audit</h2>
+ <p class="panel-note">Hypothetical forecasts are research, not extra accounts. Real paper execution stays in Paper trades.</p>
+ <div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Market</th><th>Direction</th><th>Hours</th><th>Result</th><th>Reason</th></tr></thead>
+ <tbody id="paper-research-rows"></tbody></table></div></section></section>
+ <section class="view hidden" id="view-trades">
         <div class="page-header"><div><p class="eyebrow">TRANSACTION AUDIT</p><h1>Trade history</h1><p class="muted">Every executed paper trade with its strategy rationale and AI approval.</p></div><button id="export-trades" class="btn secondary">↓ Export paper Excel</button></div>
         <div class="panel list-panel">
           <div class="panel-heading"><div><h2>Execution log</h2><p id="trades-total">Loading...</p></div><span class="paper-label">SIMULATED FILLS</span></div>
@@ -488,5 +504,5 @@
     </main>
   </div>
 </div>
-<a href="/paper-lab.html" style="display:inline-flex;margin:12px;padding:10px 16px;background:#2563eb;color:white;border-radius:8px;text-decoration:none">AI Paper Lab - market research and results</a>\n</body>
+\n</body>
 </html>

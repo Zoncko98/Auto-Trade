@@ -216,10 +216,10 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","paper-research","settings","profile","brokers"].includes(view))return;
   activeView=view;
   const liveViews=["live","decisions","live-risk","local","forecast"];
-  const paperViews=["overview","trades","reviews","settings"];
+  const paperViews=["overview","trades","reviews","paper-research","settings"];
   if(liveViews.includes(view))selectWorkspace("live");
   if(paperViews.includes(view))selectWorkspace("paper");
   const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":null;
@@ -232,7 +232,7 @@ function showView(view) {
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
     "live-risk":"Live risk settings",local:"Local AI models",forecast:"Next session forecast",
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
-    settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections"};
+    "paper-research":"AI market research",settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
   $("live-mode-banner").classList.toggle("hidden",!liveViews.includes(view));
@@ -242,6 +242,7 @@ function showView(view) {
     loadPaperService().catch(err=>toast(err.message,true));
   }
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
+  if(view==="paper-research") refreshPaperResearch().catch(err=>toast(err.message,true));
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);

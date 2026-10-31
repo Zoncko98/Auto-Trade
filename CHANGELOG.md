@@ -1,3 +1,9 @@
+## v1.1.6 - Integrated Paper Trading research
+
+- Forecast interface and controls are now in the main Paper Trading workspace.
+- Removed duplicate Paper Lab page and virtual-account display.
+- Research forecasts never alter the existing paper account or Schwab execution.
+
 ## v1.1.5 - Paper Lab configured-model integration\n\n- Paper research now uses saved private Ollama URL and selected model.\n- Manual runs and opt-in scheduling share model configuration; unsupported providers fail closed.\n- Paper Lab link moved from fixed overlay into normal page flow.\n\n## v1.1.4 - Unified paper research\n\n- Stocks and crypto AI predictions, paper outcome evaluation, and authenticated dashboard interface.\n- Manual research controls plus opt-in hourly automatic predictions. Daily $1 target tracking and maximum drawdown. No paper fallback to live execution.\n- Results are hypothetical, not validated executable trade profitability.\n\n## v1.1.3  Crypto AI research adapter
 
 - Connects the isolated crypto prediction lab to existing local Ollama and Open WebUI chat interfaces via validated JSON directions and horizons.
