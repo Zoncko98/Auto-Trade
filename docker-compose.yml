@@ -33,6 +33,7 @@ services:
       - /mnt/Home/trading-bot/config/dashboard.env
     environment:
       STATE_DIR: /state
+      DASHBOARD_LOCAL_AI_URL: http://192.168.1.21:11434
       DASHBOARD_PORT: "8765"
       DASHBOARD_TLS_CERT: /tls/cert.pem
       DASHBOARD_TLS_KEY: /tls/key.pem

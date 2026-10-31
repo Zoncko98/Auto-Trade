@@ -32,11 +32,11 @@ OUTPUT_SCHEMA = {
 
 
 def _settings():
-    url = os.getenv("LOCAL_AI_URL", "http://local-ai:11434").rstrip("/")
+    url = os.getenv("LOCAL_AI_URL", "http://192.168.1.21:11434").rstrip("/")
     parsed = urlparse(url)
-    if parsed.scheme != "http" or parsed.hostname not in ("local-ai","localhost","127.0.0.1"):
+    if parsed.scheme != "http" or parsed.hostname not in ("192.168.1.21",):
         raise LocalAIUnavailable("Unrecognized local inference endpoint")
-    model = os.getenv("LOCAL_AI_MODEL", "qwen2.5:1.5b")
+    model = os.getenv("LOCAL_AI_MODEL", "qwen3.5:4b")
     selection=os.getenv("LOCAL_AI_SELECTION_FILE","/state/live/model_selection.json")
     try:
         with open(selection,"r",encoding="utf-8") as handle:

@@ -104,9 +104,9 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["live","decisions","live-risk","local","overview","trades","reviews","settings"].includes(view))return;
+  if(!["live","decisions","live-risk","local","forecast","overview","trades","reviews","settings"].includes(view))return;
   activeView=view;
-  const workspace=["live","decisions","live-risk","local"].includes(view)?"live":"paper";
+  const workspace=["live","decisions","live-risk","local","forecast"].includes(view)?"live":"paper";
   $("workspace-select").value=workspace;
   $("workspace-description").textContent=workspace==="live"
     ?"Real Schwab account · cash only":"Simulated account · no real orders";
@@ -115,12 +115,13 @@ function showView(view) {
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!==`view-${view}`));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   const titles={live:"Schwab live",decisions:"Live AI evidence","live-risk":"Live risk settings",
-    local:"Local AI models",overview:"Paper simulator",trades:"Paper history",
+    local:"Local AI models",forecast:"Next session forecast",overview:"Paper simulator",trades:"Paper history",
     reviews:"Paper AI audit",settings:"Paper risk settings"};
   $("breadcrumb").textContent=titles[view];
   if(view==="trades" || view==="reviews") loadPage(view,page[view]).catch(err=>toast(err.message,true));
   if(view==="settings" && status) populateSettings(status.control.settings);
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
+  if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
 }
 async function refreshAll(){

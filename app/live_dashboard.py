@@ -15,9 +15,9 @@ from urllib.error import URLError
 from live_extension import (read_decisions, read_live_risk, rows_from_live)
 
 MODEL_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}$")
-MAX_MODEL_SIZE = 1_600_000_000
+MAX_MODEL_SIZE = 7_000_000_000
 MAX_DOCUMENT_BYTES = 2_000_000
-DEFAULT_MODEL = "qwen2.5:1.5b"
+DEFAULT_MODEL = "qwen3.5:4b"
 
 
 def _load(path: Path, default=None, limit=MAX_DOCUMENT_BYTES):
@@ -31,8 +31,8 @@ def _load(path: Path, default=None, limit=MAX_DOCUMENT_BYTES):
 
 def installed_models(opener=urlopen):
     """Only actual local Ollama downloads; never the cloud WebUI catalog."""
-    url=os.getenv("DASHBOARD_LOCAL_AI_URL","http://local-ai:11434").rstrip("/")
-    if url!="http://local-ai:11434":
+    url=os.getenv("DASHBOARD_LOCAL_AI_URL","http://192.168.1.21:11434").rstrip("/")
+    if url!="http://192.168.1.21:11434":
         raise ValueError("Invalid local model endpoint")
     try:
         with opener(url+"/api/tags", timeout=4) as response:

@@ -215,7 +215,7 @@ async function loadLocalModels(){
     option.value=entry.name;
     option.disabled=!entry.selectable;
     option.textContent=entry.name+" · "+entry.size_mb+" MB"+(entry.parameters?" · "+entry.parameters:"")+
-      (entry.selectable?"":" (too large for NAS budget)");
+      (entry.selectable?"":" (above recommended workstation size)");
     list.appendChild(option);
   }
   if(!list.options.length){
@@ -235,7 +235,7 @@ function updateLocalModelDetails(){
   const value=$("local-model-select").value;
   const entry=installedLocalModels.find(x=>x.name===value);
   $("local-model-details").textContent=entry
-     ?`This installed model uses approximately ${entry.size_mb} MB of disk weights; the local container is limited to 2 CPU cores and 2.5 GB of RAM. Selection affects future news evaluations only.`
+     ?`This installed model uses approximately ${entry.size_mb} MB of disk weights; inference runs on the external AI workstation at 192.168.1.21, not the TrueNAS. Selection affects future news evaluations only.`
      :"Select an installed model that fits the NAS budget.";
   $("local-model-save").disabled=!entry||!entry.selectable||value===$("local-saved-model").textContent;
 }

@@ -13,8 +13,8 @@ services:
       SCHWAB_TOKEN_FILE: /state/schwab_token.json
       LIVE_STATE_DIR: /state/live
       AI_PROVIDER: local
-      LOCAL_AI_URL: http://local-ai:11434
-      LOCAL_AI_MODEL: qwen2.5:1.5b
+      LOCAL_AI_URL: http://192.168.1.21:11434
+      LOCAL_AI_MODEL: qwen3.5:4b
     volumes:
       - /mnt/Home/trading-bot/config/schwab.env:/run/secrets/schwab.env:ro
       - /mnt/Home/trading-bot/state/schwab_token.json:/state/schwab_token.json

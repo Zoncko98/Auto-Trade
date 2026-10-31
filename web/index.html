@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/app.css">
 <script defer src="/app.js"></script>
 <script defer src="/local.js"></script>
+<script defer src="/forecast.js"></script>
 </head>
 <body>
 <div id="login-screen" class="login-screen">
@@ -42,7 +43,8 @@
         <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Live overview <span id="live-nav-count" class="nav-counter">0</span></button>
         <button class="nav-item" data-view="decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
         <button class="nav-item" data-view="live-risk"><span class="nav-icon">⚙</span> Live risk settings</button>
-        <button class="nav-item" data-view="local"><span class="nav-icon">▣</span> Local AI models</button>
+        <button class="nav-item" data-view="local"><span class="nav-icon">▣</span> AI workstation models</button>
+        <button class="nav-item" data-view="forecast"><span class="nav-icon">◷</span> Next session forecast</button>
       </div>
       <div id="paper-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper overview</button>
@@ -259,13 +261,25 @@
           <div class="pager"><button id="reviews-prev" class="btn secondary tiny">← Previous</button><span id="reviews-page">Page 1</span><button id="reviews-next" class="btn secondary tiny">Next →</button></div>
         </div>
       </section>
+      <section class="view hidden" id="view-forecast">
+        <div class="page-header"><div><p class="eyebrow">READ-ONLY AI RESEARCH</p><h1>Next trading session forecast</h1>
+        <p class="muted">Five candidates · model scenarios · source-linked headlines · unmet confirmations.</p></div>
+        <span class="paper-label">EXPERIMENTAL · NOT ORDER SIGNALS</span></div>
+        <div class="notice neutral"><span class="notice-icon">✧</span><div><strong>No automatic orders from this screen</strong>
+        <p>Unvalidated model forecasts cannot override current live trade guards. Confirm liquidity, spreads, trends and execution checks first.</p></div></div>
+        <section class="panel"><div class="panel-heading"><div><h2>Next session candidate watchlist</h2>
+          <p id="forecast-generated">Loading latest forecast…</p></div>
+          <button class="btn secondary tiny" id="forecast-refresh" type="button">Refresh display</button></div>
+          <p class="panel-note" id="forecast-overview">Connecting to AI workstation.</p><div id="forecast-grid"></div>
+        </section>
+      </section>
       <section class="view hidden" id="view-local">
         <div class="page-header">
-          <div><p class="eyebrow">PRIVATE NAS INFERENCE</p><h1>Installed local AI models</h1>
-          <p class="muted">Choose from the small models actually downloaded to TrueNAS Ollama, which powers the Auto Trader news filter and can also be connected to Open WebUI.</p></div>
+          <div><p class="eyebrow">PRIVATE LAN AI WORKSTATION</p><h1>Installed local AI models</h1>
+          <p class="muted">Choose from Ollama models actually installed at 192.168.1.21. TrueNAS does not run model inference.</p></div>
           <span class="paper-label">NO CLOUD API KEYS</span>
         </div>
-        <div class="notice neutral"><span class="notice-icon">✧</span><div><strong>No OpenAI, Gemini, Anthropic or Copilot providers here</strong><p>Only local Ollama models installed on the NAS appear in this dropdown. Open WebUI remains available separately; its cloud model list is not used for trading.</p></div></div>
+        <div class="notice neutral"><span class="notice-icon">✧</span><div><strong>No OpenAI, Gemini, Anthropic or Copilot providers here</strong><p>Only models installed on the private GPU workstation appear here. Open WebUI cloud models are not used for automatic trading.</p></div></div>
         <section class="panel" style="max-width:800px">
           <div class="panel-heading"><div><h2>News research model</h2><p>New selection takes effect on the worker's next AI evaluation. The bot remains autonomous.</p></div><span class="time-label">LOCAL ONLY</span></div>
           <form id="local-model-form" class="settings-layout" style="display:block">
@@ -277,9 +291,9 @@
           <div class="divider"></div>
           <div class="readiness-item"><span>Model service</span><strong id="local-server-status">Checking</strong></div>
           <div class="readiness-item"><span>Active selection</span><strong id="local-saved-model">—</strong></div>
-          <div class="readiness-item"><span>Resource ceiling</span><strong>2 CPU cores · 2.5 GB RAM</strong></div>
+          <div class="readiness-item"><span>Recommended weight ceiling</span><strong>7 GB · external RTX 3070 Ti</strong></div>
           <div class="readiness-item"><span>AI role</span><strong>Public news classification and buy filtering</strong></div>
-          <p class="panel-note">Larger downloaded models may appear disabled because they exceed this NAS's conservative resource limit. No model is guaranteed to predict profitable trades.</p>
+          <p class="panel-note">Very large models may appear disabled because they exceed the external AI computer's recommended model weight limit. No model is guaranteed to predict profitable trades.</p>
         </section>
       </section>
       <section class="view hidden" id="view-settings">

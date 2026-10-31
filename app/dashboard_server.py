@@ -21,6 +21,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 
 from live_dashboard import (installed_models, current_model, set_model,
     live_state, set_operator_mode)
@@ -248,6 +250,7 @@ class Handler(BaseHTTPRequestHandler):
             "/index.html": ("index.html", "text/html; charset=utf-8"),
             "/app.js": ("app.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
+            "/forecast.js": ("forecast.js", "text/javascript; charset=utf-8"),
             "/app.css": ("app.css", "text/css; charset=utf-8"),
         }
         if path in assets:
@@ -269,6 +272,20 @@ class Handler(BaseHTTPRequestHandler):
         if not nonce:
             return self._json(401, {"error": "Sign in required"})
         try:
+            if path in ("/api/research/forecast","/api/research/models"):
+                target = "/api/forecast" if path.endswith("forecast") else "/api/models"
+                try:
+                    req=Request("http://192.168.1.21:8766"+target,headers={"Accept":"application/json"})
+                    with urlopen(req,timeout=9) as response:
+                        body=response.read(350001)
+                    if len(body)>350000:
+                        raise ValueError("Research response too large")
+                    doc=json.loads(body)
+                    if not isinstance(doc,dict):
+                        raise ValueError("Invalid research data")
+                except (URLError,TimeoutError,OSError,ValueError,TypeError):
+                    return self._json(503,{"error":"AI workstation research service unavailable"})
+                return self._json(200,doc)
             if path == "/api/live":
                 return self._json(200, live_state(STATE_DIR))
             if path == "/api/live/risk":
