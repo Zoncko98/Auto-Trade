@@ -46,6 +46,17 @@ function showLogin(){
 function showApp(){
   $("login-screen").classList.add("hidden");
   $("app").classList.remove("hidden");
+  // Use the local installed version, not the remote GitHub release.
+  request("/api/profile").then(profile=>{
+    const version=profile.version;
+    const label=$("sidebar-app-version");
+    if(label)label.textContent=(typeof version==="string" &&
+      /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version))?
+      "Auto Trader · v"+version:"Auto Trader · Version unavailable";
+  }).catch(()=>{
+    const label=$("sidebar-app-version");
+    if(label)label.textContent="Auto Trader · Version unavailable";
+  });
 }
 async function init(){
   bindEvents();

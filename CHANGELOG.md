@@ -1,3 +1,10 @@
+## v1.0.11 — Sidebar installed-version display
+
+- Replaced the bottom-left sidebar sentence about the Schwab worker and dashboard order submission with a live Auto Trader vX.Y.Z version label.
+- Version comes from the authenticated, local /api/profile endpoint after login, so it always reflects the installed app, not the latest GitHub release or TrueNAS custom catalog metadata.
+- If version lookup is unavailable, the footer shows a clear fallback rather than an outdated hard-coded version.
+- No changes to broker connections, order permissions, risk limits, credentials, or deployment topology.
+
 ## v1.0.10 — Multi-broker workspace foundation
 
 - Added a new authenticated **Broker connections** view to the single TrueNAS Auto Trader app, accessible from both live and paper workspaces.

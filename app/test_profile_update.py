@@ -70,7 +70,7 @@ class ProfileTests(unittest.TestCase):
                 token=session["csrf"]
                 status,profile,_=call("GET","/api/profile",cookie=cookie)
                 self.assertEqual(status,200);self.assertTrue(profile["password_change_enabled"])
-                self.assertEqual(profile["version"],"1.0.10")
+                self.assertEqual(profile["version"],"1.0.11")
                 bad,_,_=call("POST","/api/profile/password",
                     {"current_password":"bad","new_password":CHANGED},cookie,token)
                 self.assertEqual(bad,400)
@@ -95,12 +95,12 @@ class ProfileTests(unittest.TestCase):
                 status,_,_=call("GET","/api/profile",cookie=cookie2)
                 self.assertEqual(status,200)
                 (state/"update_status.json").write_text(json.dumps(
-                    {"schema":1,"latest":"1.0.11","checked_at":"2026-10-31T05:00:00Z"}))
+                    {"schema":1,"latest":"1.0.12","checked_at":"2026-10-31T05:00:00Z"}))
                 status,up,_=call("GET","/api/update",cookie=cookie2)
                 self.assertEqual(status,200)
-                self.assertEqual(up["installed"],"1.0.10")
+                self.assertEqual(up["installed"],"1.0.11")
                 self.assertTrue(up["update_available"])
-                self.assertEqual(up["latest"],"1.0.11")
+                self.assertEqual(up["latest"],"1.0.12")
             finally:stop(srv)
             srv=start()
             try:

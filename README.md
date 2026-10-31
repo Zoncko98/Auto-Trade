@@ -1,5 +1,9 @@
 # Auto Trader
 
+## v1.0.11 — Installed version in sidebar
+
+The bottom-left corner of Auto Trader now displays its installed application version directly from the local profile endpoint. This replaces the legacy Schwab-only sentence and is independent of the remote release notifier.
+
 ## v1.0.10 — Multi-broker connections
 
 Auto Trader now includes a **Broker connections** workspace in its single TrueNAS app. It lists Charles Schwab, Webull, Alpaca, Robinhood Crypto and Interactive Brokers, with official API requirements and clearly labeled implementation status.
