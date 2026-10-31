@@ -1,3 +1,13 @@
+## v1.0.12  Explainable trade decision records
+
+- Added app/trade_explanations.py for structured, observable trade evidence; no private model thoughts are claimed.
+- Paper trading reviews now record the crossover strategy, AI response, risk flags, and decision timestamp.
+- Live entry audit evidence includes technical reasons, AI verdict, and up to eight ranked alternatives.
+- Screened-but-not-selected alternatives are not misrepresented as confirmed failed entry signals.
+- Invalidation levels are only recorded when explicit validated data is available, never invented; no automatic stop order is added.
+- No fabricated confidence probability. Existing execution, risk, authorization and cash-only protections are unchanged.
+- Four standalone tests added. No TrueNAS production deployment or live execution testing was performed.
+
 ## v1.0.11 — Sidebar installed-version display
 
 - Replaced the bottom-left sidebar sentence about the Schwab worker and dashboard order submission with a live Auto Trader vX.Y.Z version label.
