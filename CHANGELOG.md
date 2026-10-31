@@ -1,3 +1,11 @@
+## v1.1.7 - Paper worker and market data repair
+
+- Paper worker now receives the exact local Ollama /api/generate endpoint it requires, without changing live worker settings.
+- Paper-only supervisor retries failed paper children with a cooldown and reports child exit codes; does not restart broker workers.
+- The existing paper account ingests completed, source-timestamped public crypto and equity minute bars when its strategy is Running; stale or missing quotes are rejected.
+- Includes a bounded atomic price CSV, per-market feed status in the existing paper dashboard, and synthetic plus real-market smoke tests.
+- Paper trades remain subject to deterministic limits and fail-closed AI review, independent of live brokerage actions.
+
 ## v1.1.6 - Integrated Paper Trading research
 
 - Forecast interface and controls are now in the main Paper Trading workspace.

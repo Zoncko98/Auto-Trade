@@ -78,6 +78,20 @@ def build_env(config,secret):
     env["OAUTH_AI_BRIDGE_TOKEN"]=secret.get("oauth_bridge_token","")
     return env
 
+def paper_environment(runtime_env):
+    """Paper-only model URL and public quotes; do not alter live child env."""
+    env=dict(runtime_env)
+    base=env.get("AI_OLLAMA_URL","")
+    if env.get("AI_PROVIDER")=="ollama" and base:
+        env["AI_OLLAMA_URL"]=base.rstrip("/")+"/api/generate"
+    else:
+        env["AI_OLLAMA_URL"]=""
+        env["AI_MODEL"]=""
+    env["AI_REVIEW_TIMEOUT_SECONDS"]="18"
+    env["PAPER_PUBLIC_MARKET_DATA"]="true"
+    env["PAPER_SYMBOLS"]="SPY,QQQ,AAPL,MSFT,BTCUSD,ETHUSD"
+    return env
+
 def main():
     STATE.mkdir(parents=True,exist_ok=True)
     LOGS.mkdir(parents=True,exist_ok=True)
@@ -101,6 +115,7 @@ def main():
              DASHBOARD_BIND="0.0.0.0",DASHBOARD_PORT="8765")
     spawn("dashboard",["/app/dashboard_server.py"],env)
     live_started_signature=None
+    paper_last_spawn=0.0
     while not _STOP:
         dash=CHILDREN.get("dashboard")
         if dash is None or dash.poll() is not None:
@@ -123,6 +138,17 @@ def main():
                    ("paper",["/app/bot.py"]),
                    ("market",["/app/broker_market_data.py"])):
                     child=CHILDREN.get(name)
+                    if name=="paper":
+                        if not enabled[name]:
+                            stop_process("paper")
+                        elif child is None or (child.poll() is not None and time.monotonic()-paper_last_spawn>=120):
+                            if child is not None:
+                                print("Paper worker exited with code "+str(child.poll())+
+                                      "; retrying paper worker only.",flush=True)
+                                CHILDREN.pop("paper",None)
+                            paper_last_spawn=time.monotonic()
+                            spawn("paper",command,paper_environment(runtime_env))
+                        continue
                     if enabled[name] and (child is None or child.poll() is not None):
                         if child and child.poll() is not None:
                             # Prevent a malformed config from causing rapid restart loops.

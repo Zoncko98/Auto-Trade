@@ -98,6 +98,8 @@ def main() -> int:
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     last_heartbeat = 0.0
+    last_market_poll = 0.0
+    last_feed = None
     last_mode = None
     once = "--once" in sys.argv
     while not stopping:
@@ -112,6 +114,16 @@ def main() -> int:
             if mode != last_mode:
                 logging.info("Strategy mode: %s (revision %s)", mode, revision)
                 last_mode = mode
+            if mode=="running" and boolean("PAPER_PUBLIC_MARKET_DATA"):
+                now_poll=time.monotonic()
+                if once or now_poll-last_market_poll>=65:
+                    from paper_market_data import poll
+                    feed=poll(price_path,symbols)
+                    last_feed=feed
+                    last_market_poll=now_poll
+                    logging.info("Public paper feed: added=%d available=%d unavailable=%s",
+                                 feed["added"],feed["market_count"],
+                                 ",".join(sorted(feed["unavailable"])) or "none")
             results = engine.ingest_csv(price_path) if mode == "running" else []
             for result in results:
                 if result.startswith("PAPER_"):

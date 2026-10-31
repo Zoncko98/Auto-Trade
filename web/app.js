@@ -317,8 +317,16 @@ function renderOverview(data,points,recent){
   const warning=$("data-warning");
   let message;
   if(!r.online)message=["Monitor not reporting","The Docker trading worker may be stopped or unable to write its heartbeat."];
-  else if(!r.ai_model_configured)message=["AI model not configured","All new paper-buy candidates are blocked until a model is connected. No live market feed is connected either."];
-  else message=["No live market feed connected","The strategy needs valid timestamped prices; the AI model configuration has not been live-tested."];
+  else if(!r.ai_model_configured)message=["Paper AI reviewer not configured",
+    "Market observations can be collected, but simulated buys remain blocked until a compatible model is configured."];
+  else if(r.public_market_feed && r.paper_quotes_available>0)
+    message=["Paper price feed reporting",
+      r.paper_quotes_available+" public timestamped observations received. Simulated entries still require strategy and AI approval."];
+  else if(r.public_market_feed)
+    message=["Paper price feed waiting",
+      "No recent public quotes are available. Markets may be closed, data delayed, or the provider unreachable."];
+  else message=["No paper market feed configured",
+    "The strategy requires timestamped public market prices; paper trades are not broker orders."];
   warning.querySelector("strong").textContent=message[0];
   warning.querySelector("p").textContent=message[1];
   if(activeView==="settings" && document.activeElement && !document.activeElement.closest("form"))populateSettings(s);
