@@ -37,3 +37,10 @@ Advanced alternative: If accepted and approved in the Schwab Developer Portal, r
 Profile > Integrations shows administrator setup, AI setup, Schwab authorization and module status separately. Paper uses fake funds; market monitoring reads only broker quotes; live trading permits real orders only after a single confirmation popup and account validation.
 
 Native TrueNAS: Custom YAML apps show Source: N/A because their catalog metadata has no upstream source. TrueNAS nonetheless detects new public image digests when image updates are enabled. The installed app uses ghcr.io/zoncko98/auto-trade:stable. The Auto Trader Profile links to GitHub and checks current stable release tags; the update itself happens through TrueNAS Apps. A TrueNAS catalog submission would be needed for populated native catalog source metadata.
+
+
+## v1.0.8 — Schwab callback copy/paste bug fix
+
+For a registered callback of https://127.0.0.1:8182 (without a slash), browsers can display https://127.0.0.1:8182/?code=...&state=... (with a slash). Earlier releases incorrectly called this a mismatch. v1.0.8 accepts these two ROOT-path forms as equivalent when processing the redirect, without changing the exact registered URL sent to Schwab. Scheme, host, port, state and non-root paths must still match. Start a fresh authorization after updating, since old OAuth codes may expire.
+
+If the app reports a real mismatch, it now shows the expected versus received callback BASE addresses without one-time authorization codes. Confirm the expected address exactly matches the callback registered at https://developer.schwab.com/ . Auto Trader cannot inspect the Schwab developer portal registration on your behalf. If Schwab reports invalid_client before redirecting, its developer app may be configured differently or not yet Ready For Use.

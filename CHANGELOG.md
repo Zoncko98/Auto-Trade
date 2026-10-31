@@ -1,3 +1,12 @@
+## v1.0.8 — Schwab redirect copy-and-paste repair
+
+- Fixed incorrect callback mismatch errors when the developer-app callback is https://127.0.0.1:8182 but the browser adds the standard root slash and returns https://127.0.0.1:8182/?code=...&state=.... These root paths are equivalent for validating the returned redirect; the exact callback sent to Schwab remains unchanged.
+- Preserved strict HTTPS, host, port, non-root path and OAuth state comparisons, so redirects from another host or unrelated sign-in sessions are still rejected.
+- Improved error messages to distinguish callback base-address mismatches, expired/different authorization sessions, missing authorization codes and token-exchange failures. Code/state values are never shown in errors.
+- Trim harmless surrounding whitespace from browser-copied callback addresses.
+- Added regression tests for root-slash acceptance and rejected wrong port, host, scheme, path, and fragment.
+- Does not change Schwab developer-app settings, credentials, stored tokens, positions or live order permissions.
+
 ## v1.0.7 — Installation fixes and simplified live trading
 
 - Fix GUI setup progress: administrator creation is complete independently from optional AI, broker OAuth and module connection states.

@@ -29,6 +29,24 @@ def begin(state):
              if automatic else
              "The browser may show cannot connect at 127.0.0.1:8182 because no local listener is running. This is expected. Copy the FULL callback URL from the address bar (including code and state), return to Auto Trader, and paste it into the form. Never share that URL.")}
 
+def _url_matches_registered_callback(registered,received):
+    """A browser may add '/' to an empty root path; never relax host, port or scheme."""
+    if (registered.scheme!="https" or received.scheme!="https"
+        or registered.netloc!=received.netloc
+        or registered.username or registered.password
+        or received.username or received.password
+        or received.fragment or received.params or registered.query):
+        return False
+    if registered.path in ("","/") and received.path in ("","/"):
+        return True
+    return registered.path==received.path
+
+def _callback_origin(url):
+    """Safe error message excludes all query parameters and authorization codes."""
+    if not url.scheme or not url.netloc:
+        return "invalid URL"
+    return url.scheme+"://"+url.netloc+(url.path or "")
+
 def finish(state,returned_url):
     from schwab.auth import AuthContext,client_from_received_url
     data=Path(state)/PENDING
@@ -37,14 +55,24 @@ def finish(state,returned_url):
         raise SetupError("Schwab authorization expired; start again")
     if not isinstance(returned_url,str) or len(returned_url)>5000:
         raise SetupError("Invalid Schwab redirected address")
+    returned_url=returned_url.strip()
+    if not returned_url or any(ord(ch)<32 for ch in returned_url):
+        raise SetupError("Invalid Schwab redirected address")
     target=urlparse(pending["callback"])
     url=urlparse(returned_url)
-    if (url.scheme!=target.scheme or url.netloc!=target.netloc or
-        url.path!=target.path or url.fragment):
-        raise SetupError("Schwab callback does not match the registered URL")
-    params=parse_qs(url.query)
-    if params.get("state")!=[pending["state"]] or "code" not in params:
-        raise SetupError("OAuth callback state mismatch")
+    if not _url_matches_registered_callback(target,url):
+        # Print only redirect base addresses, NEVER the code or OAuth state.
+        raise SetupError("Schwab callback address mismatch. Expected "+
+                         _callback_origin(target)+" but received "+
+                         _callback_origin(url)+
+                         ". Check the registered callback address in the Schwab Developer Portal, save it, and start a NEW connection.")
+    params=parse_qs(url.query,keep_blank_values=True)
+    if "error" in params:
+        raise SetupError("Schwab did not authorize this connection. Start a new sign-in.")
+    if params.get("state")!=[pending["state"]]:
+        raise SetupError("Schwab sign-in session mismatch. Start a NEW connection using the latest Schwab sign-in link.")
+    if len(params.get("code",[]))!=1 or not params["code"][0]:
+        raise SetupError("Schwab callback did not contain a valid authorization code.")
     cfg=settings(state);secret=credentials(state)
     token=Path(state)/"schwab_token.json"
     # Existing tokens cannot be overwritten by accident or during a running session.
@@ -53,8 +81,11 @@ def finish(state,returned_url):
     def write_token(document,*args,**kwargs):
         atomic_save(token,document)
     context=AuthContext(pending["callback"],pending["authorization_url"],pending["state"])
-    client_from_received_url(cfg["schwab_app_key"],secret["schwab_app_secret"],
-                             context,returned_url,write_token,enforce_enums=True)
+    try:
+        client_from_received_url(cfg["schwab_app_key"],secret["schwab_app_secret"],
+                                 context,returned_url,write_token,enforce_enums=True)
+    except Exception:
+        raise SetupError("Schwab token exchange failed. Confirm your developer app is Ready For Use and the callback registered there exactly matches the one in Auto Trader. Start a NEW connection; the old code cannot be reused.") from None
     data.unlink(missing_ok=True)
     return {"connected":True}
 

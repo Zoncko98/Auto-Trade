@@ -79,6 +79,44 @@ class SetupRegression(unittest.TestCase):
    self.assertTrue((state/"schwab_token.json").exists())
    self.assertEqual((state/"schwab_token.json").stat().st_mode & 0o777,0o600)
    self.assertFalse(auth.exists())
+ def test_loopback_root_slash_is_accepted_without_relaxing_host_or_state(self):
+  from schwab_web_oauth import _url_matches_registered_callback
+  from urllib.parse import urlparse
+  target=urlparse("https://127.0.0.1:8182")
+  self.assertTrue(_url_matches_registered_callback(target,
+    urlparse("https://127.0.0.1:8182/?code=PRIVATE&state=RANDOM")))
+  self.assertTrue(_url_matches_registered_callback(urlparse("https://127.0.0.1:8182/"),
+    urlparse("https://127.0.0.1:8182?code=PRIVATE&state=RANDOM")))
+  for bad in ("https://localhost:8182/?code=PRIVATE","https://127.0.0.1:8183/?code=PRIVATE",
+              "http://127.0.0.1:8182/?code=PRIVATE",
+              "https://127.0.0.1:8182/evil?code=PRIVATE",
+              "https://127.0.0.1:8182/?code=PRIVATE#fragment"):
+   self.assertFalse(_url_matches_registered_callback(target,urlparse(bad)))
+ def test_actual_loopback_redirect_exchanges_when_browser_adds_slash(self):
+  import types,collections
+  with tempfile.TemporaryDirectory() as td:
+   state=Path(td)
+   atomic_save(state/"config"/"integrations.json",
+    dict(DEFAULTS,ai_provider="none",schwab_app_key="dummy-test-key",
+         schwab_callback_url="https://127.0.0.1:8182"))
+   atomic_save(state/"config"/"credentials.json",{"schwab_app_secret":"synthetic-fake"})
+   atomic_save(state/"schwab_oauth_pending.json",{
+     "callback":"https://127.0.0.1:8182","state":"unique-state",
+     "authorization_url":"https://api.schwabapi.com/oauth/authorize?dummy=1","created":time.time()})
+   stub=types.ModuleType("schwab")
+   auth=types.ModuleType("schwab.auth")
+   auth.AuthContext=collections.namedtuple("AuthContext",["callback_url","authorization_url","state"])
+   def mock_exchange(_key,_secret,context,received_url,writer,**kwargs):
+    self.assertEqual(context.callback_url,"https://127.0.0.1:8182")
+    self.assertIn("/?code=fake-code",received_url)
+    writer({"access_token":"DUMMY-NOT-A-REAL-TOKEN"})
+   auth.client_from_received_url=mock_exchange
+   stub.auth=auth
+   with patch.dict(sys.modules,{"schwab":stub,"schwab.auth":auth}):
+    self.assertEqual(finish(state,
+      " https://127.0.0.1:8182/?code=fake-code&state=unique-state "),
+      {"connected":True})
+   self.assertTrue((state/"schwab_token.json").is_file())
  def test_public_update_lookup(self):
   latest=json.dumps([{"name":"v1.0.7"},{"name":"v0.9.0-beta"},{"name":"v1.0.6"}]).encode()
   class Resp:

@@ -44,7 +44,7 @@
   <input id="setup-schwab-secret" type="password" autocomplete="new-password" maxlength="256">
   <label for="setup-schwab-callback">Exact registered Schwab OAuth callback URL</label>
   <input id="setup-schwab-callback" type="url" value="https://127.0.0.1:8182">
-  <p class="panel-note">127.0.0.1 points to your browser computer. If no local callback listener is running, your browser will say it cannot connect after Schwab login. <strong>This is expected.</strong> Copy the entire address bar URL (including code and state) and paste it below. Never share that URL.</p>
+  <p class="panel-note">127.0.0.1 points to your browser computer. If no local callback listener is running, your browser will say it cannot connect after Schwab login. <strong>This is expected.</strong> Copy the entire address bar URL (including code and state) and paste it below. Auto Trader accepts the browser's optional root / without treating it as a different address. Never share the full URL.</p>
   <p class="panel-note">For an automatic NAS callback, register <strong id="automatic-callback-url">https://YOUR_NAS_IP:PORT/schwab/callback</strong> with Schwab and paste that exact address into the field above. Your developer app may require reapproval.</p>
   <h2 style="margin-top:22px">Modules</h2>
   <label><input type="checkbox" id="setup-paper"> Run paper simulator (fake money only)</label>
