@@ -1,4 +1,4 @@
-## v1.1.1  Isolated crypto prediction research core
+## v1.1.2  Isolated crypto prediction research core
 
 - Added independently stored, time-locked BTC/USD and ETH/USD forward predictions, with 1-, 4- and 24-hour horizons.
 - Added public Kraken hourly OHLC ingestion, excluding the potentially incomplete latest candle.
