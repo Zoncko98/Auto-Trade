@@ -2,6 +2,15 @@
 
 [Documentation](docs/README.md) · [System architecture](docs/architecture.md) · [Test status](docs/status.md)
 
+## 2026-10-31 — v1.0.3: Private Docker registry update distribution
+
+- Added GitHub Actions to build/test/version private linux/amd64 dashboard, paper and live-worker container images.
+- Stable releases publish version-pinned image tags and a mutable stable tag for TrueNAS image digest checks.
+- Added TrueNAS Apps YAML templates and instructions for private GHCR login, GUI updates and dashboard migration.
+- Added .dockerignore protections for image build contexts; no secrets or OAuth tokens are shipped in images.
+- No automatic activation of brokerage trading. Existing TrueNAS deployment is not switched without a backup and registry authentication.
+- Note: native TrueNAS image-update indicator still requires a successful private-image pull and GUI validation.
+
 ## 2026-10-31 — v1.0.2: Manual update status display
 
 - Adds an explicit Software Updates panel within the user profile.

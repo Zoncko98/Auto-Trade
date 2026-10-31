@@ -1,0 +1,19 @@
+# Build context is ./app for all GHCR images.
+__pycache__/
+*.pyc
+*.pyo
+*.pem
+*.key
+*.env
+.env
+.env.*
+state/
+config/
+logs/
+backups/
+*.log
+*token*.json
+*secret*.json
+.ssh/
+.git/
+.venv/

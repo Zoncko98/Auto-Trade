@@ -1,0 +1,18 @@
+services:
+  trading-bot:
+    image: ghcr.io/zoncko98/auto-trade-paper:stable
+    container_name: trading-bot
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /mnt/POOL_NAME/trading-bot/config/bot.env
+    environment:
+      LOG_DIR: /logs
+      STATE_DIR: /state
+    volumes:
+      - /mnt/POOL_NAME/trading-bot/logs:/logs
+      - /mnt/POOL_NAME/trading-bot/state:/state
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
