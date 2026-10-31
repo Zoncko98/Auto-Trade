@@ -10,6 +10,43 @@ let status = null;
 let activeView = "live";
 let activeWorkspace = "live";
 const AVAILABLE_WORKSPACES = Object.freeze(["live","paper"]);
+// Do not format missing numbers as $0.00, and never render stale broker
+// snapshots as current. Values are only read from authenticated APIs.
+function finiteUsd(value){
+  if (typeof value!=="number" || !Number.isFinite(value) || Math.abs(value)>1e15)
+    return null;
+  return money(value);
+}
+function updateWorkspaceBalances(paper,live){
+  const paperLabel=$("workspace-paper-balance");
+  const schwabLabel=$("workspace-schwab-balance");
+  if(paperLabel){
+    const equity=finiteUsd(paper?.account?.equity);
+    paperLabel.textContent=equity===null?"Balance unavailable":"Sim. equity "+equity;
+    paperLabel.title=equity===null?"Paper simulator balance unavailable":"Paper simulator equity, not real cash";
+  }
+  if(schwabLabel){
+    const account=live?.account;
+    const rawTime=account?.at;
+    const timestamp=typeof rawTime==="string"?Date.parse(rawTime):NaN;
+    // Fresh broker-reported equity only. A token or historical account cache
+    // alone must never produce a 'current balance' tile.
+    const age=Date.now()-timestamp;
+    const fresh=live?.worker_online===true && Number.isFinite(timestamp) &&
+      age>=-60000 && age<=300000;
+    const equity=fresh?finiteUsd(account?.equity):null;
+    schwabLabel.textContent=equity===null?"Balance unavailable":"Equity "+equity;
+    schwabLabel.title=equity===null?
+      "No fresh broker equity available; open Schwab dashboard for account status":
+      "Broker-reported total account equity, updated from fresh snapshot";
+  }
+}
+function clearWorkspaceBalances(){
+  for(const name of ["paper","schwab"]){
+    const el=$("workspace-"+name+"-balance");
+    if(el){el.textContent="Balance unavailable";el.title="Sign in and refresh to view available equity";}
+  }
+}
 function selectWorkspaceTile(workspace) {
   if(!AVAILABLE_WORKSPACES.includes(workspace))return false;
   activeWorkspace=workspace;
@@ -71,6 +108,7 @@ async function request(url, options={}) {
   return payload;
 }
 function showLogin(){
+  clearWorkspaceBalances();
   $("app").classList.add("hidden");
   $("login-screen").classList.remove("hidden");
   $("password").value="";
@@ -187,6 +225,7 @@ async function refreshAll(){
       request("/api/trades?page=1&limit=5"),request("/api/live")
     ]);
     status=response;
+    updateWorkspaceBalances(response,live);
     renderOverview(response,performance.points||[],trades.items||[]);
     renderLiveView(live);
     if(activeView==="live-risk"&&document.activeElement&&!document.activeElement.closest("form"))

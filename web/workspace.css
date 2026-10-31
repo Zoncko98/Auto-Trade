@@ -198,3 +198,64 @@
   .workspace-tile {transition:none;}
   .workspace-tile:not(:disabled):hover {transform:none;}
 }
+
+/* Brand asset slots use only officially distributed/reviewed local assets.
+ * Other companies use original neutral navigation symbols until authorized. */
+.workspace-tile-icon svg {display:block;width:23px;height:23px;flex:none;}
+.workspace-tile-icon.logo-icon {
+  width:65px;
+  max-width:100%;
+  padding:3px;
+  background:transparent;
+  border-color:transparent;
+}
+.workspace-brand-logo {
+  display:block;
+  max-width:56px;
+  width:auto;
+  height:auto;
+  max-height:25px;
+  object-fit:contain;
+}
+.workspace-tile-balance {
+  display:block;
+  width:100%;
+  margin-top:5px;
+  padding:4px 5px;
+  border:1px solid #385a75;
+  border-radius:6px;
+  background:#112c42;
+  color:#d5e9fa;
+  font-size:10px;
+  font-weight:780;
+  line-height:1.3;
+  font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;
+}
+.workspace-tile:not(.is-active) .workspace-tile-balance {
+  background:#182a3b;
+}
+.workspace-tile .workspace-tile-balance[title^="No fresh"],
+.workspace-tile .workspace-tile-balance[title^="Sign in"],
+.workspace-tile .workspace-tile-balance[title^="Paper simulator balance unavailable"] {
+  color:#91a1b4;
+  font-size:9px;
+}
+.workspace-tile.is-coming-soon .workspace-brand-logo {
+  /* Filter only the disabled tile, not the source artwork itself. */
+  filter:grayscale(1) opacity(.6);
+}
+.workspace-tile:disabled {pointer-events:none;}
+@media (max-width:760px) {
+  .workspace-tile-icon svg {width:21px;height:21px;}
+  .workspace-tile-icon.logo-icon {width:41px;height:28px;margin-bottom:3px;padding:0;}
+  .workspace-brand-logo {max-width:40px;max-height:20px;}
+  .workspace-tile-balance {
+    padding:3px 1px;
+    margin-top:4px;
+    font-size:8px;
+    border-radius:5px;
+    letter-spacing:-.25px;
+    line-height:1.2;
+  }
+}

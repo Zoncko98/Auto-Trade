@@ -299,6 +299,7 @@ class Handler(BaseHTTPRequestHandler):
             "/brokers.js": ("brokers.js","text/javascript; charset=utf-8"),
             "/app.css": ("app.css", "text/css; charset=utf-8"),
             "/workspace.css": ("workspace.css", "text/css; charset=utf-8"),
+            "/assets/brands/alpaca-official-light.png": ("assets/brands/alpaca-official-light.png", "image/png"),
         }
         if path in assets:
             name, content_type = assets[path]

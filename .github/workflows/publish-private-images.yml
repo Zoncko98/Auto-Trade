@@ -43,10 +43,12 @@ jobs:
           python -m unittest discover -s app -p test_market_oauth.py -v
           python -m unittest discover -s app -p test_frontend_v2.py -v
           python -m unittest discover -s app -p test_workspace_tiles.py -v
+          python -m unittest discover -s app -p test_workspace_branding.py -v
           python -m unittest discover -s app -p test_https.py -v
           python -m unittest discover -s app -p test_update_checker.py -v
           python -m unittest discover -s ai-workstation -p test_model_monitor.py -v
           node --check web/app.js
+          node tests/test_workspace_balances.cjs
           node --check web/brokers.js
           node --check web/setup.js
           node --check web/forecast.js

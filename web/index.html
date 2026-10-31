@@ -39,37 +39,49 @@
     <div class="workspace-tile-grid" role="group" aria-label="Choose trading workspace">
       <button class="workspace-tile is-active" type="button" data-workspace="live" aria-pressed="true"
         aria-label="Open Charles Schwab live trading dashboard" title="Open Schwab live trading dashboard">
-        <span class="workspace-tile-icon schwab-icon" aria-hidden="true">◈</span>
+        <span class="workspace-tile-icon schwab-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-6 9 6"/><path d="M5 10v9m5-9v9m4-9v9m5-9v9M3 21h18"/></svg>
+        </span>
         <span class="workspace-tile-title">Schwab</span>
+        <span class="workspace-tile-balance" id="workspace-schwab-balance" aria-live="off">Balance unavailable</span>
         <span class="workspace-tile-status" id="workspace-schwab-status">LIVE ACCOUNT</span>
       </button>
       <button class="workspace-tile" type="button" data-workspace="paper" aria-pressed="false"
         aria-label="Open paper trading simulator" title="Open paper trading simulator">
-        <span class="workspace-tile-icon paper-icon" aria-hidden="true">◇</span>
+        <span class="workspace-tile-icon paper-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7V5a2 2 0 0 0-2-2H6a3 3 0 0 0 0 6h14"/><path d="M3 6v13a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1V10a1 1 0 0 0-1-1H6"/><path d="M16 14h5v4h-5a2 2 0 0 1 0-4Z"/></svg>
+        </span>
         <span class="workspace-tile-title">Paper</span>
+        <span class="workspace-tile-balance" id="workspace-paper-balance" aria-live="off">Balance unavailable</span>
         <span class="workspace-tile-status">SIMULATED</span>
       </button>
       <button class="workspace-tile is-coming-soon" type="button" data-workspace="webull"
         disabled aria-label="Webull, coming soon" title="Webull account integration coming soon">
-        <span class="workspace-tile-icon" aria-hidden="true">W</span>
+        <span class="workspace-tile-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 3 8-9"/><path d="M15 5h6v6"/></svg>
+        </span>
         <span class="workspace-tile-title">Webull</span>
         <span class="workspace-tile-status">COMING SOON</span>
       </button>
       <button class="workspace-tile is-coming-soon" type="button" data-workspace="robinhood_crypto"
         disabled aria-label="Robinhood, coming soon" title="Robinhood Crypto integration coming soon">
-        <span class="workspace-tile-icon" aria-hidden="true">R</span>
+        <span class="workspace-tile-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+        </span>
         <span class="workspace-tile-title">Robinhood</span>
         <span class="workspace-tile-status">COMING SOON</span>
       </button>
       <button class="workspace-tile is-coming-soon" type="button" data-workspace="alpaca"
         disabled aria-label="Alpaca, coming soon" title="Alpaca account integration coming soon">
-        <span class="workspace-tile-icon" aria-hidden="true">A</span>
+        <span class="workspace-tile-icon logo-icon alpaca-icon" aria-hidden="true"><img class="workspace-brand-logo" src="/assets/brands/alpaca-official-light.png" alt="" width="56" height="25" loading="lazy"></span>
         <span class="workspace-tile-title">Alpaca</span>
         <span class="workspace-tile-status">COMING SOON</span>
       </button>
       <button class="workspace-tile is-coming-soon" type="button" data-workspace="interactive_brokers"
         disabled aria-label="Interactive Brokers, coming soon" title="Interactive Brokers integration coming soon">
-        <span class="workspace-tile-icon" aria-hidden="true">IB</span>
+        <span class="workspace-tile-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+        </span>
         <span class="workspace-tile-title">IBKR</span>
         <span class="workspace-tile-status">COMING SOON</span>
       </button>
