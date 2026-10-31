@@ -42,3 +42,12 @@ Legacy `python3 -m unittest discover -s app` has known **pre-existing** issues: 
 4. Pin and audit dependencies; test architectures and container security/backup.
 5. Decide package format, image registry and platform UI install experiences.
 6. Keep the repository private until license and security decisions are complete.
+
+## v1.0.4 additions
+
+- **Synthetic tests:** OAuth companion validation and Schwab quote normalization/freshness.
+- **User consent pending:** ChatGPT browser OAuth and Gemini Google Cloud ADC interactive sign-in.
+- **Broker authorization pending:** near-real-time Schwab polling and authenticated UI quote monitoring.
+- **Not yet verified:** model calibration driven by real streaming quotes or OAuth model inference with a live third-party account.
+
+- **Forecast calibration monitoring:** daily out-of-sample scorecard records candidate quantiles before the next session, then compares them with later observed daily closes; 20+ samples required for descriptive coverage metric. Not a proven signal.

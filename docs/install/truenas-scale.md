@@ -21,7 +21,7 @@ mkdir -p /mnt/POOL/apps/auto-trader-src
 cd /mnt/POOL/apps/auto-trader-src
 
 # Private repo: requires approved GitHub SSH access.
-git clone --branch feature/truenas-portable-installer git@github.com:Zoncko98/Auto-Trade.git
+git clone --branch main https://github.com/Zoncko98/Auto-Trade.git
 cd Auto-Trade
 
 # Verify prerequisites before installing:
@@ -64,8 +64,3 @@ Official guide: https://apps.truenas.com/managing-apps/installing-custom-apps/
 Store state/config outside both the OS boot device and the Git checkout. Do not overwrite existing datasets; [back up and update carefully](../guides/operations.md). Avoid modifying a live trading container during installation tests.
 
 **Tested:** Existing TrueNAS v1.0.0 deployment and LAN forecast connection; portable Compose config and setup unit tests. **Not yet tested:** a complete clean TrueNAS installation and UI catalog packaging.
-
-
-## Update via the TrueNAS Apps UI (no shell on future releases)
-
-A separate image-based path is being tested for private GitHub Container Registry images. See [Private GHCR registry setup and TrueNAS YAML templates](../../deploy/truenas-apps/README.md). This requires a one-time registry login and carefully migrating each app while preserving state. The TrueNAS app registry image-update indicator is separate from the in-dashboard release notice.

@@ -1,0 +1,32 @@
+name: Auto Trader portable installer checks
+on:
+  push:
+    branches:
+      - main
+      - feature/truenas-portable-installer
+  pull_request:
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check Python source syntax
+        run: python -m compileall -q app installer ai-workstation ai-workstation
+      - name: Test portable installer and Compose
+        run: python -m unittest discover -s installer -v
+          python -m unittest discover -s app -p test_market_oauth.py -v
+          python -m unittest discover -s ai-workstation -p test_model_monitor.py -v
+      - name: Test existing frontend and control safeguards
+        run: python -m unittest discover -s app -p test_frontend_v2.py -v
+      - name: Build dashboard container without secrets
+        run: docker build -f deploy/Dockerfile.dashboard .
+      - name: Build optional live container without secrets
+        run: docker build -f deploy/Dockerfile.live .
+      - name: Build optional paper container without secrets
+        run: docker build -f deploy/Dockerfile.paper .

@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import ipaddress
+import ipaddress
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -32,10 +34,17 @@ OUTPUT_SCHEMA = {
 
 
 def _settings():
-    url = os.getenv("LOCAL_AI_URL", "http://192.168.1.21:11434").rstrip("/")
+    url = os.getenv("LOCAL_AI_URL", "http://local-ai:11434").rstrip("/")
     parsed = urlparse(url)
-    if parsed.scheme != "http" or parsed.hostname not in ("192.168.1.21",):
-        raise LocalAIUnavailable("Unrecognized local inference endpoint")
+    if parsed.scheme not in ("http","https") or not parsed.hostname or not parsed.port or parsed.username or parsed.password or parsed.path not in ("","/"):
+        raise LocalAIUnavailable("Invalid Ollama endpoint")
+    try:
+        addr=ipaddress.ip_address(parsed.hostname)
+        valid=addr.is_private or addr.is_loopback
+    except ValueError:
+        valid=parsed.hostname in ("localhost","local-ai","host.docker.internal") or parsed.hostname.endswith(".local")
+    if not valid:
+        raise LocalAIUnavailable("Ollama must use a private LAN endpoint")
     model = os.getenv("LOCAL_AI_MODEL", "qwen3.5:4b")
     selection=os.getenv("LOCAL_AI_SELECTION_FILE","/state/live/model_selection.json")
     try:

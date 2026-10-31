@@ -78,3 +78,8 @@ The TrueNAS **Source: N/A** field may stay that way: this remains a custom app, 
 - The Auto Trader internal Profile release notice remains an independent feature and will not directly control the TrueNAS image updater.
 
 Official references: [TrueNAS Apps settings](https://www.truenas.com/docs/scale/25.10/scaleuireference/apps/), [TrueNAS custom apps](https://apps.truenas.com/managing-apps/installing-custom-apps/), [GHCR auth](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+
+
+## Public release registry note
+
+The GitHub source can be public while earlier GHCR packages remain private. Once the repository is made public, check each GitHub Container Registry package's **Package settings** and change its visibility to Public if desired; this is a separate GitHub setting. Only then can TrueNAS pull without a registry token. Do not include brokerage keys or personal configuration when editing TrueNAS app YAML.

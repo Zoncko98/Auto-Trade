@@ -30,6 +30,7 @@ from live_extension import (read_live_risk,set_live_risk,validate_risk,read_deci
                             rows_from_live,excel_export)
 from profile_auth import verify as verify_profile_password, rotate as rotate_profile_password, revision as profile_revision, ProfileError
 from update_status import update_information, installed_version
+from broker_market_data import read_snapshot as broker_market_snapshot
 from dashboard_control import (
     MODES, checked_control, default_control, now_utc, read_control,
     validated_settings, write_atomic,
@@ -280,10 +281,23 @@ class Handler(BaseHTTPRequestHandler):
                     "password_change_enabled":True,"version":installed_version(APP_DIR)})
             if path == "/api/update":
                 return self._json(200, update_information(STATE_DIR,APP_DIR))
+            if path == "/api/research/market":
+                return self._json(200,broker_market_snapshot(STATE_DIR/"live"))
             if path in ("/api/research/forecast","/api/research/models"):
                 target = "/api/forecast" if path.endswith("forecast") else "/api/models"
                 try:
-                    req=Request("http://192.168.1.21:8766"+target,headers={"Accept":"application/json"})
+                    forecast_url=os.getenv("FORECAST_API_URL","").rstrip("/")
+                    if not forecast_url:return self._json(503,{"error":"Forecast service not configured"})
+                    parsed=urlparse(forecast_url)
+                    if parsed.scheme not in ("http","https") or not parsed.hostname or not parsed.port or parsed.path not in ("","/") or parsed.username or parsed.password:
+                        raise ValueError("Invalid forecast endpoint")
+                    from ipaddress import ip_address
+                    try:
+                        permitted=ip_address(parsed.hostname).is_private
+                    except ValueError:
+                        permitted=False
+                    if not permitted:raise ValueError("Forecast service must use private LAN IP")
+                    req=Request(forecast_url+target,headers={"Accept":"application/json"})
                     with urlopen(req,timeout=9) as response:
                         body=response.read(350001)
                     if len(body)>350000:

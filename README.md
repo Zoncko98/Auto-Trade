@@ -1,10 +1,10 @@
 # Auto Trader
 
-**Private development repository · self-hosted market research and experimental cash-only trading controls**
+**Open-source MIT-licensed repository · self-hosted market research and experimental cash-only trading controls**
 
 Auto Trader runs a web dashboard on a home server and optionally uses an external Ollama/AI workstation for market research. It can display a five-candidate **Next Trading Session Forecast**, source-linked financial news, research scenarios, model status, and unmet confirmations. **Forecasts are not verified trading signals or guarantees.**
 
-> **Repository status:** PRIVATE. The historical releases are preserved as immutable tags: [v1.0.3](https://github.com/Zoncko98/Auto-Trade/tree/v1.0.3) and [v0.9.0-beta](https://github.com/Zoncko98/Auto-Trade/tree/v0.9.0-beta). The portable installer is **v1.1.0-dev**, not a public production release. Don't point a fresh installation at the archived v1.0.0 Compose files: they include installation-specific addresses.
+> **Repository status:** public-release source prepared. The historical releases are preserved as immutable tags: [v1.0.0](https://github.com/Zoncko98/Auto-Trade/tree/v1.0.0) and [v0.9.0-beta](https://github.com/Zoncko98/Auto-Trade/tree/v0.9.0-beta). The portable installer is **v1.1.0-dev**, not a public production release. Don't point a fresh installation at the archived v1.0.0 Compose files: they include installation-specific addresses.
 
 ## Documentation navigation
 
@@ -53,8 +53,20 @@ The installer brings up **only the dashboard**, not the live-trader container. A
 
 No source or guide makes the repository public. A public release requires a license decision, credential review, fresh-install verification, container-image distribution decision and additional compatibility testing. **Do not expose the dashboard, Ollama API, or forecasting API directly to the public internet.**
 
+Profile password changes and release notifications are also included in v1.1.0-dev.
 
-[Profile, password rotation and private GitHub update checks](docs/guides/updates.md)
+
+## TrueNAS Apps native update integration
+
+[Private GHCR images and TrueNAS UI migration](deploy/truenas-apps/README.md) (development/testing only; private registry credentials required).
 
 
-**Native TrueNAS Apps image updates (private GHCR):** [registry setup, YAML templates, and upgrade instructions](deploy/truenas-apps/README.md). The repository and registry stay private, and the live worker is not upgraded automatically.
+The v1.0.3 registry images are at [the release](https://github.com/Zoncko98/Auto-Trade/tree/v1.0.3).
+
+
+## v1.0.4 — AI OAuth and broker market research
+
+- [OAuth AI companions, Ollama models, and broker quotes](docs/guides/oauth-providers.md).
+- [MIT License](LICENSE) and [security policy](SECURITY.md).
+
+Live OAuth consent and broker market entitlements require the end user. No AI account authorization can independently enable real-money trading.

@@ -77,3 +77,15 @@
 - Verified end-to-end cloud-AI adapters and stricter provider-specific validation.
 - Real-time broker market data integration for forecasts, model calibration and live inference monitoring.
 - Additional security audits, licensing and public-release readiness.
+
+
+## v1.0.4 — OAuth AI bridges, broker data monitoring and public-source preparation
+
+Merged portable installer and registry update setup with v1.0.3 release, and adding provider-specific OAuth + broker-market-data integration.
+
+- Added browser-based ChatGPT OAuth/OIDC companion using PKCE, token validation and independent plan authorization; user-consent test pending.
+- Added Google Cloud Gemini OAuth ADC companion, with stricter model and response validation.
+- Preserved Ollama remote endpoint and selectable model installation on the AI computer.
+- Added read-only Schwab quote collector with protected timestamped cache and live quote display in forecasts.
+- Added MIT licensing, public security guidance and full-history credential pattern scan of 218 objects (no matches).
+- No automatically authorized trades. Broker entitlements and OAuth real-account tests remain user-dependent.

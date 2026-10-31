@@ -23,14 +23,14 @@ Choose a **new empty** host data directory such as `/srv/auto-trader-data`. The 
 ```sh
 mkdir -p ~/apps
 cd ~/apps
-git clone --branch feature/truenas-portable-installer git@github.com:Zoncko98/Auto-Trade.git
+git clone --branch main https://github.com/Zoncko98/Auto-Trade.git
 cd Auto-Trade
 
 # Interactive wizard + dashboard build.
 sudo sh install.sh --platform docker
 ```
 
-The repository is private; the SSH clone requires an approved GitHub account/key. If Docker Engine is available to an unprivileged user, run without sudo **only if** the user can create and protect the chosen storage folder.
+When the repository visibility is Public, HTTPS cloning does not require GitHub credentials. If Docker Engine is available to an unprivileged user, run without sudo **only if** the user can create and protect the chosen storage folder.
 
 During the wizard, select:
 - Persistent data path (e.g. `/srv/auto-trader-data`), LAN host binding and HTTPS port (8765 default).

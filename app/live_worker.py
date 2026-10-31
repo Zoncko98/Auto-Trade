@@ -13,6 +13,7 @@ import os
 import re
 import tempfile
 import sys
+from urllib.parse import urlparse
 import time
 from datetime import datetime, timedelta, time as dtime, timezone
 from decimal import Decimal
@@ -100,8 +101,9 @@ def config():
         data[k] = v.strip()
     if not data.get("SCHWAB_APP_KEY") or not data.get("SCHWAB_APP_SECRET"):
         raise LiveBlocked("Schwab app credentials not installed")
-    if data.get("SCHWAB_CALLBACK_URL") != "https://127.0.0.1:8182":
-        raise LiveBlocked("Unexpected registered callback")
+    cb=urlparse(data.get("SCHWAB_CALLBACK_URL",""))
+    if cb.scheme!="https" or cb.hostname!="127.0.0.1" or not 1024<=int(cb.port or 0)<=65535 or cb.username or cb.password or cb.query or cb.fragment:
+        raise LiveBlocked("Schwab callback must be the registered local HTTPS redirect")
     private_file(TOKEN_PATH)
     return data
 

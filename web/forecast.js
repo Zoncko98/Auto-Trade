@@ -19,6 +19,7 @@ async function loadForecast(){
   if(!grid)return;
   message.textContent="Loading from external AI computer…";
   const data=await request("/api/research/forecast");
+  const live=await request("/api/research/market").catch(()=>({status:"unavailable"}));
   grid.replaceChildren();
   if(!Array.isArray(data.candidates)){
     message.textContent=data.message||"No completed forecast";
@@ -30,7 +31,12 @@ async function loadForecast(){
   const ok=Boolean(data.lightgbm_validation&&data.lightgbm_validation.beats_zero_return_baseline);
   overview.textContent=(ok?"LightGBM passed initial holdout, but remains experimental. ":
       "LightGBM did NOT beat its holdout baseline; predictions excluded from candidate ranking. ")+
-      (data.ranking_method||"")+" · "+data.symbols_with_data+" securities analyzed.";
+      (data.ranking_method||"")+" · "+data.symbols_with_data+" securities analyzed. "+
+      "Chronos retrospective scorecard: "+(data.model_calibration?.scored_predictions||0)+
+      " completed predictions; "+(data.model_calibration?.status||"not available")+
+      (data.model_calibration?.mean_absolute_log_return_error!=null?
+        "; mean absolute log-return error "+data.model_calibration.mean_absolute_log_return_error:"")+
+      ". Performance does not imply trade profitability.";
   data.candidates.forEach((item,i)=>{
     const card=forecastNode("div",null,"panel");
     card.style.margin="16px 0";card.style.padding="18px";
@@ -46,6 +52,14 @@ async function loadForecast(){
         ch.scenario_close_range.map(x=>money(x)).join(" / "):"Unavailable";
     addForecastRow(card,"Chronos-Bolt lower / median / upper scenario",range);
     addForecastRow(card,"FinBERT news sentiment",(item.finbert||{}).label||"Unavailable");
+    const q=live.status==="fresh" ? (live.symbols||{})[item.ticker] : null;
+    addForecastRow(card,"Schwab broker quote",
+      q&&q.last ? money(q.last)+" · bid "+money(q.bid||0)+" / ask "+money(q.ask||0):
+      "Not available or stale; no live entry confirmation");
+    if(q&&q.bid>0&&q.ask>=q.bid){
+      addForecastRow(card,"Broker observed bid/ask spread",
+        (((q.ask-q.bid)/q.bid)*100).toFixed(2)+"% · observed "+(live.observed_at||""));
+    }
     addForecastRow(card,"Above 20-session moving average",item.technical&&item.technical.above_sma20?"Yes":"No");
     const trade=item.entry_scenario||{};
     addForecastRow(card,"Illustrative entry reference",trade.reference_breakout==null?"—":money(trade.reference_breakout));

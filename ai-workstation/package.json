@@ -1,0 +1,13 @@
+{
+  "name": "auto-trader-ai-oauth-companion",
+  "version": "1.0.4",
+  "private": true,
+  "type": "module",
+  "description": "User-controlled OAuth research bridge for Auto Trader",
+  "dependencies": {
+    "jose": "6.2.14"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
