@@ -1,3 +1,13 @@
+## v1.0.9 — NAS-native market forecasts and selected-provider commentary
+
+- Implemented a no-extra-model NAS-native daily market analysis engine inside the single TrueNAS app, with genuine historical data feeds, eligibility screens, technical momentum/trend/volatility/liquidity calculations and illustrative historical-volatility bands.
+- Added a second public price-history feed fallback, dated persistent cache, background fetching and explicit incomplete/stale state. No speculative prices are generated when market data is absent.
+- Added Automatic, Built-in NAS and Advanced Workstation forecast modes. Existing specialist Chronos/LightGBM/FinBERT forecasting remains optional.
+- Added opt-in qualitative public-news interpretation using the user's already selected Ollama or ChatGPT/Gemini OAuth companion. The model cannot modify prices, scores or trading eligibility. Existing cloud OAuth requires a LAN companion; direct native cloud OAuth login is not implied.
+- Updated forecast UI to distinguish historical-volatility bands from advanced scenario quantiles, display relevant source/model, provider commentary when available, and helpful setup errors.
+- Continued the first-run wizard into Schwab OAuth onboarding, with optional skip. Included explicit forecast explanation, connection test, workstation setup and security guide.
+- Added no-AI, provider-schema, deterministic data and regression tests. No changes to brokerage trading permissions or live order logic.
+
 ## v1.0.8 — Schwab redirect copy-and-paste repair
 
 - Fixed incorrect callback mismatch errors when the developer-app callback is https://127.0.0.1:8182 but the browser adds the standard root slash and returns https://127.0.0.1:8182/?code=...&state=.... These root paths are equivalent for validating the returned redirect; the exact callback sent to Schwab remains unchanged.

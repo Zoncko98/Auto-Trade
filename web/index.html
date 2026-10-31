@@ -311,7 +311,18 @@
         <section class="panel"><div class="panel-heading"><div><h2>Next session candidate watchlist</h2>
           <p id="forecast-generated">Loading latest forecast…</p></div>
           <button class="btn secondary tiny" id="forecast-refresh" type="button">Refresh display</button></div>
-          <p class="panel-note" id="forecast-overview">Connecting to AI workstation.</p><div id="forecast-grid"></div>
+          <p class="panel-note" id="forecast-overview">Connecting to AI workstation.</p>
+          <p id="forecast-connection-state" role="status" class="panel-note">Checking research service connection…</p>
+          <p class="panel-note"><a href="/integrations.html#forecast-setup">Configure or test the forecast service</a> ·
+          <a target="_blank" rel="noopener noreferrer" href="https://github.com/Zoncko98/Auto-Trade/blob/main/docs/guides/forecast-research.md">Forecast installation guide</a></p>
+          <details class="panel" style="margin:14px 0;padding:18px">
+            <summary><strong>How are forecast candidates chosen, and what do the numbers mean?</strong></summary>
+            <p>Forecasting works natively on TrueNAS without a second AI computer. It scans a 24-symbol predefined universe using up to two years of daily historical prices and volume. Candidates need at least 180 historical bars, $5–$25 latest close, 200,000+ average daily shares over 20 sessions and recent market data.</p>
+            <p><strong>Built-in mode:</strong> daily returns, 5/20/50-session moving averages, 20-session volatility, relative volume, prior highs/lows, deterministic risk reference levels and a descriptive daily-volatility band. <strong>Selected AI provider:</strong> optional Ollama/ChatGPT/Gemini qualitative review of public headlines. <strong>Advanced mode:</strong> optional separate LightGBM, Chronos-Bolt and FinBERT. Source-linked news and unmet confirmations appear per candidate when available.</p>
+            <p>NAS-native analysis updates its dated research snapshot periodically. An optional advanced workstation uses its own model refresh schedule. Clicking Refresh display loads the latest available snapshot; it does not submit orders or retrain a specialized model. Quote spreads and live bid/ask checks are separately sourced from Schwab only when the read-only monitor is connected.</p>
+            <p><strong>Research only:</strong> ranked ideas and price scenarios are not calibrated profit probabilities or permission to submit live orders.</p>
+          </details>
+          <div id="forecast-grid"></div>
         </section>
       </section>
       <section class="view hidden" id="view-local">

@@ -31,7 +31,14 @@ from live_extension import (read_live_risk,set_live_risk,validate_risk,read_deci
 from profile_auth import verify as verify_profile_password, rotate as rotate_profile_password, revision as profile_revision, ProfileError
 from update_status import update_information, public_update_information, installed_version
 from broker_market_data import read_snapshot as broker_market_snapshot
+from forecast_engine import (forecast as selected_forecast,
+    connection as selected_forecast_connection, models as selected_forecast_models)
+from forecast_connection import (
+    ForecastConnectionError, connection_status as forecast_connection_status,
+    research_doc as forecast_research_doc, probe as forecast_probe,
+    resolve_url as forecast_resolve_url)
 from unified_config import (configured as app_configured, initialize as initialize_app,
+    credentials as app_credentials,
     public_summary as integration_summary, save as save_integrations,
     pairing_code as pairing_code_for_setup, settings as integration_settings,
     username as profile_username, SetupError)
@@ -333,32 +340,22 @@ class Handler(BaseHTTPRequestHandler):
                     if UNIFIED_APP else update_information(STATE_DIR,APP_DIR)))
             if path == "/api/research/market":
                 return self._json(200,broker_market_snapshot(STATE_DIR/"live"))
+            if UNIFIED_APP and path=="/api/research/forecast/connection":
+                return self._json(200,selected_forecast_connection(integration_settings(STATE_DIR)))
+            if UNIFIED_APP and path in ("/api/research/forecast","/api/research/models"):
+                cfg=integration_settings(STATE_DIR)
+                if path.endswith("models"):
+                    return self._json(200,selected_forecast_models(STATE_DIR,cfg,app_credentials(STATE_DIR)))
+                return self._json(200,selected_forecast(STATE_DIR,cfg,app_credentials(STATE_DIR)))
             if path in ("/api/research/forecast","/api/research/models"):
-                target = "/api/forecast" if path.endswith("forecast") else "/api/models"
+                # Historical split-container compatibility. New installs use
+                # the private-LAN research connector above.
+                target="/api/forecast" if path.endswith("forecast") else "/api/models"
                 try:
-                    forecast_url=(integration_settings(STATE_DIR).get("forecast_url","")
-                        if UNIFIED_APP else os.getenv("FORECAST_API_URL","")).rstrip("/")
-                    if not forecast_url:return self._json(503,{"error":"Forecast service not configured"})
-                    parsed=urlparse(forecast_url)
-                    if parsed.scheme not in ("http","https") or not parsed.hostname or not parsed.port or parsed.path not in ("","/") or parsed.username or parsed.password:
-                        raise ValueError("Invalid forecast endpoint")
-                    from ipaddress import ip_address
-                    try:
-                        permitted=ip_address(parsed.hostname).is_private
-                    except ValueError:
-                        permitted=False
-                    if not permitted:raise ValueError("Forecast service must use private LAN IP")
-                    req=Request(forecast_url+target,headers={"Accept":"application/json"})
-                    with urlopen(req,timeout=9) as response:
-                        body=response.read(350001)
-                    if len(body)>350000:
-                        raise ValueError("Research response too large")
-                    doc=json.loads(body)
-                    if not isinstance(doc,dict):
-                        raise ValueError("Invalid research data")
-                except (URLError,TimeoutError,OSError,ValueError,TypeError):
-                    return self._json(503,{"error":"AI workstation research service unavailable"})
-                return self._json(200,doc)
+                    url=os.getenv("FORECAST_API_URL","").rstrip("/")
+                    return self._json(200,forecast_research_doc({"forecast_url":url},target))
+                except ForecastConnectionError:
+                    return self._json(503,{"error":"Research workstation unavailable"})
             if path == "/api/live":
                 return self._json(200, live_state(STATE_DIR))
             if path == "/api/live/risk":
@@ -512,6 +509,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400,{"error":str(exc)[:180]})
             except Exception:
                 return self._json(503,{"error":"Unable to verify broker account; live trading remains disabled"})
+        if UNIFIED_APP and path == "/api/research/forecast/test":
+            try:
+                payload=self._body()
+                if set(payload)-{"forecast_url"} or not isinstance(payload.get("forecast_url",""),str):
+                    return self._json(400,{"error":"Invalid forecast test request"})
+                address=payload.get("forecast_url","").strip()
+                if not address:
+                    address,_=forecast_resolve_url(integration_settings(STATE_DIR))
+                if not address:
+                    return self._json(400,{"error":"Enter a forecast URL, or save an Ollama computer address first"})
+                return self._json(200,forecast_probe(address))
+            except ForecastConnectionError as exc:
+                return self._json(503,{"error":str(exc)[:170]})
         if UNIFIED_APP and path == "/api/integrations":
             try:
                 summary=save_integrations(STATE_DIR,self._body())

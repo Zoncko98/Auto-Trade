@@ -1,5 +1,11 @@
 # Auto Trader
 
+## v1.0.9 — Built-in forecast and optional selected AI provider
+
+Forecasting now works inside the single Auto Trader TrueNAS image, with no separate AI workstation or specialist model installation needed. Automatic mode uses an existing advanced service when available and otherwise computes historical-price technical research natively. The configured local or OAuth companion can optionally add public-news commentary without access to brokerage data.
+
+See docs/guides/forecast-research.md and CHANGELOG.md for calculations, source limitations and configuration.
+
 ## v1.0.8 Schwab callback hotfix
 
 Browser-generated root / in Schwab OAuth redirects no longer causes a false callback mismatch. See CHANGELOG.md and the TrueNAS install guide for details.

@@ -15,7 +15,9 @@ function values(){
     ai_provider:str("provider"),ollama_url:str("ollama"),ai_model:str("model"),
     oauth_bridge_url:str("oauth-url"),oauth_model:str("oauth-model"),
     oauth_bridge_token:field("oauth-token").value,
-    forecast_url:str("forecast"),schwab_app_key:str("schwab-key"),
+    forecast_url:str("forecast"),forecast_mode:str("forecast-mode"),
+    forecast_ai_review:field("forecast-ai-review").checked,
+    schwab_app_key:str("schwab-key"),
     schwab_app_secret:field("schwab-secret").value,
     schwab_callback_url:str("schwab-callback"),
     paper_enabled:field("paper").checked,
@@ -49,6 +51,49 @@ async function init(){
   const callbackHelp=document.getElementById("automatic-callback-url");
   if(callbackHelp)callbackHelp.textContent=location.origin+"/schwab/callback";
   providerUI();
+  const researchStatus=document.getElementById("forecast-test-status");
+  const researchHint=document.getElementById("forecast-connection-hint");
+  function updateResearchHint(){
+    try{
+      const ai=field("ollama").value.trim();
+      const url=field("forecast").value.trim();
+      if(url){researchHint.textContent="Using the manually entered forecast service URL.";return;}
+      const host=new URL(ai).hostname;
+      if(host && /^[0-9.]+$/.test(host))
+        researchHint.textContent="Automatic discovery will check http://"+host+":8766 when no URL is entered.";
+      else researchHint.textContent="Enter a forecast URL, or configure a private Ollama computer for automatic detection.";
+    }catch(_){researchHint.textContent="Set an Ollama endpoint or enter the forecast service URL."; }
+  }
+  field("ollama").addEventListener("input",updateResearchHint);
+  field("forecast").addEventListener("input",updateResearchHint);
+  updateResearchHint();
+  const researchTest=document.getElementById("test-forecast");
+  const forecastMode=field("forecast-mode");
+  if(forecastMode)forecastMode.addEventListener("change",()=>{
+    researchHint.textContent=forecastMode.value==="built_in"?
+      "Built-in research needs no external model service. Save this mode to use price/volume analysis directly.":
+      "Optional external specialist service is normally on port 8766. Built-in analysis is the automatic fallback.";
+  });
+  researchTest.disabled=firstRun;
+  if(researchTest)researchTest.addEventListener("click",async ()=>{
+    researchTest.disabled=true;researchStatus.textContent="Checking research service…";
+    try{
+      if(forecastMode.value==="built_in"){
+        researchStatus.textContent="Built-in forecast is available without a separate research workstation. Save settings and open Next session forecast to generate its first snapshot.";
+        return;
+      }
+      let url=field("forecast").value.trim();
+      if(!url && field("provider").value==="ollama"){
+        const host=new URL(field("ollama").value.trim()).hostname;
+        url="http://"+host+":8766";
+      }
+      const result=await api("/api/research/forecast/test",{
+        method:"POST",body:JSON.stringify({forecast_url:url})});
+      researchStatus.textContent="Connected — "+result.message+
+        (result.last_refresh?" · Last refresh: "+result.last_refresh:"");
+    }catch(e){researchStatus.textContent="Connection unavailable: "+e.message;}
+    finally{researchTest.disabled=false;}
+  });
   form.addEventListener("submit",async e=>{
     e.preventDefault();
     field("error").textContent="";
@@ -63,7 +108,17 @@ async function init(){
         data.admin_username=field("username").value.trim();
         data.admin_password=pass;
         await api("/api/setup/initialize",{method:"POST",body:JSON.stringify(data)});
-        location.href="/";
+        // Continue the same installation into Schwab OAuth without requiring
+        // the user to hunt for Profile after creating the administrator.
+        try {
+          await api("/api/login",{method:"POST",body:JSON.stringify({
+            username:data.admin_username,password:pass})});
+          location.href="/integrations.html?onboarding=1#schwab-onboarding";
+        } catch(_err) {
+          // Credentials are already saved; if auto sign-in is interrupted,
+          // use the normal sign-in form rather than attempting setup twice.
+          location.href="/";
+        }
       }else{
         await api("/api/integrations",{method:"POST",body:JSON.stringify(data)});
         field("oauth-token").value="";
@@ -74,16 +129,22 @@ async function init(){
     finally{btn.disabled=false;}
   });
   if(!firstRun){
+    if(new URLSearchParams(location.search).get("onboarding")==="1"){
+      const note=document.getElementById("onboarding-help");
+      if(note){note.classList.remove("hidden");note.textContent="Your administrator account is ready. To finish installation, connect Schwab below (or skip for now), then return to Auto Trader. AI and forecast connections are independent.";}
+    }
     try{
       csrf=(await api("/api/session")).csrf;
       const d=await api("/api/integrations");
       for(const [key,value] of Object.entries({
         provider:d.ai_provider,ollama:d.ollama_url,model:d.ai_model,
         "oauth-url":d.oauth_bridge_url,"oauth-model":d.oauth_model,
-        forecast:d.forecast_url,"schwab-key":d.schwab_app_key,
+        forecast:d.forecast_url,"forecast-mode":d.forecast_mode,
+        "schwab-key":d.schwab_app_key,
         "schwab-callback":d.schwab_callback_url,
         capital:d.paper_capital
       })){if(field(key)&&value!==undefined)field(key).value=value;}
+      field("forecast-ai-review").checked=!!d.forecast_ai_review;
       field("paper").checked=!!d.paper_enabled;
       field("market").checked=!!d.market_enabled;
       providerUI();

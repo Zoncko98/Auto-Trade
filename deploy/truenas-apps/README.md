@@ -44,3 +44,8 @@ Native TrueNAS: Custom YAML apps show Source: N/A because their catalog metadata
 For a registered callback of https://127.0.0.1:8182 (without a slash), browsers can display https://127.0.0.1:8182/?code=...&state=... (with a slash). Earlier releases incorrectly called this a mismatch. v1.0.8 accepts these two ROOT-path forms as equivalent when processing the redirect, without changing the exact registered URL sent to Schwab. Scheme, host, port, state and non-root paths must still match. Start a fresh authorization after updating, since old OAuth codes may expire.
 
 If the app reports a real mismatch, it now shows the expected versus received callback BASE addresses without one-time authorization codes. Confirm the expected address exactly matches the callback registered at https://developer.schwab.com/ . Auto Trader cannot inspect the Schwab developer portal registration on your behalf. If Schwab reports invalid_client before redirecting, its developer app may be configured differently or not yet Ready For Use.
+
+
+## v1.0.9 NAS-only forecasting
+
+Built-in forecasting needs only the one Auto Trader app and outbound historical price feeds; no separate model installation or TrueNAS app. The installer provides Automatic, Built-in NAS and optional Advanced Workstation modes, plus a selected AI public-news review checkbox. Current cloud OAuth connectors still require their authorized companion. See ../../docs/guides/forecast-research.md.

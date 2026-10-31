@@ -34,8 +34,35 @@
     <label for="setup-oauth-token">Connection token (24+ characters, stored privately)</label>
     <input id="setup-oauth-token" type="password" autocomplete="new-password">
   </div>
-  <label for="setup-forecast">Forecast service URL (optional)</label>
-  <input id="setup-forecast" type="url" placeholder="http://192.168.1.21:8770">
+  <section id="forecast-setup" style="margin:20px 0;padding:16px;border:1px solid #36516e;border-radius:12px">
+    <h2>Forecast research — built into Auto Trader</h2>
+    <p class="panel-note"><strong>No additional forecasting software required.</strong> Auto Trader calculates technical indicators from dated public market data inside this TrueNAS container. Optionally use your already-connected Ollama or cloud OAuth AI to review public financial headlines. Advanced specialist models on another computer remain optional.</p>
+    <label for="setup-forecast-mode">Forecast analysis mode</label>
+    <select id="setup-forecast-mode">
+      <option value="auto">Automatic — advanced service when connected; otherwise built-in analysis</option>
+      <option value="built_in">Built-in NAS analysis — no separate models or workstation</option>
+      <option value="advanced">Prefer advanced Chronos / LightGBM / FinBERT workstation</option>
+    </select>
+    <label><input type="checkbox" id="setup-forecast-ai-review"> Add public-news review using my selected AI provider</label>
+    <p class="panel-note">Optional: sends only public, dated financial headlines to your configured Ollama/ChatGPT/Gemini connection. Never sends Schwab account details, holdings, passwords or orders. AI reviews are qualitative; prices and indicators are always calculated from market data.</p>
+    <p class="panel-note">Built-in mode uses historical price and volume data directly, and does not need a forecast URL. The separate advanced research companion (optional) normally uses port <strong>8766</strong>, not the Ollama chat API port 11434. When using Automatic mode, a configured specialist service takes priority and built-in analysis is the fallback.</p>
+    <label for="setup-forecast">Forecast service URL (optional override)</label>
+    <input id="setup-forecast" type="url" placeholder="http://YOUR_AI_COMPUTER_IP:8766">
+    <p id="forecast-connection-hint" class="panel-note">Built-in mode works on TrueNAS with no extra installation. The separate advanced service is optional.</p>
+    <button class="btn secondary" id="test-forecast" type="button">Test forecast connection</button>
+    <p id="forecast-test-status" role="status" class="panel-note">Connection test is available after creating the administrator account.</p>
+    <details><summary>What does the forecast analyze?</summary>
+      <p>The NAS-native analysis screens a fixed 24-stock research universe using up to two years of daily prices and volume, latest close <strong>$5–$25</strong>, 20-session average volume <strong>200,000+ shares</strong>, sufficient bars and recent data. It scores momentum, trend, relative volume and volatility using reproducible formulas. Its historical-volatility band is an illustrative range, not a calibrated prediction.</p>
+      <p>Inputs include daily returns, 5/20/50-session trend comparisons, 10/30-session volatility, relative volume, recent highs and lows, and timestamped financial-news headlines.</p>
+      <p><strong>Selected AI provider:</strong> when enabled, reviews source-dated public headlines for sentiment, catalysts and downside risks only. <strong>Optional advanced mode:</strong> LightGBM checks a return estimate against chronological holdout, Chronos-Bolt displays scenario quantiles and FinBERT classifies headline sentiment. Neither cloud nor local AI is permitted to fabricate historical measurements or trigger orders.</p>
+      <p>Built-in analyses refresh periodically on the NAS and preserve their last completed dated snapshot. The advanced AI computer runs on its separate scheduled refresh. Neither mode produces executable prices, calibrated profitability predictions or broker-order authorization.</p>
+    </details>
+    <details><summary>How to install or troubleshoot the forecast service</summary>
+      <p><strong>Most users can skip this.</strong> Built-in forecasting requires only the Auto Trader app and outbound access to supported historical market-data feeds. For advanced models, install Python 3.12 on a separate machine, download the repository's <code>ai-workstation</code> requirements and run <code>forecast_service.py</code>. Model weights stay on that machine.</p>
+      <p>Set the AI computer's <code>AUTOTRADER_AI_BIND</code> to its private LAN IP and <code>AUTOTRADER_AI_PORT</code> to <code>8766</code>. Restrict the Windows firewall port to your TrueNAS address. Verify <code>http://AI_COMPUTER_IP:8766/health</code> and then click Test forecast connection. The forecast endpoint is <code>/api/forecast</code>; the dashboard URL field should contain only the host and port.</p>
+      <p><a target="_blank" rel="noopener noreferrer" href="https://github.com/Zoncko98/Auto-Trade/blob/main/docs/guides/forecast-research.md">Full forecast installation guide, sources and model explanations</a></p>
+    </details>
+  </section>
   <h2 style="margin-top:22px">Schwab developer connection</h2>
   <p>Use your Schwab Developer app key and secret. After installation, click “Connect Schwab account” and sign in at Schwab's website. Never enter your brokerage password here.</p>
   <label for="setup-schwab-key">Schwab developer app key</label>
@@ -54,7 +81,7 @@
   <label><input type="checkbox" id="setup-market"> Monitor live Schwab quotes (read-only)</label>
   <p class="panel-note">Checks broker bid/ask prices to support forecasts. Requires a connected Schwab account, but never buys or sells shares. This is independent from paper simulation and real-money trading.</p>
   <p class="login-disclaimer">Live broker orders remain disabled. You can change connections later from Profile → Integrations.</p>
-  <section style="margin:24px 0;padding:18px;border:1px solid #3f5367;border-radius:12px">
+  <section id="schwab-onboarding" style="margin:24px 0;padding:18px;border:1px solid #3f5367;border-radius:12px">
     <h2>Connect your Schwab account</h2>
     <p id="schwab-status">Checking Schwab OAuth status</p>
     <p>Save your Schwab developer settings first. Then sign in on the official Schwab site. If using the loopback callback, a browser connection error is normal: copy the entire redirected URL from the browser address bar and paste it below. If you registered the NAS callback, Auto Trader finishes automatically.</p>
@@ -80,4 +107,5 @@
   <p id="setup-error" role="alert" class="form-error"></p>
   <button class="btn primary full" id="setup-submit" type="submit">Save connection settings</button>
   <p><a href="/">← Back to Auto Trader</a></p>
+  <p id="onboarding-help" class="panel-note hidden">Your administrator account is ready. Next, save any remaining connections, then select Generate Schwab authorization link below to connect your broker using Schwab's website. You can also finish these optional steps later.</p>
 </form></section></main></body></html>

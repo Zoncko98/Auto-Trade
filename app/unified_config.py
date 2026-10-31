@@ -7,7 +7,8 @@ from profile_auth import rotate as set_initial_password, revision as profile_rev
 
 PUBLIC_FIELDS=("ai_provider","ollama_url","ai_model","oauth_bridge_url",
                "oauth_model","schwab_app_key","schwab_callback_url",
-               "paper_enabled","market_enabled","paper_capital","forecast_url")
+               "paper_enabled","market_enabled","paper_capital","forecast_url",
+               "forecast_mode","forecast_ai_review")
 SECRET_FIELDS=("schwab_app_secret","oauth_bridge_token")
 PROVIDERS=("ollama","chatgpt-oauth","gemini-oauth","none")
 MODELS_RE=re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}$")
@@ -15,7 +16,8 @@ DEFAULTS={"ai_provider":"ollama","ollama_url":"","ai_model":"qwen3.5:4b",
           "oauth_bridge_url":"","oauth_model":"","schwab_app_key":"",
           "schwab_callback_url":"https://127.0.0.1:8182",
           "paper_enabled":False,"market_enabled":False,"paper_capital":100.0,
-          "forecast_url":"","live_enabled":False,"live_confirmed":False,
+          "forecast_url":"","forecast_mode":"auto","forecast_ai_review":False,
+          "live_enabled":False,"live_confirmed":False,
           "live_account_hash":""}
 
 class SetupError(ValueError): pass
@@ -127,6 +129,8 @@ def validate(payload,current,old_secrets):
                 raise SetupError("Invalid secret format")
             secrets_doc[key]=value
     if result["ai_provider"] not in PROVIDERS:raise SetupError("Unsupported AI provider")
+    if result["forecast_mode"] not in ("auto","built_in","advanced"):
+        raise SetupError("Select automatic, built-in, or advanced forecasting")
     if result["ollama_url"]:result["ollama_url"]=private_url(result["ollama_url"])
     if result["oauth_bridge_url"]:result["oauth_bridge_url"]=private_url(result["oauth_bridge_url"])
     if result["forecast_url"]:result["forecast_url"]=private_url(result["forecast_url"])
@@ -153,7 +157,7 @@ def validate(payload,current,old_secrets):
             permitted=False
         if not permitted or callback.path!="/schwab/callback":
             raise SetupError("For an automatic callback use https://PRIVATE_NAS_IP:PORT/schwab/callback, registered exactly at Schwab")
-    for key in ("paper_enabled","market_enabled"):
+    for key in ("paper_enabled","market_enabled","forecast_ai_review"):
         if type(result[key]) is not bool:raise SetupError("Invalid service enable option")
     if type(result["paper_capital"]) not in (float,int) or not 1<=result["paper_capital"]<=100000:
         raise SetupError("Invalid paper trading capital")
