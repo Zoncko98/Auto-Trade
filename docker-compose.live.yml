@@ -1,0 +1,46 @@
+services:
+  live-trader:
+    build:
+      context: /mnt/Home/trading-bot/app
+      dockerfile: Dockerfile.live
+    container_name: trading-live
+    restart: "no"
+    init: true
+    env_file:
+      - /mnt/Home/trading-bot/config/live.env
+    environment:
+      SCHWAB_ENV_FILE: /run/secrets/schwab.env
+      SCHWAB_TOKEN_FILE: /state/schwab_token.json
+      LIVE_STATE_DIR: /state/live
+      AI_PROVIDER: local
+      LOCAL_AI_URL: http://local-ai:11434
+      LOCAL_AI_MODEL: qwen2.5:1.5b
+    volumes:
+      - /mnt/Home/trading-bot/config/schwab.env:/run/secrets/schwab.env:ro
+      - /mnt/Home/trading-bot/state/schwab_token.json:/state/schwab_token.json
+      - /mnt/Home/trading-bot/state/live:/state/live
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+  local-ai:
+    image: ollama/ollama:latest
+    container_name: trading-local-ai
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_NO_CLOUD: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_CONTEXT_LENGTH: "2048"
+      OLLAMA_KEEP_ALIVE: "0"
+    volumes:
+      - /mnt/Home/trading-bot/models/ollama:/root/.ollama
+    mem_limit: 2500m
+    cpus: "2.0"
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true

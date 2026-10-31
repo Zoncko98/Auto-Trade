@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<title>Auto Trader · Schwab Live Command Center</title>
+<link rel="stylesheet" href="/app.css">
+<script defer src="/app.js"></script>
+<script defer src="/local.js"></script>
+</head>
+<body>
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="brand-mark big">◈</div>
+    <p class="eyebrow">TRUENAS · PRIVATE DASHBOARD</p>
+    <h1>Auto Trader</h1>
+    <p class="login-subtitle">Your private Schwab trading dashboard with local AI research.</p>
+    <form id="login-form">
+      <label for="password">Dashboard access password</label>
+      <input id="password" type="password" autocomplete="current-password" required placeholder="Enter your dashboard password">
+      <button class="btn primary full" type="submit">Sign in <span>→</span></button>
+      <p id="login-error" class="form-error" role="alert"></p>
+    </form>
+    <p class="login-disclaimer">Live orders require explicit activation. Trading can lose money.</p>
+  </div>
+</div>
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="side-brand"><span class="brand-mark">◈</span><div><strong>Auto Trader</strong><small>TRUE NAS · LOCAL AI</small></div></div>
+    <div class="workspace-label">WORKSPACE</div>
+    <nav class="side-nav" aria-label="Main navigation">
+      <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Schwab live <span id="live-nav-count" class="nav-counter">0</span></button>
+      <button class="nav-item" data-view="local"><span class="nav-icon">✧</span> Local AI models</button>
+      <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper simulator</button>
+      <button class="nav-item" data-view="trades"><span class="nav-icon">⇄</span> Paper trades <span id="trade-count-nav" class="nav-counter">0</span></button>
+      <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
+      <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="guard-title"><span class="live-dot"></span> SYSTEM SAFEGUARDS</div>
+      <div class="side-safety"><span>Schwab live worker</span><strong id="side-live-status">OFF</strong></div>
+      <div class="side-safety"><span>Margin / options / shorts</span><strong>OFF</strong></div>
+      <div class="side-safety"><span>Local AI buy filter</span><strong>ON</strong></div>
+      <p>Only the Schwab worker can place real orders. The dashboard never submits a trade.</p>
+    </div>
+  </aside>
+  <div class="main-shell">
+    <header class="topbar">
+      <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb">Schwab live</strong></div>
+      <div class="top-actions">
+        <span id="live-mode-banner" class="paper-label">LIVE WORKER NOT ARMED</span>
+        <span id="server-pill" class="status-pill"><span class="live-dot"></span> Checking server</span>
+        <button id="refresh-btn" class="icon-button" aria-label="Refresh dashboard" title="Refresh">↻</button>
+        <button id="logout-btn" class="icon-button" aria-label="Log out" title="Log out">⎋</button>
+      </div>
+    </header>
+    <main class="content">
+      <div id="toast" class="toast hidden" role="status"></div>
+      <section class="view" id="view-live">
+        <div class="hero-head">
+          <div>
+            <p class="eyebrow">CHARLES SCHWAB · AUTONOMOUS TRADING</p>
+            <h1>Live account</h1>
+            <p class="muted">Your actual brokerage worker, existing SPYD holdings, real order journal, and local AI decision rationale.</p>
+          </div>
+          <div class="control-panel">
+            <div class="control-caption">LIVE ORDER PERMISSION <span id="live-worker-mode" class="mode-tag stopped">Not armed</span></div>
+            <div class="control-buttons">
+              <button class="btn primary" id="live-resume-btn" disabled>▶ Allow orders</button>
+              <button class="btn danger-outline" id="live-pause-btn" disabled>Ⅱ Pause orders</button>
+            </div>
+            <p class="panel-note" style="margin:8px 0 0">These controls pause or resume order submission on the next worker cycle; they do not start the Docker container.</p>
+          </div>
+        </div>
+        <div class="notice neutral" id="live-warning">
+          <span class="notice-icon">ⓘ</span>
+          <div><strong id="live-warning-title">Checking the live worker</strong>
+          <p id="live-warning-text">Brokerage trades remain disabled until the worker is explicitly activated.</p></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-top">BROKERAGE EQUITY <span class="stat-icon">◈</span></div><strong id="live-equity">—</strong><small id="live-snapshot-age">No recent broker snapshot</small></div>
+          <div class="stat-card"><div class="stat-top">CASH ONLY <span class="stat-icon">◉</span></div><strong id="live-cash">—</strong><small>Conservative verified cash, not margin buying power</small></div>
+          <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="live-holdings">—</strong><small id="live-holdings-detail">Awaiting broker positions</small></div>
+          <div class="stat-card"><div class="stat-top">BROKER ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="live-order-total">0</strong><small>Confirmed and pending worker journal entries</small></div>
+        </div>
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-heading"><div><h2>Execution status</h2><p>Real Schwab worker; distinct from the paper simulator</p></div><span id="live-execution-pill" class="time-label">NOT ARMED</span></div>
+            <div class="readiness-item"><span>Local inference</span><strong id="live-local-inference">Checking…</strong></div>
+            <div class="readiness-item"><span>Current model</span><strong id="live-current-model">qwen2.5:1.5b</strong></div>
+            <div class="readiness-item"><span>Order submission permission</span><strong id="live-order-permission">Paused</strong></div>
+            <div class="readiness-item"><span>Last worker heartbeat</span><strong id="live-heartbeat">Unavailable</strong></div>
+            <div class="readiness-item"><span>Trading instruments</span><strong>Cash-funded equities &amp; ETFs</strong></div>
+            <div class="readiness-item"><span>Settlement and duplicate guards</span><strong>Required</strong></div>
+            <p class="panel-note">A positive AI sentiment score is not a calibrated probability of profit. The $1/day goal is a target, not a guarantee.</p>
+          </section>
+          <section class="panel">
+            <div class="panel-heading"><div><h2>Investment operation</h2><p>One Schwab account, with SPYD as opening inventory</p></div></div>
+            <div class="readiness-item"><span>Initial holding</span><strong>2 SPYD shares</strong></div>
+            <div class="readiness-item"><span>First intended order</span><strong>Limit SELL during market hours</strong></div>
+            <div class="readiness-item"><span>Future candidates</span><strong>Live price, volume, trend and dated news</strong></div>
+            <div class="readiness-item"><span>Model provider</span><strong>TrueNAS local Ollama</strong></div>
+            <div class="readiness-item"><span>Cloud inference fees</span><strong>$0 per local request</strong></div>
+            <div class="readiness-item"><span>Control center</span><button class="btn secondary tiny" data-view="local">Choose local model</button></div>
+            <p class="panel-note">The existing investment is not separated from the automated account. No forced purchase is made when the strategy lacks a qualifying signal.</p>
+          </section>
+        </div>
+        <div class="panel list-panel">
+          <div class="panel-heading"><div><h2>Real Schwab order journal</h2><p>Pending, accepted, filled, canceled and rejected orders; why each was initiated</p></div><span class="time-label">LIVE BROKERAGE</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Created (UTC)</th><th>Symbol</th><th>Action</th><th>Shares</th><th>Limit</th><th>Broker state</th><th>Decision rationale</th></tr></thead><tbody id="live-orders-table"><tr><td colspan="7" class="empty-row">No live orders have been submitted.</td></tr></tbody></table></div>
+          <div id="live-order-count-note" class="panel-note">Awaiting journal records.</div>
+        </div>
+      </section>
+      <section class="view hidden" id="view-overview">
+        <div class="hero-head">
+          <div>
+            <p class="eyebrow">TRADING CONTROL CENTER</p>
+            <h1>Portfolio overview</h1>
+            <p class="muted">Paper simulator only. Switch to Schwab live for real brokerage orders and cash.</p>
+          </div>
+          <div class="control-panel">
+            <div class="control-caption">STRATEGY CONTROL <span id="mode-pill" class="mode-tag">Stopped</span></div>
+            <div class="control-buttons">
+              <button id="start-btn" data-mode="running" class="btn primary"><span>▶</span> Start</button>
+              <button id="pause-btn" data-mode="paused" class="btn secondary"><span>Ⅱ</span> Pause</button>
+              <button id="stop-btn" data-mode="stopped" class="btn danger-outline"><span>■</span> Stop</button>
+            </div>
+          </div>
+        </div>
+        <div id="data-warning" class="notice"><span class="notice-icon">ⓘ</span><div><strong>No live market feed connected</strong><p>The monitor can run, but trades require timestamped market prices. AI approvals also require a configured model.</p></div></div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-top"><span>Paper portfolio value</span><span class="stat-icon">◈</span></div><strong id="stat-equity">$100.00</strong><small id="stat-equity-desc">Starting simulated balance</small></div>
+          <div class="stat-card"><div class="stat-top"><span>Available trading cash</span><span class="stat-icon">◉</span></div><strong id="stat-cash">$100.00</strong><small id="stat-cash-desc">Before allocation limit</small></div>
+          <div class="stat-card"><div class="stat-top"><span>Realized P&L</span><span class="stat-icon">↗</span></div><strong id="stat-pnl">$0.00</strong><small id="stat-unrealized">Unrealized $0.00</small></div>
+          <div class="stat-card"><div class="stat-top"><span>Total paper trades</span><span class="stat-icon">⇄</span></div><strong id="stat-trades">0</strong><small id="stat-reviews">0 AI evaluations recorded</small></div>
+        </div>
+        <div class="content-grid">
+          <section class="panel chart-panel">
+            <div class="panel-heading"><div><h2>Equity performance</h2><p>Paper account value, not live brokerage performance</p></div><span class="time-label">HISTORY</span></div>
+            <div class="chart-value" id="chart-value">$100.00 <small>Current equity</small></div>
+            <div id="equity-chart" class="chart-holder" aria-label="Paper portfolio equity chart"></div>
+            <div class="chart-bottom"><span>Earliest recorded</span><span>Latest</span></div>
+          </section>
+          <section class="panel allocations-panel">
+            <div class="panel-heading"><div><h2>Capital allocation</h2><p>Your current spending limits</p></div><button class="text-link" data-view="settings">Edit →</button></div>
+            <div class="allocation-numbers"><strong id="alloc-available">$100.00</strong><small>Trading cash available</small></div>
+            <div class="progress-title"><span>Deployable cash</span><strong id="alloc-pct">100%</strong></div>
+            <div class="progress-rail"><div id="alloc-bar" class="progress-fill"></div></div>
+            <div class="allocation-row"><span>Per-entry allocation budget</span><strong id="alloc-budget">$25.00</strong></div>
+            <div class="allocation-row"><span>Reserved realized profits</span><strong id="alloc-reserve">$0.00</strong></div>
+            <div class="allocation-row"><span>Daily loss threshold</span><strong id="alloc-loss">$5.00</strong></div>
+            <div class="allocation-row"><span>Profit reinvestment</span><strong id="alloc-reinvest">100%</strong></div>
+            <p class="panel-note">The daily-loss limit prevents new entries after a threshold; it is not a guaranteed stop-loss.</p>
+          </section>
+        </div>
+        <div class="content-grid lower-grid">
+          <section class="panel">
+            <div class="panel-heading"><div><h2>Recent trade activity</h2><p>Executed simulated entries and exits</p></div><button class="text-link" data-view="trades">View all →</button></div>
+            <div class="table-wrap"><table><thead><tr><th>Asset</th><th>Action</th><th>Value</th><th>Reason</th></tr></thead><tbody id="recent-trades"></tbody></table></div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading"><div><h2>Open positions</h2><p>Current simulated holdings</p></div><span class="time-label">PAPER</span></div>
+            <div id="positions-list" class="positions-list"></div>
+          </section>
+        </div>
+        <div class="footer-note">This page is the separate paper simulation. Go to Schwab live for real-money account status, orders and rationale.</div>
+      </section>
+      <section class="view hidden" id="view-trades">
+        <div class="page-header"><div><p class="eyebrow">TRANSACTION AUDIT</p><h1>Trade history</h1><p class="muted">Every executed paper trade with its strategy rationale and AI approval.</p></div><button id="export-trades" class="btn secondary">↓ Export all trades</button></div>
+        <div class="panel list-panel">
+          <div class="panel-heading"><div><h2>Execution log</h2><p id="trades-total">Loading...</p></div><span class="paper-label">SIMULATED FILLS</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date & time (UTC)</th><th>Asset</th><th>Action</th><th>Quantity</th><th>Price</th><th>Realized P&L</th><th>Why this trade?</th></tr></thead><tbody id="trades-table"></tbody></table></div>
+          <div class="pager"><button id="trades-prev" class="btn secondary tiny">← Previous</button><span id="trades-page">Page 1</span><button id="trades-next" class="btn secondary tiny">Next →</button></div>
+        </div>
+      </section>
+      <section class="view hidden" id="view-reviews">
+        <div class="page-header"><div><p class="eyebrow">PRE-TRADE INTELLIGENCE</p><h1>AI decision history</h1><p class="muted">Every evaluated paper-buy candidate, including rejected opportunities and reasons.</p></div></div>
+        <div class="notice neutral"><span class="notice-icon">✧</span><div><strong>AI is a veto, not the decision-maker</strong><p>Strategy and hard risk checks generate the candidate; AI can only approve or reject it. An offline model always rejects.</p></div></div>
+        <div class="panel list-panel">
+          <div class="panel-heading"><div><h2>Evaluation audit</h2><p id="reviews-total">Loading...</p></div><span class="time-label">ALL REVIEWS</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Date & time (UTC)</th><th>Asset</th><th>Decision</th><th>Candidate</th><th>Model</th><th>Reason / flags</th></tr></thead><tbody id="reviews-table"></tbody></table></div>
+          <div class="pager"><button id="reviews-prev" class="btn secondary tiny">← Previous</button><span id="reviews-page">Page 1</span><button id="reviews-next" class="btn secondary tiny">Next →</button></div>
+        </div>
+      </section>
+      <section class="view hidden" id="view-local">
+        <div class="page-header">
+          <div><p class="eyebrow">PRIVATE NAS INFERENCE</p><h1>Installed local AI models</h1>
+          <p class="muted">Choose from the small models actually downloaded to TrueNAS Ollama, which powers the Auto Trader news filter and can also be connected to Open WebUI.</p></div>
+          <span class="paper-label">NO CLOUD API KEYS</span>
+        </div>
+        <div class="notice neutral"><span class="notice-icon">✧</span><div><strong>No OpenAI, Gemini, Anthropic or Copilot providers here</strong><p>Only local Ollama models installed on the NAS appear in this dropdown. Open WebUI remains available separately; its cloud model list is not used for trading.</p></div></div>
+        <section class="panel" style="max-width:800px">
+          <div class="panel-heading"><div><h2>News research model</h2><p>New selection takes effect on the worker's next AI evaluation. The bot remains autonomous.</p></div><span class="time-label">LOCAL ONLY</span></div>
+          <form id="local-model-form" class="settings-layout" style="display:block">
+            <label for="local-model-select">Installed models</label>
+            <select id="local-model-select" required class="model-select"><option value="">Checking TrueNAS…</option></select>
+            <p id="local-model-details" class="panel-note">Detecting installed models and memory compatibility.</p>
+            <div class="settings-submit"><p id="local-model-message" role="status"></p><button id="local-model-save" class="btn primary" type="submit">Use selected model</button></div>
+          </form>
+          <div class="divider"></div>
+          <div class="readiness-item"><span>Model service</span><strong id="local-server-status">Checking</strong></div>
+          <div class="readiness-item"><span>Active selection</span><strong id="local-saved-model">—</strong></div>
+          <div class="readiness-item"><span>Resource ceiling</span><strong>2 CPU cores · 2.5 GB RAM</strong></div>
+          <div class="readiness-item"><span>AI role</span><strong>Public news classification and buy filtering</strong></div>
+          <p class="panel-note">Larger downloaded models may appear disabled because they exceed this NAS's conservative resource limit. No model is guaranteed to predict profitable trades.</p>
+        </section>
+      </section>
+      <section class="view hidden" id="view-settings">
+        <div class="page-header"><div><p class="eyebrow">CONFIGURATION</p><h1>Risk & capital settings</h1><p class="muted">Adjust virtual capital exposure and risk checks without restarting the monitor.</p></div><span class="paper-label">PAPER ACCOUNT ONLY</span></div>
+        <form id="settings-form" class="settings-layout">
+          <section class="panel settings-main">
+            <div class="panel-heading"><div><h2>Capital deployment</h2><p>Controls how much of your available virtual cash may be spent</p></div></div>
+            <div class="setting-item"><div><label for="allocation_pct">Available cash allocation</label><p>Percentage of spendable paper cash eligible for one new position.</p></div><div class="setting-control"><input type="number" id="allocation_pct" min="0" max="100" step="1" required><span>%</span></div></div>
+            <div class="setting-item"><div><label for="max_order_usd">Maximum dollars per order</label><p>Additional per-entry dollar cap. Set to 0 for no extra dollar cap.</p></div><div class="setting-control"><span>$</span><input type="number" id="max_order_usd" min="0" max="10000" step="0.01" required></div></div>
+            <div class="setting-item"><div><label for="reinvest_pct">Reinvest realized profits</label><p>Profits from future profitable exits: percentage returned to trading cash. The remainder becomes a paper reserve.</p></div><div class="setting-control"><input type="number" id="reinvest_pct" min="0" max="100" step="1" required><span>%</span></div></div>
+            <div class="panel-heading separator"><div><h2>Risk controls</h2><p>Hard limits applied before the AI sees a proposed entry</p></div></div>
+            <div class="setting-item"><div><label for="max_position_pct">Maximum position size</label><p>Maximum notional value of one position as a share of total paper equity.</p></div><div class="setting-control"><input type="number" id="max_position_pct" min="0.1" max="50" step="0.1" required><span>%</span></div></div>
+            <div class="setting-item"><div><label for="max_daily_loss">Daily loss threshold</label><p>Halt new entries once paper equity declines this amount from the day's reference.</p></div><div class="setting-control"><span>$</span><input type="number" id="max_daily_loss" min="0.01" max="10000" step="0.01" required></div></div>
+            <div class="setting-item"><div><label for="max_open_positions">Maximum concurrent positions</label><p>Limits the number of simultaneous simulated holdings.</p></div><div class="setting-control"><input type="number" id="max_open_positions" min="1" max="10" step="1" required><span>slots</span></div></div>
+            <div class="setting-item"><div><label for="daily_growth_target_pct">Daily growth target</label><p>Target daily equity growth; once reached, stop opening new positions for that day. Set 0 to disable. This is an objective, not a predicted or guaranteed return.</p></div><div class="setting-control"><input type="number" id="daily_growth_target_pct" min="0" max="10" step="0.05" required><span>%</span></div></div>
+            <div class="settings-submit"><p id="setting-msg" role="status"></p><button id="settings-save" class="btn primary" type="submit">Save risk settings</button></div>
+          </section>
+          <aside class="settings-side">
+            <div class="panel settings-preview">
+              <h2>Allocation preview</h2><p>Calculated from current spendable paper cash</p>
+              <div class="preview-big" id="preview-order">$25.00</div><small>Maximum next order budget</small>
+              <div class="preview-breakdown"><span>Trading cash</span><strong id="preview-cash">$100.00</strong></div>
+              <div class="preview-breakdown"><span>Daily loss threshold</span><strong id="preview-loss">$5.00</strong></div>
+              <div class="preview-breakdown"><span>Profit reinvested</span><strong id="preview-reinvest">100%</strong></div>
+              <div class="preview-breakdown"><span>Daily target</span><strong id="preview-growth">0.7%</strong></div>
+            </div>
+            <div class="panel instruction-panel"><span>◈</span><h2>How this works</h2><p>Changes are written atomically to the server. The bot reads them on its next cycle. Already-open paper positions are not resized, and prior trades are not rewritten.</p><p>Changing risk does not imply any predicted return. AI and external market data are separate integrations.</p></div>
+          </aside>
+        </form>
+      </section>
+    </main>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,7 @@
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+RUN pip install --no-cache-dir 'schwab-py==1.5.1'
+COPY live_order_safety.py live_worker.py autonomous_selector.py openwebui_gateway.py local_ai_gateway.py ai_research.py verify_ai_container.py ./
+RUN mkdir -p /state/live
+CMD ["python", "-u", "/app/live_worker.py", "--run"]

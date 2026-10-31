@@ -1,0 +1,60 @@
+services:
+  trading-bot:
+    build:
+      context: /mnt/Home/trading-bot/app
+      dockerfile: Dockerfile
+    container_name: trading-bot
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /mnt/Home/trading-bot/config/bot.env
+    environment:
+      LOG_DIR: /logs
+      STATE_DIR: /state
+    volumes:
+      - /mnt/Home/trading-bot/logs:/logs
+      - /mnt/Home/trading-bot/state:/state
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  dashboard:
+    build:
+      context: /mnt/Home/trading-bot/app
+      dockerfile: Dockerfile.dashboard
+    container_name: trading-dashboard
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /mnt/Home/trading-bot/config/dashboard.env
+    environment:
+      STATE_DIR: /state
+      DASHBOARD_PORT: "8765"
+      DASHBOARD_TLS_CERT: /tls/cert.pem
+      DASHBOARD_TLS_KEY: /tls/key.pem
+    ports:
+      - "192.168.1.43:8765:8765"
+    volumes:
+      - /mnt/Home/trading-bot/state:/state
+      - /mnt/Home/trading-bot/config/dashboard-tls:/tls:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import ssl,urllib.request; urllib.request.urlopen('https://127.0.0.1:8765/health', timeout=4, context=ssl._create_unverified_context()).read()"
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 20s

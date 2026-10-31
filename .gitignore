@@ -1,0 +1,14 @@
+app/dashboard_server.py
+web/app.js
+.env
+.env.*
+*.pem
+*.key
+*token*.json
+__pycache__/
+*.pyc
+config/
+state/
+logs/
+backups/
+.venv/
