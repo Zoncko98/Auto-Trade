@@ -1,6 +1,6 @@
 # Workspace trading-profile tiles
 
-Development branch: feature/workspace-account-tiles. **Not installed into the production v1.0.11 TrueNAS app.**
+Included with v1.1.0, based on v1.0.18.
 
 The sidebar Trading Workspace selector uses six account-style tiles. Only two are selectable while their underlying views exist:
 
@@ -27,7 +27,7 @@ Keyboard users can activate available tiles with Enter or Space. Disabled tile b
 - Existing broker capability tests: app/test_broker_workspace.py
 - Visual review in headless Chrome at desktop and compact widths
 
-No production update or new release is created by these development changes.
+The combined v1.1.0 release integrates these UI changes with the v1.0.18 trading engine.
 
 
 ## Account equity on the tiles

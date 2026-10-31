@@ -24,7 +24,9 @@ from live_order_safety import (CAPITAL, DAILY_LOSS, LiveBlocked, OrderLedger,
     OPEN_STATUSES, TERMINAL, buy_quantity, cross_signal, equity_value,
     money, position_snapshot, quote_levels, sell_limit, verified_cash)
 from autonomous_selector import UNIVERSE, ranked_candidates, choose_entry
+from trade_explanations import comparisons, explanation
 from ai_research import approve_entry, research_evidence
+from live_position_ai import review_held
 from live_extension import (read_live_risk, broker_fills, log_decision)
 
 CONFIG_PATH = Path(os.getenv("SCHWAB_ENV_FILE",
@@ -340,9 +342,12 @@ def scan_entries(client, now, excluded=()):
     print(f"Market scanner: {len(ranked)} liquid and affordable candidates, "
           f"scanning up to {len(ranked)} trend histories.")
     if not ranked:
+        scan_entries.last_comparison=[]
         return None
-    return choose_entry(ranked,lambda sym:recent_candles(client,sym),now,
-                        can_buy=True)
+    selected=choose_entry(ranked,lambda sym:recent_candles(client,sym),now,
+                           can_buy=True)
+    scan_entries.last_comparison=comparisons(ranked,selected.symbol if selected else None)
+    return selected
 
 
 def same_day_filled_buy(ledger, symbol, now):
@@ -482,6 +487,20 @@ def attempt(client, account_hash, ledger, now, submit):
                  f"limit={price}, shares={qty}")
         action="SELL"
     else:
+        # Advisory AI review of held positions. Never converts an AI opinion into a SELL.
+        # Persist state independently of the broker ledger; never block protective exits.
+        if submit and positions:
+            review_path=STATE_DIR/"position_ai_reviews.json"
+            try:
+                prior=json.loads(review_path.read_text())
+                if not isinstance(prior,dict):prior={}
+            except (OSError,ValueError,TypeError):
+                prior={}
+            reports=review_held(positions,now,prior)
+            try:
+                write_private_json(review_path,reports)
+            except (OSError,TypeError,ValueError) as exc:
+                print("Position AI review telemetry unavailable:",type(exc).__name__)
         if len(positions)>=min(MAX_CONCURRENT_POSITIONS,limits['max_open_positions']):
             print("Maximum concurrent positions held; managing existing inventory.")
             return
@@ -505,6 +524,8 @@ def attempt(client, account_hash, ledger, now, submit):
         signals={"technical":candidate.reason,"rank":str(candidate.score),
                  "bid":str(candidate.bid),"ask":str(candidate.ask),
                  "rule":"completed 3/5-bar crossover"}
+        details["decision_explanation"]=explanation(candidate.symbol,candidate.reason,ai_reason,
+            alternatives=getattr(scan_entries,"last_comparison",[]),when=now.isoformat())
         if not allowed:
             if submit:_audit(now,candidate.symbol,"AI_VETO",ai_reason,
                               candidate.candle,signals,details)

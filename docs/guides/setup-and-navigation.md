@@ -1,6 +1,6 @@
 # Setup and account navigation — development branch
 
-Status: Unreleased, on feature/workspace-account-tiles. The installed TrueNAS application remains at v1.0.11.
+Integrated into the v1.1.0 release based on v1.0.18. Broker credentials, stored account data and trading permissions are preserved.
 
 ## Account protection
 

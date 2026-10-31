@@ -1,4 +1,8 @@
-## Unreleased — Login, installation and broker navigation cleanup
+## v1.1.0 — Unified trading workspaces and streamlined setup
+
+This version integrates the complete v1.0.18 stable trading engine, AI position reviews and model readiness with the accessibility and user-experience work below. Existing broker tokens, real-money trading authorization, positions and risk limits are preserved in persistent storage. The UI is a presentation and authenticated configuration update, not an automatic change to order execution.
+
+### Login, installation and broker navigation cleanup
 
 - Reduced the minimum length for NEW dashboard administrator passwords from 20 to 10 characters. New passwords require an uppercase A–Z letter, number and symbol (up to 256 characters). Both the server and browser enforce the rule. Existing passwords remain valid; PBKDF2 protection, login rate limiting and session invalidation are preserved.
 - Simplified first-run installation to account claim and AI model/provider selection. Forecasting uses the built-in NAS default. Schwab OAuth, background modules and trading permissions are no longer part of first-run.
@@ -6,9 +10,9 @@
 - Page-specific settings updates preserve unrelated AI settings, broker secrets and live-trading configuration. Neither settings page can accidentally clear the other one's fields.
 - Added explicit Paper → Risk Settings control to enable/disable the separate background paper simulator without placing this option in installation or Schwab authorization.
 - Added end-to-end and browser payload isolation regression tests, with the new tests included in the GitHub Actions workflow.
-- Development only. No v1.0.12 tag, container image upgrade, new public release or live-order workflow change.
+- Integrated on the v1.0.18 codebase. No live-trading authorization defaults, account choices or execution permissions are changed by this release.
 
-## Unreleased — Workspace account tiles (feature/workspace-account-tiles)
+### Workspace account tiles (feature/workspace-account-tiles)
 
 - Replaced the sidebar Live/Paper dropdown with visually distinct selectable account tiles. Schwab Live opens the existing live overview and Paper opens the existing simulator, each preserving its dedicated navigation, risk controls and account history.
 - Added greyed-out, non-clickable Coming Soon tiles for Webull, Robinhood, Alpaca and Interactive Brokers. These are interface placeholders, not real brokerage connections or order routes.
@@ -17,7 +21,71 @@
 - Added freshness-checked equity badges: paper simulator equity and Schwab broker equity only for an online worker with a recent valid account snapshot; unavailable values never show fake $0.00. Balance text clears on logout.
 - Replaced letter placeholders with pictograms and retained the paper wallet icon. Added the unmodified Alpaca external-use brand kit asset. Other providers use neutral symbols pending clear logo permissions; provenance and reuse restrictions are recorded in docs/guides/workspace-tiles.md.
 - No credentials, risk settings, order code, broker selection, trading authorization or production deployment were changed.
-- Added dedicated UI regression tests. This is **development-only**; no image tag, public release or TrueNAS catalog submission has been created.
+- Combined into v1.1.0 and validated against the v1.0.18 trading safeguards.
+
+## v1.0.18  Recurring advisory AI reviews for live positions
+
+- Added periodic (15-minute minimum per symbol) structured AI news assessments for already-held live positions.
+- Uses the existing strictly validated live AI-review response schema; missing, malformed, or unavailable responses remain fail-closed for new BUY entries.
+- Position review outputs are explicitly advisory, never automatic SELL commands; existing independent downward-crossover and authorized protective exits take priority.
+- Records bounded, non-secret position AI review telemetry to the existing private live-state volume, without sending holdings or account data to the AI.
+- Adds four isolated unit tests with mocked AI providers. No paper trades or live test orders.
+- Does not yet verify structured capabilities for all configured cloud providers or implement AI-generated SELL/REDUCE execution. These require separate validation.
+- Does not modify live settings or redeploy TrueNAS.
+
+## v1.0.17  Verified local AI model metadata and readiness UI
+
+- The authenticated readiness API now queries the configured private-LAN Ollama /api/show endpoint with a five-second timeout and bounded response size.
+- Validates actual model parameter_size metadata rather than trusting the model-name suffix; unknown, undersized or unavailable models are explicitly reported as unverified.
+- Dashboard sidebar shows SIZE VERIFIED, BELOW 4B or AI OFFLINE with clear limitations.
+- No inference payload, account data or broker credentials are sent during metadata validation.
+- Metadata verification is not a structured-response capability test and does not yet change live entry authorization; the existing fail-closed AI news veto remains in force.
+- Added mocked unit tests for verified metadata and provider failure. No paper or live orders were placed.
+- Existing live position SELL protections and risk settings are untouched.
+
+## v1.0.16  Visible AI configuration readiness
+
+- Added an authenticated sidebar AI readiness indicator and failure/uncertainty explanations, refreshed every 30 seconds.
+- Explicitly differentiates a model-name claim from verified model metadata or a working AI connection.
+- Preserved the existing fail-closed AI research veto on new live buys; existing rule-based protective sells remain independent.
+- Does not assert runtime readiness, implement model metadata verification, or enable a new live trading gate until these mechanisms can be validated.
+- No paper trading or real order execution was performed during validation.
+
+## v1.0.15  Read-only AI compatibility diagnostics (stage one)
+
+- Added authenticated GET /api/ai/readiness with non-secret model/provider compatibility status.
+- Local Ollama model-name parser flags claims below the proposed 4B minimum; name alone does NOT verify actual parameter count, readiness or capability.
+- Cloud selections are reported as needing runtime verification, not falsely marked healthy.
+- No credentials are exposed. No AI calls are made by the endpoint.
+- Added five targeted tests for 4B, subminimum, unknown size, cloud and missing provider.
+- No new trading gate or runtime enforcement: existing live orders, risk controls, authentication and settings remain unchanged.
+- Future stage: authoritative metadata and structured response probes, then separately validated live enforcement.
+
+## v1.0.14  Advisory technical indicator research
+
+- Added deterministic 14-session RSI, 12/26 MACD and nine-session signal, a close-only 14-session volatility range proxy, and relative volume compared with the previous 20 sessions.
+- Added a clearly labeled symbol-only trending/ranging/volatile regime proxy; it is not a broad-market regime assessment.
+- Attached advisory indicator data to NAS-native read-only forecast research for candidates with sufficient validated history.
+- ATR is explicitly labeled a close-only proxy because the historical feeds currently use close/volume bars; it must not be confused with true OHLC-based ATR.
+- Added four regression tests covering indicator bounds, insufficient data, invalid close and flat prices.
+- Kept all live entry selection, AI veto policy, risk controls, order sizing and broker authorization unchanged. Indicators do not automatically trigger orders.
+- No production deployment or live-order tests performed.
+
+## v1.0.13  Explainability update release validation
+
+- Updated the profile version regression test to compare against the application VERSION file instead of hard-coding v1.0.11; this keeps the test valid for subsequent releases.
+- Preserved the v1.0.12 code and immutable tag. v1.0.12's image publication failed due to the version-specific test assertion.
+- Published the explainability changes under a new immutable release version after correcting validation. No changes to execution behavior.
+
+## v1.0.12  Explainable trade decision records
+
+- Added app/trade_explanations.py for structured, observable trade evidence; no private model thoughts are claimed.
+- Paper trading reviews now record the crossover strategy, AI response, risk flags, and decision timestamp.
+- Live entry audit evidence includes technical reasons, AI verdict, and up to eight ranked alternatives.
+- Screened-but-not-selected alternatives are not misrepresented as confirmed failed entry signals.
+- Invalidation levels are only recorded when explicit validated data is available, never invented; no automatic stop order is added.
+- No fabricated confidence probability. Existing execution, risk, authorization and cash-only protections are unchanged.
+- Four standalone tests added. No TrueNAS production deployment or live execution testing was performed.
 
 ## v1.0.11 — Sidebar installed-version display
 

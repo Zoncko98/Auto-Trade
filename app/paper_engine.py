@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ai_review import ReviewDecision
+from trade_explanations import explanation
 from dashboard_control import DEFAULT_SETTINGS, validated_settings
 from risk_controls import RiskControls, RiskLimits
 
@@ -200,6 +201,9 @@ class PaperEngine:
                         "estimated_ai_cost_usd": decision.estimated_cost_usd,
                         "strategy_reason": "3-period MA crossed above 5-period MA",
                         "risk_flags": list(decision.risk_flags),
+                        "decision_explanation": explanation(symbol,
+                            "3/5-period moving average crossover",decision.reason,
+                            risk_flags=decision.risk_flags,when=when.isoformat()),
                     }
                     self.state.setdefault("reviews", []).append(review_event)
                     # Keep full paper-trading audit history for the web dashboard.

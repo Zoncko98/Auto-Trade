@@ -174,45 +174,22 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(page["items"][0]["n"],16)
 
 
-    def test_cloud_credentials_and_config_are_protected(self):
-        from cloud_models import default_cloud_config
-        cookie, csrf = self.auth()
-        self.assertEqual(self.send("GET", "/api/cloud")[0], 401)
-        code, payload, _ = self.send("GET", "/api/cloud", cookie=cookie)
-        self.assertEqual(code, 200)
-        self.assertFalse(payload["config"]["enabled"])
-        self.assertFalse(payload["credentials"]["openai"])
-        self.assertEqual(self.send("POST", "/api/cloud/key", {
-            "provider": "openai", "key": "fake-not-real-key-123456"
-        }, cookie=cookie)[0], 403)
-        code, stored, _ = self.send("POST", "/api/cloud/key", {
-            "provider": "openai", "key": "fake-not-real-key-123456"
-        }, cookie, csrf)
-        self.assertEqual(code, 200)
-        self.assertTrue(stored["connected"])
-        code, after, _ = self.send("GET", "/api/cloud", cookie=cookie)
-        self.assertEqual(code, 200)
-        self.assertTrue(after["credentials"]["openai"])
-        self.assertNotIn("fake-not-real-key-123456", json.dumps(after))
-        config = after["config"]
-        config["providers"]["openai"].update({
-            "enabled": True, "model": "test-model",
-            "input_usd_per_million": 0.2, "output_usd_per_million": 0.6
-        })
-        config["enabled"] = True
-        code, saved, _ = self.send("POST", "/api/cloud/config", {
-            "revision": config["revision"], "config": config,
-        }, cookie, csrf)
-        self.assertEqual(code, 200)
-        self.assertTrue(saved["config"]["enabled"])
-        self.assertEqual(self.send("POST", "/api/cloud/config", {
-            "revision": config["revision"], "config": config,
-        }, cookie, csrf)[0], 409)
-        code, removed, _ = self.send("POST", "/api/cloud/key", {
-            "provider": "openai", "remove": True,
-        }, cookie, csrf)
-        self.assertEqual(code, 200)
-        self.assertFalse(removed["connected"])
+    def test_retired_legacy_cloud_routes_stay_closed(self):
+        """Legacy /api/cloud routes are no longer implemented.
+
+        Cloud/OAuth configuration uses authenticated AI integration settings
+        in the unified dashboard, with independent secret redaction tests.
+        Do not reintroduce a deprecated API to satisfy an outdated test.
+        """
+        cookie,csrf=self.auth()
+        self.assertEqual(self.send("GET","/api/cloud")[0],401)
+        self.assertEqual(self.send("GET","/api/cloud",cookie=cookie)[0],404)
+        doc={"provider":"openai","key":"synthetic-example-not-real-1234"}
+        self.assertEqual(self.send("POST","/api/cloud/key",doc,cookie=cookie)[0],403)
+        self.assertEqual(self.send("POST","/api/cloud/key",doc,cookie,csrf)[0],404)
+        self.assertEqual(self.send("POST","/api/cloud/config",
+            {"revision":0,"config":{}},cookie,csrf)[0],404)
+        self.assertFalse((ds.STATE_DIR/"cloud_credentials.json").exists())
 
 
 if __name__ == "__main__":
