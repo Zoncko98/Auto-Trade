@@ -1,3 +1,12 @@
+## Unreleased — Workspace account tiles (feature/workspace-account-tiles)
+
+- Replaced the sidebar Live/Paper dropdown with visually distinct selectable account tiles. Schwab Live opens the existing live overview and Paper opens the existing simulator, each preserving its dedicated navigation, risk controls and account history.
+- Added greyed-out, non-clickable Coming Soon tiles for Webull, Robinhood, Alpaca and Interactive Brokers. These are interface placeholders, not real brokerage connections or order routes.
+- Shows a conservative Schwab connection hint from authenticated /api/brokers capability metadata (AUTH SAVED vs CONNECT ACCOUNT); a stored OAuth file is not evidence that an active broker session or order permission is valid.
+- Added selected-account highlighting, keyboard-focus and ARIA pressed states, mobile compact tiles, small-screen layout refinements and reduced-motion treatment.
+- No credentials, risk settings, order code, broker selection, trading authorization or production deployment were changed.
+- Added dedicated UI regression tests. This is **development-only**; no image tag, public release or TrueNAS catalog submission has been created.
+
 ## v1.0.11 — Sidebar installed-version display
 
 - Replaced the bottom-left sidebar sentence about the Schwab worker and dashboard order submission with a live Auto Trader vX.Y.Z version label.

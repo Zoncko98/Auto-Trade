@@ -1,0 +1,200 @@
+/*
+ * Account workspace tiles — pre-release UI polish.
+ * TrueNAS live/paper services stay as they are; other brokers are disabled.
+ */
+.sidebar {
+  width: 284px;
+  padding: 22px 16px 18px;
+  overflow-y: auto;
+  scrollbar-color: #2f4261 transparent;
+  scrollbar-width: thin;
+}
+.side-brand {margin: 5px 7px 34px;}
+.workspace-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 5px 12px;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+}
+.workspace-count {
+  flex: none;
+  font-size: 9px;
+  letter-spacing: .55px;
+  color: #9ec6ff;
+  background: #1b304c;
+  border: 1px solid #2d4c73;
+  padding: 5px 7px;
+  border-radius: 7px;
+  font-weight: 800;
+}
+.workspace-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 9px;
+  margin: 0 1px;
+}
+.workspace-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-width: 0;
+  min-height: 108px;
+  padding: 13px 11px 10px;
+  border: 1px solid #2b3b54;
+  border-radius: 13px;
+  background: linear-gradient(155deg,#182740,#101c2e);
+  color: #e1eaff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 5px 17px #0000001c;
+  transition: transform .14s ease, background .14s ease,
+              border-color .14s ease, box-shadow .14s ease;
+}
+.workspace-tile:not(:disabled):hover {
+  background: linear-gradient(145deg,#233d61,#172942);
+  border-color: #6aa7ff;
+  transform: translateY(-2px);
+}
+.workspace-tile:not(:disabled):focus-visible {
+  outline: 2px solid #8ac5ff;
+  outline-offset: 3px;
+}
+.workspace-tile.is-active {
+  background: linear-gradient(142deg,#244a79 0%,#182c4a 75%);
+  border-color: #75b1ff;
+  box-shadow: inset 0 0 0 1px #75b1ff38,0 8px 22px #146dcb2d;
+}
+.workspace-tile-icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border: 1px solid #42638b;
+  border-radius: 9px;
+  background: #294667;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 9px;
+}
+.workspace-tile-icon.schwab-icon {
+  color: #a8cfff;
+  background: #244d83;
+  border-color: #3d75b6;
+  font-size: 22px;
+}
+.workspace-tile-icon.paper-icon {
+  color: #9cf2d3;
+  background: #174d46;
+  border-color: #2e8072;
+  font-size: 22px;
+}
+.workspace-tile-title {
+  color: #eaf3ff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -.15px;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+.workspace-tile-status {
+  display: block;
+  color: #9bbce1;
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1.5;
+  letter-spacing: .55px;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+.workspace-tile.is-coming-soon,
+.workspace-tile.is-coming-soon:disabled {
+  cursor: not-allowed;
+  background: #111b2a;
+  border-color: #253247;
+  color: #7c8aa0;
+  opacity: .72;
+  filter: grayscale(.85);
+  box-shadow: none;
+}
+.workspace-tile.is-coming-soon .workspace-tile-icon {
+  color: #96a4b7;
+  background: #243040;
+  border-color: #364355;
+}
+.workspace-tile.is-coming-soon .workspace-tile-title {color: #9ba8b9;}
+.workspace-tile.is-coming-soon .workspace-tile-status {color: #a3acbb;}
+.workspace-description {
+  border-bottom: 1px solid #26374e;
+  padding: 13px 4px 17px;
+  color: #9ab1ce;
+  font-size: 10px;
+  line-height: 1.55;
+  min-height: 48px;
+  margin: 0 0 18px;
+}
+.workspace-menu {gap: 2px;}
+.workspace-menu .nav-item {padding: 12px 11px;}
+.sidebar-footer {margin-top: auto;padding-top: 20px;}
+@media (max-width: 760px) {
+  .sidebar {width: 87px;padding: 15px 7px;}
+  .side-brand {margin: 4px auto 22px;}
+  .workspace-heading {
+    display: block;
+    margin: 0 0 9px;
+    text-align: center;
+  }
+  .workspace-heading > span:first-child {font-size:0;letter-spacing:0;}
+  .workspace-heading > span:first-child::after {
+    content:"ACCOUNTS";
+    font-size:8px;
+    letter-spacing:.5px;
+  }
+  .workspace-count,.workspace-description {display:none;}
+  .workspace-tile-grid {grid-template-columns: 1fr;gap: 6px;margin: 0 4px 18px;}
+  .workspace-tile {
+    align-items:center;
+    text-align:center;
+    min-height: 57px;
+    padding: 8px 3px 6px;
+    border-radius: 10px;
+  }
+  .workspace-tile-icon {width:25px;height:25px;border-radius:7px;margin-bottom:3px;font-size:12px;}
+  .workspace-tile-icon.schwab-icon,
+  .workspace-tile-icon.paper-icon {font-size:17px;}
+  .workspace-tile-title {font-size:0;}
+  .workspace-tile-status {
+    font-size:7px;
+    line-height:1.15;
+    letter-spacing:0;
+    white-space:normal;
+  }
+  .workspace-menu .nav-item {padding:11px 9px;}
+  /* Constrain content so workspace tiles do not force horizontal panning. */
+  .main-shell {width:calc(100vw - 87px);max-width:calc(100vw - 87px);}
+  .topbar {
+    flex-wrap:wrap;
+    align-content:center;
+    min-height:76px;
+    height:auto;
+    gap:8px;
+    padding:10px 12px;
+  }
+  .top-actions {gap:7px;flex-wrap:wrap;}
+  .content {padding:22px 12px 48px;}
+  .hero-head,.page-header {flex-direction:column;align-items:stretch;gap:16px;}
+  .stats-grid,.content-grid,.lower-grid {grid-template-columns:minmax(0,1fr);}
+  .control-panel {min-width:0;}
+  .stat-card,.panel {min-width:0;}
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-tile {transition:none;}
+  .workspace-tile:not(:disabled):hover {transform:none;}
+}

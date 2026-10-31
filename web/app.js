@@ -8,6 +8,39 @@ const pct = (v) => `${Number(v)||0}%`;
 let csrf = null;
 let status = null;
 let activeView = "live";
+let activeWorkspace = "live";
+const AVAILABLE_WORKSPACES = Object.freeze(["live","paper"]);
+function selectWorkspaceTile(workspace) {
+  if(!AVAILABLE_WORKSPACES.includes(workspace))return false;
+  activeWorkspace=workspace;
+  document.querySelectorAll(".workspace-tile").forEach(tile=>{
+    const selected=tile.dataset.workspace===workspace && !tile.disabled;
+    tile.classList.toggle("is-active",selected);
+    if(!tile.disabled)tile.setAttribute("aria-pressed",String(selected));
+  });
+  $("workspace-description").textContent=workspace==="live"?
+    "Schwab live dashboard · cash-only controls":
+    "Paper simulator · virtual funds only";
+  $("live-nav-group").classList.toggle("hidden",workspace!=="live");
+  $("paper-nav-group").classList.toggle("hidden",workspace!=="paper");
+  return true;
+}
+async function loadWorkspaceAvailability() {
+  // Broker API exposes only public capability metadata and saved token presence;
+  // it must not imply a valid active OAuth session or trading authorization.
+  try {
+    const result=await request("/api/brokers");
+    const schwab=Array.isArray(result.brokers)?
+      result.brokers.find(item=>item.id==="schwab"):null;
+    const label=$("workspace-schwab-status");
+    if(label)label.textContent=schwab?.integration_status==="authorization_saved"?
+      "AUTH SAVED":"CONNECT ACCOUNT";
+  } catch (_) {
+    // The Schwab workspace remains navigable for users to complete setup.
+    const label=$("workspace-schwab-status");
+    if(label)label.textContent="LIVE ACCOUNT";
+  }
+}
 let page = {trades:1,reviews:1};
 let pageData = {trades:null,reviews:null};
 let refreshing = false;
@@ -47,6 +80,7 @@ function showApp(){
   $("login-screen").classList.add("hidden");
   $("app").classList.remove("hidden");
   // Use the local installed version, not the remote GitHub release.
+  loadWorkspaceAvailability().catch(()=>{});
   request("/api/profile").then(profile=>{
     const version=profile.version;
     const label=$("sidebar-app-version");
@@ -102,9 +136,11 @@ function bindEvents(){
     "/api/live/export.xlsx","autotrader-live-trades.xlsx",$("export-live-trades")));
   $("export-live-evidence").addEventListener("click",()=>downloadWorkbook(
     "/api/live/export.xlsx","autotrader-live-evidence.xlsx",$("export-live-evidence")));
-  $("workspace-select").addEventListener("change",event=>{
-    showView(event.target.value==="paper"?"overview":"live");
-  });
+  document.querySelectorAll(".workspace-tile:not(:disabled)").forEach(tile=>
+    tile.addEventListener("click",()=>{
+      if(!AVAILABLE_WORKSPACES.includes(tile.dataset.workspace))return;
+      showView(tile.dataset.workspace==="paper"?"overview":"live");
+    }));
   document.addEventListener("click",event=>{
     const live=event.target.closest("[data-export-live-index]");
     const paper=event.target.closest("[data-export-paper-index]");
@@ -122,12 +158,9 @@ function bindEvents(){
 function showView(view) {
   if(!["live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers"].includes(view))return;
   activeView=view;
-  const workspace=["profile","brokers"].includes(view)?$("workspace-select").value:(["live","decisions","live-risk","local","forecast"].includes(view)?"live":"paper");
-  $("workspace-select").value=workspace;
-  $("workspace-description").textContent=workspace==="live"
-    ?"Real Schwab account · cash only":"Simulated account · no real orders";
-  $("live-nav-group").classList.toggle("hidden",workspace!=="live");
-  $("paper-nav-group").classList.toggle("hidden",workspace!=="paper");
+  const workspace=["profile","brokers"].includes(view)?activeWorkspace:
+    (["live","decisions","live-risk","local","forecast"].includes(view)?"live":"paper");
+  selectWorkspaceTile(workspace);
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!==`view-${view}`));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   const titles={live:"Schwab live",decisions:"Live AI evidence","live-risk":"Live risk settings",

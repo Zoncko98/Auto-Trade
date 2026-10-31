@@ -298,6 +298,7 @@ class Handler(BaseHTTPRequestHandler):
             "/forecast.js": ("forecast.js", "text/javascript; charset=utf-8"),
             "/brokers.js": ("brokers.js","text/javascript; charset=utf-8"),
             "/app.css": ("app.css", "text/css; charset=utf-8"),
+            "/workspace.css": ("workspace.css", "text/css; charset=utf-8"),
         }
         if path in assets:
             name, content_type = assets[path]
