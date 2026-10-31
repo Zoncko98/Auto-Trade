@@ -1,3 +1,7 @@
+# One-app installation (recommended)
+
+Please use the [GUI-first TrueNAS guide](deploy/truenas-apps/README.md). The following standalone installer is a legacy/advanced alternative.
+
 # Auto Trader — choose an installation guide
 
 **[TrueNAS SCALE](docs/install/truenas-scale.md) | [Linux Docker](docs/install/docker-linux.md) | [Unraid](docs/install/unraid.md) | [Synology & QNAP](docs/install/synology-qnap.md) | [Proxmox](docs/install/proxmox.md) | [Windows/WSL2](docs/install/windows-wsl.md)**

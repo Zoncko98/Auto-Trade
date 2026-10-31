@@ -1,5 +1,21 @@
 # Auto Trader
 
+## Recommended installation: ONE TrueNAS app, ONE update
+
+Use the [Unified TrueNAS installation guide](deploy/truenas-apps/README.md).
+
+Install one public image: ghcr.io/zoncko98/auto-trade:stable.
+In TrueNAS Apps > Discover > Custom App via YAML, paste deploy/truenas-apps/unified.yml, adjusting the dataset path.
+Open HTTPS Auto Trader in your browser and complete the first-run web wizard:
+- Pair using the one-time code from the TrueNAS app logs
+- Choose administrator username and password
+- Configure remote Ollama endpoint and model, or OAuth AI companion
+- Configure Schwab developer app credentials and log in on Schwab's official website through the app GUI
+- Choose paper/market modules; live worker remains off until explicitly authorized
+
+The dashboard, paper trading, market-data monitoring and live worker are internal components of this one image, not independent TrueNAS Apps. Future versions update ONE app. Brokerage settings, trading journals and tokens stay in persistent storage.
+
+
 **Open-source MIT-licensed repository · self-hosted market research and experimental cash-only trading controls**
 
 Auto Trader runs a web dashboard on a home server and optionally uses an external Ollama/AI workstation for market research. It can display a five-candidate **Next Trading Session Forecast**, source-linked financial news, research scenarios, model status, and unmet confirmations. **Forecasts are not verified trading signals or guarantees.**

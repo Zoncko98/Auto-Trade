@@ -66,7 +66,7 @@ function bindEvents(){
     btn.disabled=true;
     $("login-error").textContent="";
     try{
-      const data=await request("/api/login",{method:"POST",body:JSON.stringify({password:$("password").value})});
+      const data=await request("/api/login",{method:"POST",body:JSON.stringify({username:$("username").value,password:$("password").value})});
       csrf=data.csrf;showApp();await refreshAll();await checkForUpdate().catch(()=>{});
     }catch(err){$("login-error").textContent=err.message;}finally{btn.disabled=false;}
   });

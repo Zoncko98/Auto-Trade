@@ -31,13 +31,19 @@ from live_extension import (read_live_risk,set_live_risk,validate_risk,read_deci
 from profile_auth import verify as verify_profile_password, rotate as rotate_profile_password, revision as profile_revision, ProfileError
 from update_status import update_information, installed_version
 from broker_market_data import read_snapshot as broker_market_snapshot
+from unified_config import (configured as app_configured, initialize as initialize_app,
+    public_summary as integration_summary, save as save_integrations,
+    pairing_code as pairing_code_for_setup, settings as integration_settings,
+    username as profile_username, SetupError)
+from schwab_web_oauth import (begin as begin_schwab_auth,
+    finish as finish_schwab_auth, accounts as schwab_accounts)
 from dashboard_control import (
     MODES, checked_control, default_control, now_utc, read_control,
     validated_settings, write_atomic,
 )
 
 APP_DIR = Path(__file__).resolve().parent
-STATIC_DIR = APP_DIR / "web"
+STATIC_DIR = Path(os.environ.get("DASHBOARD_STATIC_DIR",str(APP_DIR / "web")))
 STATE_DIR = Path(os.environ.get("STATE_DIR", "/state"))
 PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
 SESSION_SECRET = os.environ.get("DASHBOARD_SESSION_SECRET", "").encode()
@@ -47,6 +53,8 @@ BIND_ADDRESS = os.environ.get("DASHBOARD_BIND", "0.0.0.0")
 _lock = threading.Lock()
 _login_attempts: dict[str, list[float]] = {}
 _change_attempts: dict[str, list[float]] = {}
+_setup_attempts: dict[str, list[float]] = {}
+UNIFIED_APP = os.environ.get("AUTO_UNIFIED_APP","false").lower() == "true"
 
 
 def _safe_load(path: Path, default):
@@ -248,9 +256,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/health":
-            return self._json(200, {"status": "ok", "live_worker_separate": True})
+            return self._json(200, {"status":"ok","unified":UNIFIED_APP,
+                "setup_complete":(app_configured(STATE_DIR) if UNIFIED_APP else True)})
+        if UNIFIED_APP and path == "/api/setup/status":
+            return self._json(200,{"setup_needed":not app_configured(STATE_DIR)})
         assets = {
             "/": ("index.html", "text/html; charset=utf-8"),
+            "/setup.html": ("setup.html","text/html; charset=utf-8"),
+            "/setup.js": ("setup.js","text/javascript; charset=utf-8"),
+            "/integrations.html": ("integrations.html","text/html; charset=utf-8"),
             "/index.html": ("index.html", "text/html; charset=utf-8"),
             "/app.js": ("app.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
@@ -259,6 +273,12 @@ class Handler(BaseHTTPRequestHandler):
         }
         if path in assets:
             name, content_type = assets[path]
+            if UNIFIED_APP and not app_configured(STATE_DIR) and path in ("/","/index.html"):
+                name="setup.html"
+            if path=="/integrations.html" and not self._nonce():
+                return self._json(401,{"error":"Sign in required"})
+            if path=="/setup.html" and (not UNIFIED_APP or app_configured(STATE_DIR)):
+                return self._json(404,{"error":"Setup is unavailable"})
             try:
                 data = (STATIC_DIR / name).read_bytes()
             except OSError:
@@ -276,8 +296,18 @@ class Handler(BaseHTTPRequestHandler):
         if not nonce:
             return self._json(401, {"error": "Sign in required"})
         try:
+            if UNIFIED_APP and path == "/api/integrations":
+                return self._json(200,integration_summary(STATE_DIR))
+            if UNIFIED_APP and path == "/api/schwab/accounts":
+                try:
+                    return self._json(200,schwab_accounts(STATE_DIR))
+                except (SetupError,ValueError,OSError) as exc:
+                    return self._json(503,{"error":str(exc)[:120]})
+                except Exception:
+                    return self._json(503,{"error":"Schwab broker account lookup unavailable"})
             if path == "/api/profile":
-                return self._json(200, {"display_name":"Administrator",
+                return self._json(200, {"display_name":(profile_username(STATE_DIR)
+                    if UNIFIED_APP else "Administrator"),
                     "password_change_enabled":True,"version":installed_version(APP_DIR)})
             if path == "/api/update":
                 return self._json(200, update_information(STATE_DIR,APP_DIR))
@@ -286,7 +316,8 @@ class Handler(BaseHTTPRequestHandler):
             if path in ("/api/research/forecast","/api/research/models"):
                 target = "/api/forecast" if path.endswith("forecast") else "/api/models"
                 try:
-                    forecast_url=os.getenv("FORECAST_API_URL","").rstrip("/")
+                    forecast_url=(integration_settings(STATE_DIR).get("forecast_url","")
+                        if UNIFIED_APP else os.getenv("FORECAST_API_URL","")).rstrip("/")
                     if not forecast_url:return self._json(503,{"error":"Forecast service not configured"})
                     parsed=urlparse(forecast_url)
                     if parsed.scheme not in ("http","https") or not parsed.hostname or not parsed.port or parsed.path not in ("","/") or parsed.username or parsed.password:
@@ -394,7 +425,27 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if not self._same_origin():
             return self._json(403, {"error": "Origin not allowed"})
+        if UNIFIED_APP and path == "/api/setup/initialize":
+            ip=self.client_address[0]
+            with _lock:
+                now=time.monotonic()
+                tries=[t for t in _setup_attempts.get(ip,[]) if now-t<900]
+                if len(tries)>=5:
+                    return self._json(429,{"error":"Too many pairing attempts"})
+                _setup_attempts[ip]=tries+[now]
+            try:
+                data=self._body()
+                code=data.pop("setup_code","")
+                password=data.pop("admin_password","")
+                user=data.pop("admin_username","")
+                initialize_app(STATE_DIR,code,password,data,PASSWORD,admin_username=user)
+                with _lock:_setup_attempts.pop(ip,None)
+                return self._json(200,{"ok":True,"message":"Administrator account created"})
+            except (SetupError,ValueError,OSError,TypeError,ProfileError) as exc:
+                return self._json(400,{"error":str(exc)[:160]})
         if path == "/api/login":
+            if UNIFIED_APP and not app_configured(STATE_DIR):
+                return self._json(409,{"error":"Complete the first-run setup before signing in"})
             ip = self.client_address[0]
             with _lock:
                 now = time.monotonic()
@@ -404,6 +455,9 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = self._body()
                 password = data.get("password", "")
+                if UNIFIED_APP and data.get("username")!=profile_username(STATE_DIR):
+                    with _lock:_login_attempts[ip]=history+[time.monotonic()]
+                    return self._json(401,{"error":"Invalid username or password"})
                 if not isinstance(password, str) or len(password)>1024:
                     return self._json(400, {"error": "Invalid login request"})
                 try:
@@ -431,6 +485,24 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if UNIFIED_APP and path == "/api/integrations":
+            try:
+                summary=save_integrations(STATE_DIR,self._body())
+                return self._json(200,summary)
+            except (SetupError,ValueError,TypeError,OSError) as exc:
+                return self._json(400,{"error":str(exc)[:160]})
+        if UNIFIED_APP and path in ("/api/schwab/authorize","/api/schwab/complete"):
+            try:
+                data=self._body()
+                if path.endswith("authorize"):
+                    if data:raise SetupError("No input expected")
+                    return self._json(200,begin_schwab_auth(STATE_DIR))
+                if set(data)!={"redirected_url"}:raise SetupError("Paste the full Schwab OAuth callback URL")
+                return self._json(200,finish_schwab_auth(STATE_DIR,data["redirected_url"]))
+            except (SetupError,ValueError,TypeError,KeyError,OSError) as exc:
+                return self._json(400,{"error":str(exc)[:160]})
+            except Exception:
+                return self._json(503,{"error":"Schwab OAuth service unavailable or rejected the callback"})
         if path == "/api/profile/password":
             ip=self.client_address[0]
             with _lock:

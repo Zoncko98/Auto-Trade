@@ -14,10 +14,12 @@
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div class="brand-mark big">◈</div>
-    <p class="eyebrow">TRUENAS · PRIVATE DASHBOARD</p>
+    <p class="eyebrow">SELF-HOSTED · SINGLE APP</p>
     <h1>Auto Trader</h1>
-    <p class="login-subtitle">Your private Schwab trading dashboard with local AI research.</p>
+    <p class="login-subtitle">Your self-hosted dashboard with paper and optional Schwab trading.</p>
     <form id="login-form">
+      <label for="username">Administrator username</label>
+      <input id="username" type="text" autocomplete="username" required value="admin" placeholder="Username">
       <label for="password">Dashboard access password</label>
       <input id="password" type="password" autocomplete="current-password" required placeholder="Enter your dashboard password">
       <button class="btn primary full" type="submit">Sign in <span>→</span></button>
@@ -28,7 +30,7 @@
 </div>
 <div id="app" class="app hidden">
   <aside class="sidebar">
-    <div class="side-brand"><span class="brand-mark">◈</span><div><strong>Auto Trader</strong><small>TRUE NAS · LOCAL AI</small></div></div>
+    <div class="side-brand"><span class="brand-mark">◈</span><div><strong>Auto Trader</strong><small>LOCAL OR CLOUD AI</small></div></div>
     <div class="workspace-label">TRADING WORKSPACE</div>
     <div class="workspace-switch">
       <label for="workspace-select">Trading environment</label>
@@ -83,6 +85,7 @@
             <span class="paper-label" id="profile-version">Checking version…</span></div>
           <p class="panel-note">Changing the password signs out all active sessions and survives a container restart.
           Your brokerage tokens and trading settings are not modified.</p>
+          <p><a class="btn secondary" href="/integrations.html">⚙ Configure AI, Ollama and Schwab connections</a></p>
         </section>
         <form id="profile-password-form" class="panel" style="max-width:660px;padding:24px" autocomplete="off">
           <h2>Change dashboard password</h2>
@@ -115,7 +118,7 @@
           <div>
             <p class="eyebrow">CHARLES SCHWAB · AUTONOMOUS TRADING</p>
             <h1>Live account</h1>
-            <p class="muted">Your actual brokerage worker, existing SPYD holdings, real order journal, and local AI decision rationale.</p>
+            <p class="muted">Your connected Schwab account, order journal, and recorded trading evidence.</p>
           </div>
           <div class="control-panel">
             <div class="control-caption">LIVE ORDER PERMISSION <span id="live-worker-mode" class="mode-tag stopped">Not armed</span></div>
@@ -149,11 +152,11 @@
             <p class="panel-note">A positive AI sentiment score is not a calibrated probability of profit. The $1/day goal is a target, not a guarantee.</p>
           </section>
           <section class="panel">
-            <div class="panel-heading"><div><h2>Investment operation</h2><p>One Schwab account, with SPYD as opening inventory</p></div></div>
-            <div class="readiness-item"><span>Initial holding</span><strong>2 SPYD shares</strong></div>
-            <div class="readiness-item"><span>First intended order</span><strong>Limit SELL during market hours</strong></div>
+            <div class="panel-heading"><div><h2>Investment operation</h2><p>Your authorized Schwab brokerage account</p></div></div>
+            <div class="readiness-item"><span>Initial holding</span><strong>Read from broker account</strong></div>
+            <div class="readiness-item"><span>First intended order</span><strong>Only after explicit order authorization</strong></div>
             <div class="readiness-item"><span>Future candidates</span><strong>Live price, volume, trend and dated news</strong></div>
-            <div class="readiness-item"><span>Model provider</span><strong>TrueNAS local Ollama</strong></div>
+            <div class="readiness-item"><span>Model provider</span><strong>Your configured AI provider</strong></div>
             <div class="readiness-item"><span>Cloud inference fees</span><strong>$0 per local request</strong></div>
             <div class="readiness-item"><span>Control center</span><button class="btn secondary tiny" data-view="local">Choose local model</button></div>
             <p class="panel-note">The existing investment is not separated from the automated account. No forced purchase is made when the strategy lacks a qualifying signal.</p>

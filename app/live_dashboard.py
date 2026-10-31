@@ -36,6 +36,10 @@ def _load(path: Path, default=None, limit=MAX_DOCUMENT_BYTES):
 def installed_models(opener=urlopen):
     """Only actual local Ollama downloads; never the cloud WebUI catalog."""
     url=os.getenv("DASHBOARD_LOCAL_AI_URL","http://local-ai:11434").rstrip("/")
+    if os.getenv("AUTO_UNIFIED_APP","false").lower()=="true":
+        from unified_config import settings
+        url=settings(os.getenv("STATE_DIR","/state")).get("ollama_url","").rstrip("/")
+        if not url:raise ValueError("Configure your Ollama endpoint in Integrations first")
     parsed=urlparse(url)
     if parsed.scheme not in ("http","https") or not parsed.hostname or not parsed.port or parsed.username or parsed.password or parsed.path not in ("","/"):
         raise ValueError("Invalid local model endpoint")

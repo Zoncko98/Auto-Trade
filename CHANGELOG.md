@@ -1,3 +1,11 @@
+## v1.0.6 — Unified TrueNAS app and first-run web setup
+
+- One public container image and stable tag for all Auto Trader components; no separate paper/live/market updates.
+- First-run HTTPS wizard for administrator username and password, Ollama, OAuth AI companions, Schwab developer settings, and module selection.
+- GUI-driven Schwab OAuth redirect flow and linked broker account selection.
+- Paper, market and live functionality remains internal to a single Docker container; no automatic live trading on install.
+- Persistent protected credentials and broker state; one-time pairing code shown in TrueNAS app logs.
+
 # Auto Trader change history
 
 [Documentation](docs/README.md) · [System architecture](docs/architecture.md) · [Test status](docs/status.md)

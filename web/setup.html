@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1220"><title>Auto Trader · First-run Setup</title>
+<link rel="stylesheet" href="/app.css"><script defer src="/setup.js"></script></head>
+<body><main class="login-screen" style="padding:22px;display:flex;align-items:flex-start">
+<section class="login-card" style="width:min(860px,98vw);max-width:860px;margin:18px auto">
+<div class="brand-mark big">◈</div><p class="eyebrow">WELCOME TO AUTO TRADER</p>
+<h1>Set up your trading workstation</h1>
+<p class="login-subtitle">One app. Configure your administrator account, AI connection and optional Schwab access here. No trading begins during installation.</p>
+<form id="first-run-form" autocomplete="off">
+  <h2>1. Claim this installation</h2>
+  <p>In TrueNAS → Apps → Auto Trader → Workloads → Logs, copy the one-time setup code. You won't need the shell.</p>
+  <label for="setup-code">One-time setup code</label>
+  <input id="setup-code" type="text" required minlength="24" maxlength="24" autocomplete="off" placeholder="Code shown in app logs">
+  <label for="setup-username">Administrator username</label>
+  <input id="setup-username" type="text" required value="admin" pattern="[A-Za-z0-9._-]{3,32}" maxlength="32" autocomplete="username">
+  <label for="setup-password">Administrator password (at least 20 characters)</label>
+  <input id="setup-password" type="password" required minlength="20" maxlength="256" autocomplete="new-password">
+  <label for="setup-confirm">Confirm administrator password</label>
+  <input id="setup-confirm" type="password" required minlength="20" maxlength="256" autocomplete="new-password">
+  <h2 style="margin-top:22px">2. Select your AI</h2>
+  <label for="setup-provider">AI provider</label>
+  <select id="setup-provider">
+    <option value="ollama">Local Ollama (LAN computer)</option>
+    <option value="chatgpt-oauth">ChatGPT — user OAuth companion</option>
+    <option value="gemini-oauth">Gemini — user OAuth companion</option>
+    <option value="none">None — configure AI later</option>
+  </select>
+  <div id="setup-ollama-group">
+    <label for="setup-ollama">Ollama endpoint on your AI computer</label>
+    <input id="setup-ollama" type="url" placeholder="http://192.168.1.21:11434">
+    <label for="setup-model">Ollama model</label>
+    <select id="setup-model"><option value="qwen3.5:4b">Qwen 3.5 4B</option><option value="qwen3-vl:8b">Qwen 3 VL 8B</option><option value="deepseek-r1:8b">DeepSeek R1 8B</option></select>
+  </div>
+  <div id="setup-oauth-group" class="hidden">
+    <p class="panel-note">Use the OAuth sign-in on your own AI computer. Add its companion URL and connection token here; no cloud API key or account password is required. OAuth sign-in must be authorized separately.</p>
+    <label for="setup-oauth-url">AI OAuth companion URL (private LAN)</label>
+    <input id="setup-oauth-url" type="url" placeholder="http://192.168.1.21:8767">
+    <label for="setup-oauth-model">Authorized model ID</label>
+    <input id="setup-oauth-model" type="text" maxlength="96" placeholder="Model offered by your AI account">
+    <label for="setup-oauth-token">Connection token (24+ characters, stored privately)</label>
+    <input id="setup-oauth-token" type="password" autocomplete="new-password">
+  </div>
+  <label for="setup-forecast">Forecast service URL (optional)</label>
+  <input id="setup-forecast" type="url" placeholder="http://192.168.1.21:8770">
+  <h2 style="margin-top:22px">3. Schwab account (optional)</h2>
+  <p>Use your Schwab Developer app key and secret. After installation, click “Connect Schwab account” and sign in at Schwab's website. Never enter your brokerage password here.</p>
+  <label for="setup-schwab-key">Schwab developer app key</label>
+  <input id="setup-schwab-key" type="text" autocomplete="off" maxlength="256">
+  <label for="setup-schwab-secret">Schwab developer app secret</label>
+  <input id="setup-schwab-secret" type="password" autocomplete="new-password" maxlength="256">
+  <label for="setup-schwab-callback">Exact registered Schwab OAuth callback URL</label>
+  <input id="setup-schwab-callback" type="url" value="https://127.0.0.1:8182">
+  <h2 style="margin-top:22px">4. Choose modules</h2>
+  <label><input type="checkbox" id="setup-paper"> Start paper simulator after setup</label>
+  <label for="setup-capital">Paper starting capital (USD)</label>
+  <input id="setup-capital" type="number" value="100" min="1" max="100000">
+  <label><input type="checkbox" id="setup-market"> Enable read-only Schwab quote monitoring after connecting the broker</label>
+  <p class="login-disclaimer">Live broker orders remain disabled. You can change connections later from Profile → Integrations.</p>
+  <p id="setup-error" role="alert" class="form-error"></p>
+  <button class="btn primary full" id="setup-submit" type="submit">Save setup and create administrator account →</button>
+</form></section></main></body></html>
