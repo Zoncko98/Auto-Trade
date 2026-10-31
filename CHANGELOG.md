@@ -1,3 +1,11 @@
+## v1.0.16  Visible AI configuration readiness
+
+- Added an authenticated sidebar AI readiness indicator and failure/uncertainty explanations, refreshed every 30 seconds.
+- Explicitly differentiates a model-name claim from verified model metadata or a working AI connection.
+- Preserved the existing fail-closed AI research veto on new live buys; existing rule-based protective sells remain independent.
+- Does not assert runtime readiness, implement model metadata verification, or enable a new live trading gate until these mechanisms can be validated.
+- No paper trading or real order execution was performed during validation.
+
 ## v1.0.15  Read-only AI compatibility diagnostics (stage one)
 
 - Added authenticated GET /api/ai/readiness with non-secret model/provider compatibility status.
