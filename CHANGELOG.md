@@ -2,6 +2,14 @@
 
 [Documentation](docs/README.md) · [System architecture](docs/architecture.md) · [Test status](docs/status.md)
 
+## 2026-10-31 — v1.0.2: Manual update status display
+
+- Adds an explicit Software Updates panel within the user profile.
+- Displays the installed version, latest stable GitHub version, and host check timestamp.
+- Adds a manual Refresh Update Status button that only reads local host-checked state.
+- No automatic code installation, broker credential changes, or live-worker modifications.
+- Published as a real follow-up stable tag to test the v1.0.1 dashboard update notification.
+
 ## 2026-10-31 — v1.0.1: Administrator Profile and private release updates
 
 - Added an Administrator Profile with a dashboard password-change option.

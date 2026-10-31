@@ -70,6 +70,8 @@ function bindEvents(){
       csrf=data.csrf;showApp();await refreshAll();await checkForUpdate().catch(()=>{});
     }catch(err){$("login-error").textContent=err.message;}finally{btn.disabled=false;}
   });
+  $("profile-check-update").addEventListener("click",()=>checkForUpdate()
+      .catch(err=>toast(err.message,true)));
   $("profile-password-form").addEventListener("submit",changeDashboardPassword);
   $("logout-btn").addEventListener("click",async()=>{
     try{await request("/api/logout",{method:"POST",body:"{}"});}catch(_){}
@@ -368,6 +370,13 @@ async function changeDashboardPassword(ev){
 async function checkForUpdate(){
   const status=await request("/api/update");
   const banner=$("update-banner");
+  const details=$("profile-update-status");
+  if(details){
+    details.textContent=status.status==="checked"
+      ? "Installed v"+status.installed+" · Latest v"+status.latest+
+        " · Last checked "+(status.checked_at||"unknown")
+      : "The TrueNAS host has not completed a GitHub release check yet.";
+  }
   if(status.update_available && typeof status.release_url==="string" &&
      status.release_url.startsWith("https://github.com/Zoncko98/Auto-Trade/tree/v")){
     banner.textContent="Update v"+status.latest+" available";

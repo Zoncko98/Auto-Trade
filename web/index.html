@@ -100,6 +100,12 @@
             <button class="btn primary" type="submit" id="profile-save">Change password</button></div>
         </form>
         <section class="panel" style="max-width:660px;margin-top:20px;padding:20px">
+          <div class="panel-heading"><div><h2>Software updates</h2>
+            <p id="profile-update-status" aria-live="polite">Checking update status…</p></div>
+            <button id="profile-check-update" class="btn secondary" type="button">Check update status</button></div>
+          <p class="panel-note">Checks the most recent host-saved private GitHub release tag. No update is installed automatically.</p>
+        </section>
+        <section class="panel" style="max-width:660px;margin-top:20px;padding:20px">
           <div class="panel-heading"><div><h2>Sign out</h2><p>End this browser's dashboard session.</p></div>
             <button id="logout-btn" class="btn secondary" type="button">Log out</button></div>
         </section>

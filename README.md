@@ -4,7 +4,7 @@
 
 Auto Trader runs a web dashboard on a home server and optionally uses an external Ollama/AI workstation for market research. It can display a five-candidate **Next Trading Session Forecast**, source-linked financial news, research scenarios, model status, and unmet confirmations. **Forecasts are not verified trading signals or guarantees.**
 
-> **Repository status:** PRIVATE. The historical releases are preserved as immutable tags: [v1.0.1](https://github.com/Zoncko98/Auto-Trade/tree/v1.0.1) and [v0.9.0-beta](https://github.com/Zoncko98/Auto-Trade/tree/v0.9.0-beta). The portable installer is **v1.1.0-dev**, not a public production release. Don't point a fresh installation at the archived v1.0.0 Compose files: they include installation-specific addresses.
+> **Repository status:** PRIVATE. The historical releases are preserved as immutable tags: [v1.0.2](https://github.com/Zoncko98/Auto-Trade/tree/v1.0.2) and [v0.9.0-beta](https://github.com/Zoncko98/Auto-Trade/tree/v0.9.0-beta). The portable installer is **v1.1.0-dev**, not a public production release. Don't point a fresh installation at the archived v1.0.0 Compose files: they include installation-specific addresses.
 
 ## Documentation navigation
 
