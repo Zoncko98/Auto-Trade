@@ -2,6 +2,16 @@
 
 [Documentation](docs/README.md) · [System architecture](docs/architecture.md) · [Test status](docs/status.md)
 
+## 2026-10-31 — v1.0.1: Administrator Profile and private release updates
+
+- Added an Administrator Profile with a dashboard password-change option.
+- Changing passwords requires the current password, stores a salted PBKDF2 hash in persistent state and invalidates all existing sessions.
+- Added cookie revisioning, change-request rate limits and HTTPS integration tests.
+- Added authenticated read-only profile/version endpoints and an Update available notice.
+- Added a host-side private GitHub stable-tag checker; GitHub SSH credentials never enter the dashboard container.
+- The v1.0.0 dashboard cannot show notifications until this feature is installed once.
+- The live brokerage worker and its risk controls were not altered.
+
 ## 2026-10-30 / 2026-10-31 — Portable installer documentation (v1.1.0-dev)
 
 - Preserved the current v1.0.0 snapshot and the earlier v0.9.0-beta snapshot as immutable Git tags.
