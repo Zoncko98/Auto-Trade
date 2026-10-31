@@ -1,0 +1,19 @@
+# Do not transfer local metadata or credentials in build context
+.git
+.github
+.venv
+**/__pycache__
+**/*.pyc
+*.env
+.env
+.env.*
+config/
+state/
+logs/
+backups/
+*.key
+*.pem
+**/*token*.json
+**/cache/
+**/models/
+**/forecast-service.log

@@ -8,4 +8,4 @@ if [ ! -f deploy/docker-compose.yml ]; then
 fi
 echo "Auto Trader setup — generated credentials stay outside Git"
 echo "The installer builds ONLY the dashboard container."
-python3 installer/setup.py --install
+python3 installer/setup.py --install "$@"

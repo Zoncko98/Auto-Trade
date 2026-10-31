@@ -70,9 +70,10 @@ def make_cert(folder,nas_host):
                    check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     key.chmod(0o600);crt.chmod(0o644)
 
-def create_layout(data_dir,nas_ip,port,password,ai,schwab=None,dry_run=False):
+def create_layout(data_dir,nas_ip,port,password,ai,schwab=None,dry_run=False,platform="truenas"):
     data_dir=pathlib.Path(data_dir).expanduser().resolve()
-    if not dry_run and (len(data_dir.parts)<4 or data_dir.parts[1]!="mnt"):
+    if platform not in ("truenas","docker"):raise ValueError("Unsupported host platform")
+    if platform=="truenas" and not dry_run and (len(data_dir.parts)<4 or data_dir.parts[1]!="mnt"):
         raise ValueError("TrueNAS installs require storage under /mnt/<POOL>/...")
     if REPO==data_dir or REPO in data_dir.parents:
         raise ValueError("Configuration must be outside the git checkout")
@@ -143,16 +144,17 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run",action="store_true",help="Print usage instructions; no secrets created")
     parser.add_argument("--install",action="store_true",help="After setup, build and start the dashboard only")
+    parser.add_argument("--platform",choices=("truenas","docker"),default="truenas",help="Host platform; generic Docker also covers many NAS and Linux servers")
     args=parser.parse_args()
     if args.dry_run:
         print("Setup wizard supports Ollama, OpenAI-compatible APIs, or AI disabled.")
         print("The dashboard is installed first. Live brokerage execution is never enabled at install.")
         return
-    print("Auto Trader — TrueNAS SCALE portable setup")
+    print("Auto Trader — portable Docker/TrueNAS setup",args.platform)
     print("No Schwab login passwords are collected; broker authorization happens through Schwab OAuth.")
     print("All private config and account tokens are stored outside this Git checkout.")
-    path=prompt("TrueNAS data location", "/mnt/tank/apps/auto-trader")
-    host=prompt("TrueNAS LAN IPv4 address","0.0.0.0")
+    path=prompt("Persistent host data location", "/mnt/tank/apps/auto-trader" if args.platform=="truenas" else "/srv/auto-trader-data")
+    host=prompt("Server LAN IPv4 address (0.0.0.0 binds all interfaces)","0.0.0.0")
     port=prompt("HTTPS dashboard port","8765")
     password=prompt("Dashboard password (20+ characters)",secret=True)
     if password!=prompt("Confirm dashboard password",secret=True):
@@ -173,7 +175,7 @@ def main():
         schwab["app_key"]=prompt("Schwab developer APP KEY (hidden)",secret=True)
         schwab["app_secret"]=prompt("Schwab developer APP SECRET (hidden)",secret=True)
         schwab["callback"]=prompt("Registered Schwab OAuth callback URL","https://127.0.0.1:8182")
-    result=create_layout(path,host,port,password,ai,schwab)
+    result=create_layout(path,host,port,password,ai,schwab,platform=args.platform)
     print("Private configuration prepared at",result["config_path"])
     if args.install:
         command=["docker","compose","--env-file",result["config_path"],"-f",str(REPO/"deploy"/"docker-compose.yml"),"up","-d","--build","dashboard"]
