@@ -27,3 +27,13 @@ Keep /state during updates: passwords, tokens, journals, broker authorization, a
 Do not start two live worker processes against one brokerage account. Use a temporary host port 8768 for validation if an old dashboard already uses 8765; after the new unified app has been configured and verified, retire legacy apps and move the new app to 8765 via TrueNAS GUI. Back up old state and token first. The old individual images are deprecated and no longer the standard release channel.
 
 Cloud OAuth requires separate user consent on the AI workstation; choosing a provider in the GUI does not automatically authorize a third-party account. Live trading is OFF on every fresh installation.
+
+## v1.0.7 Schwab callback and native updates
+
+Default https://127.0.0.1:8182 points to the browser computer, not the NAS. Auto Trader does not start a listener on the PC. Therefore a browser connection error after Schwab consent is expected. Copy the entire redirected URL from the browser's address bar and paste it into Profile > Integrations > Finish Schwab connection. The URL contains a one-time OAuth code; never share it publicly.
+
+Advanced alternative: If accepted and approved in the Schwab Developer Portal, register https://NAS_PRIVATE_IP:PORT/schwab/callback, and enter that exact address in the GUI. With HTTPS reachable, the NAS receives and finishes the callback automatically; changing the developer-app redirect can require reapproval. The loopback copy-and-paste flow remains supported.
+
+Profile > Integrations shows administrator setup, AI setup, Schwab authorization and module status separately. Paper uses fake funds; market monitoring reads only broker quotes; live trading permits real orders only after a single confirmation popup and account validation.
+
+Native TrueNAS: Custom YAML apps show Source: N/A because their catalog metadata has no upstream source. TrueNAS nonetheless detects new public image digests when image updates are enabled. The installed app uses ghcr.io/zoncko98/auto-trade:stable. The Auto Trader Profile links to GitHub and checks current stable release tags; the update itself happens through TrueNAS Apps. A TrueNAS catalog submission would be needed for populated native catalog source metadata.

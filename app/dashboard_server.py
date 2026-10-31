@@ -29,12 +29,13 @@ from live_dashboard import (installed_models, current_model, set_model,
 from live_extension import (read_live_risk,set_live_risk,validate_risk,read_decisions,
                             rows_from_live,excel_export)
 from profile_auth import verify as verify_profile_password, rotate as rotate_profile_password, revision as profile_revision, ProfileError
-from update_status import update_information, installed_version
+from update_status import update_information, public_update_information, installed_version
 from broker_market_data import read_snapshot as broker_market_snapshot
 from unified_config import (configured as app_configured, initialize as initialize_app,
     public_summary as integration_summary, save as save_integrations,
     pairing_code as pairing_code_for_setup, settings as integration_settings,
     username as profile_username, SetupError)
+from live_access import toggle as toggle_live_access
 from schwab_web_oauth import (begin as begin_schwab_auth,
     finish as finish_schwab_auth, accounts as schwab_accounts)
 from dashboard_control import (
@@ -182,8 +183,9 @@ class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
-        # Never log cookies, passwords, POST bodies or query strings.
-        print(f"dashboard [{self.client_address[0]}] {fmt % args}", flush=True)
+        # Schwab OAuth codes can appear in callback query strings. Never log
+        # client-supplied URLs, POST bodies, cookies, or provider credentials.
+        print(f"dashboard [{self.client_address[0]}] {self.command} request", flush=True)
 
     def _headers(self, status, content_type, length, more=None):
         self.send_response(status)
@@ -260,6 +262,23 @@ class Handler(BaseHTTPRequestHandler):
                 "setup_complete":(app_configured(STATE_DIR) if UNIFIED_APP else True)})
         if UNIFIED_APP and path == "/api/setup/status":
             return self._json(200,{"setup_needed":not app_configured(STATE_DIR)})
+        if UNIFIED_APP and path == "/schwab/callback":
+            # The callback may be a cross-site browser navigation from Schwab,
+            # so it authenticates with OAuth state, not the SameSite cookie.
+            # Only serve callbacks matching the exact registered LAN URL.
+            configured_url=integration_settings(STATE_DIR).get("schwab_callback_url","")
+            expected=urlparse(configured_url)
+            if expected.hostname=="127.0.0.1" or expected.path!="/schwab/callback" or self.headers.get("Host","")!=expected.netloc:
+                return self._json(404,{"error":"This is not the registered Schwab callback"})
+            try:
+                finish_schwab_auth(STATE_DIR,"https://"+expected.netloc+self.path)
+                html=b"<!doctype html><title>Schwab connected</title><h1>Schwab account connected</h1><p>Return to your Auto Trader dashboard. Live trading remains OFF until you enable it.</p>"
+                self._headers(200,"text/html; charset=utf-8",len(html))
+                return self.wfile.write(html)
+            except Exception:
+                html=b"<!doctype html><title>Schwab connection incomplete</title><h1>Schwab connection was not completed</h1><p>Return to Auto Trader, check the registered callback URL and try again.</p>"
+                self._headers(400,"text/html; charset=utf-8",len(html))
+                return self.wfile.write(html)
         assets = {
             "/": ("index.html", "text/html; charset=utf-8"),
             "/setup.html": ("setup.html","text/html; charset=utf-8"),
@@ -310,7 +329,8 @@ class Handler(BaseHTTPRequestHandler):
                     if UNIFIED_APP else "Administrator"),
                     "password_change_enabled":True,"version":installed_version(APP_DIR)})
             if path == "/api/update":
-                return self._json(200, update_information(STATE_DIR,APP_DIR))
+                return self._json(200,(public_update_information(APP_DIR)
+                    if UNIFIED_APP else update_information(STATE_DIR,APP_DIR)))
             if path == "/api/research/market":
                 return self._json(200,broker_market_snapshot(STATE_DIR/"live"))
             if path in ("/api/research/forecast","/api/research/models"):
@@ -485,6 +505,13 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if UNIFIED_APP and path == "/api/live/activation":
+            try:
+                return self._json(200,toggle_live_access(STATE_DIR,self._body()))
+            except (SetupError,ValueError,TypeError,OSError) as exc:
+                return self._json(400,{"error":str(exc)[:180]})
+            except Exception:
+                return self._json(503,{"error":"Unable to verify broker account; live trading remains disabled"})
         if UNIFIED_APP and path == "/api/integrations":
             try:
                 summary=save_integrations(STATE_DIR,self._body())

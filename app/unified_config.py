@@ -7,8 +7,7 @@ from profile_auth import rotate as set_initial_password, revision as profile_rev
 
 PUBLIC_FIELDS=("ai_provider","ollama_url","ai_model","oauth_bridge_url",
                "oauth_model","schwab_app_key","schwab_callback_url",
-               "paper_enabled","market_enabled","paper_capital","forecast_url",
-               "live_enabled","live_account_hash")
+               "paper_enabled","market_enabled","paper_capital","forecast_url")
 SECRET_FIELDS=("schwab_app_secret","oauth_bridge_token")
 PROVIDERS=("ollama","chatgpt-oauth","gemini-oauth","none")
 MODELS_RE=re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}$")
@@ -99,6 +98,15 @@ def public_summary(state):
     exposed={k:v for k,v in d.items() if k not in ("live_account_hash","live_confirmed")}
     return {**exposed,"live_account_selected":bool(d.get("live_account_hash")),
             "setup_complete":configured(state),
+            "setup_status":{
+              "administrator":"complete" if profile_revision(state)>0 else "pending",
+              "ai":"configured" if d["ai_provider"]!="none" else "optional",
+              "schwab_developer":"configured" if d["schwab_app_key"] and secrets_doc.get("schwab_app_secret") else "optional",
+              "schwab_account":"connected" if (Path(state)/"schwab_token.json").is_file() else "not_connected",
+              "paper":"enabled" if d["paper_enabled"] else "off",
+              "market_quotes":"enabled" if d["market_enabled"] else "off",
+              "live":"enabled" if d.get("live_enabled") else "off"
+            },
             "schwab_secret_set":bool(secrets_doc.get("schwab_app_secret")),
             "oauth_bridge_token_set":bool(secrets_doc.get("oauth_bridge_token")),
             "schwab_token_connected":(Path(state)/"schwab_token.json").is_file(),
@@ -106,7 +114,7 @@ def public_summary(state):
 
 def validate(payload,current,old_secrets):
     if not isinstance(payload,dict):raise SetupError("Expected setup object")
-    allowed=set(PUBLIC_FIELDS)|set(SECRET_FIELDS)|{"live_activation_phrase"}
+    allowed=set(PUBLIC_FIELDS)|set(SECRET_FIELDS)
     if set(payload)-allowed:raise SetupError("Unsupported installation setting")
     result=dict(current)
     secrets_doc=dict(old_secrets)
@@ -130,9 +138,22 @@ def validate(payload,current,old_secrets):
     if not isinstance(key,str) or len(key)>256 or any(ord(ch)<33 for ch in key):
         raise SetupError("Invalid Schwab developer app key")
     callback=urlparse(result["schwab_callback_url"])
-    if callback.scheme!="https" or callback.hostname!="127.0.0.1" or not (1024 <= (callback.port or 0) <=65535) or callback.fragment or callback.username:
-        raise SetupError("Use the exact registered Schwab HTTPS loopback callback")
-    for key in ("paper_enabled","market_enabled","live_enabled"):
+    if (callback.scheme!="https" or not (1024 <= (callback.port or 0) <=65535)
+        or callback.fragment or callback.username or callback.password
+        or callback.query or not callback.hostname):
+        raise SetupError("Use your exact registered HTTPS Schwab callback URL")
+    if callback.hostname=="127.0.0.1":
+        if callback.path not in ("","/"):
+            raise SetupError("Loopback callback must match the registered URL (usually no path)")
+    else:
+        try:
+            host=ipaddress.ip_address(callback.hostname)
+            permitted=host.is_private and not host.is_loopback and not host.is_link_local
+        except ValueError:
+            permitted=False
+        if not permitted or callback.path!="/schwab/callback":
+            raise SetupError("For an automatic callback use https://PRIVATE_NAS_IP:PORT/schwab/callback, registered exactly at Schwab")
+    for key in ("paper_enabled","market_enabled"):
         if type(result[key]) is not bool:raise SetupError("Invalid service enable option")
     if type(result["paper_capital"]) not in (float,int) or not 1<=result["paper_capital"]<=100000:
         raise SetupError("Invalid paper trading capital")
@@ -141,18 +162,11 @@ def validate(payload,current,old_secrets):
     if result["ai_provider"] in ("chatgpt-oauth","gemini-oauth"):
         if not result["oauth_bridge_url"] or not result["oauth_model"] or len(secrets_doc.get("oauth_bridge_token",""))<24:
             raise SetupError("OAuth companion URL, authorized model and 24+ character bridge token required")
-    if result["market_enabled"] and not (result["schwab_app_key"] and secrets_doc.get("schwab_app_secret")):
-        raise SetupError("Schwab developer app credentials required for broker market data")
+    # A checked read-only market monitor waits for Schwab OAuth credentials;
+    # do not block installation just because brokerage sign-in comes later.
     selected=result.get("live_account_hash","")
     if not isinstance(selected,str) or (selected and not re.fullmatch(r"[A-Za-z0-9_-]{5,150}",selected)):
         raise SetupError("Invalid Schwab account selection")
-    if "live_enabled" in payload and result["live_enabled"]:
-        if (payload.get("live_activation_phrase")!="I UNDERSTAND LIVE ORDERS" or
-            not selected or not result["schwab_app_key"] or
-            not secrets_doc.get("schwab_app_secret")):
-            raise SetupError("Live trading requires an account and explicit confirmation phrase")
-        result["live_confirmed"]=True
-    if not result["live_enabled"]:result["live_confirmed"]=False
     return result,secrets_doc
 
 def save(state,payload):

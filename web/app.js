@@ -375,7 +375,7 @@ async function checkForUpdate(){
     details.textContent=status.status==="checked"
       ? "Installed v"+status.installed+" · Latest v"+status.latest+
         " · Last checked "+(status.checked_at||"unknown")
-      : "The TrueNAS host has not completed a GitHub release check yet.";
+      : "Unable to check GitHub releases; verify internet access. TrueNAS image updates are independent.";
   }
   if(status.update_available && typeof status.release_url==="string" &&
      status.release_url.startsWith("https://github.com/Zoncko98/Auto-Trade/tree/v")){

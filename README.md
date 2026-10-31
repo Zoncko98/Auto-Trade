@@ -1,5 +1,9 @@
 # Auto Trader
 
+## v1.0.7 setup and update fixes
+
+Clear setup-progress states, explained paper/market modules, single-button live-trading confirmation, and guided Schwab callbacks. TrueNAS Source: N/A is expected for custom YAML apps; native updates use the public stable image digest, and the Auto Trader Profile links directly to GitHub.
+
 ## Recommended installation: ONE TrueNAS app, ONE update
 
 Use the [Unified TrueNAS installation guide](deploy/truenas-apps/README.md).

@@ -20,12 +20,7 @@ function values(){
     schwab_callback_url:str("schwab-callback"),
     paper_enabled:field("paper").checked,
     market_enabled:field("market").checked,
-    paper_capital:Number(str("capital")),
-    ...(firstRun ? {} : {
-       live_enabled:field("live-enabled").checked,
-       live_account_hash:field("live-account").value,
-       live_activation_phrase:field("live-phrase").value.trim()
-    })
+    paper_capital:Number(str("capital"))
   };
 }
 async function api(path,opts={}){
@@ -36,11 +31,23 @@ async function api(path,opts={}){
   if(!response.ok)throw Error(doc.error||"Request failed");
   return doc;
 }
+let liveEnabled=false;
+function setLiveButton(enabled){
+  liveEnabled=enabled;
+  const btn=document.getElementById("toggle-live");
+  if(btn)btn.textContent=enabled?"Turn OFF live trading":"Turn ON live trading";
+  const status=document.getElementById("live-current-status");
+  if(status)status.textContent=enabled?
+    "Live trading enabled. Real Schwab orders may be submitted.":
+    "Live trading OFF. No new real orders are authorized.";
+}
 function displayError(error){
   field("error").textContent=error?.message||"Unable to complete setup";
 }
 async function init(){
   field("provider").addEventListener("change",providerUI);
+  const callbackHelp=document.getElementById("automatic-callback-url");
+  if(callbackHelp)callbackHelp.textContent=location.origin+"/schwab/callback";
   providerUI();
   form.addEventListener("submit",async e=>{
     e.preventDefault();
@@ -82,8 +89,31 @@ async function init(){
       providerUI();
       document.getElementById("schwab-status").textContent=
         d.schwab_token_connected?"Schwab OAuth connected":"Schwab account not connected";
-      field("live-enabled").checked=!!d.live_enabled;
+      setLiveButton(!!d.live_enabled);
+      const steps=d.setup_status||{};
+      document.getElementById("setup-checklist").textContent=
+        "Account: "+(steps.administrator||"pending")+" · AI: "+(steps.ai||"optional")+
+        " · Schwab: "+(steps.schwab_account||"not_connected")+
+        " · Paper: "+(steps.paper||"off")+
+        " · Market quotes: "+(steps.market_quotes||"off");
     }catch(e){displayError(e);}
+    document.getElementById("toggle-live").addEventListener("click",async ()=>{
+      try{
+        const enabling=!liveEnabled;
+        if(enabling){
+          const account=field("live-account").value;
+          if(!account)throw Error("Connect Schwab and select the verified brokerage account first.");
+          if(!window.confirm("ENABLE LIVE TRADING? This allows Auto Trader to submit REAL Schwab buy and sell orders in your selected account. You can lose money. Continue?"))return;
+          const data=await api("/api/live/activation",{method:"POST",
+            body:JSON.stringify({enable:true,confirmed:true,account_hash:account})});
+          setLiveButton(data.live_enabled===true);
+        }else{
+          const data=await api("/api/live/activation",{method:"POST",
+            body:JSON.stringify({enable:false,confirmed:true,account_hash:""})});
+          setLiveButton(!!data.live_enabled);
+        }
+      }catch(ex){displayError(ex);}
+    });
     document.getElementById("fetch-accounts").addEventListener("click",async ()=>{
       try{
         const data=await api("/api/schwab/accounts");
@@ -101,7 +131,9 @@ async function init(){
         const anchor=document.getElementById("schwab-oauth-link");
         anchor.textContent="Open Schwab sign-in";anchor.href=result.authorization_url;
         anchor.classList.remove("hidden");
-        document.getElementById("schwab-redirect-form").classList.remove("hidden");
+        const helper=document.getElementById("schwab-callback-help");
+        if(helper)helper.textContent=result.instructions||"";
+        document.getElementById("schwab-redirect-form").classList.toggle("hidden",result.automatic_callback===true);
       }catch(e){displayError(e);}
     });
     document.getElementById("finish-schwab").addEventListener("click",async e=>{

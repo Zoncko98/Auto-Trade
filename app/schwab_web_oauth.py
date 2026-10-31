@@ -22,8 +22,12 @@ def begin(state):
         "callback":callback,"state":context.state,
         "authorization_url":context.authorization_url,"created":time.time()
     })
-    return {"authorization_url":context.authorization_url,
-            "instructions":"Sign in only on Schwab, approve access, then paste the full browser redirect URL. Your Schwab password never goes to Auto Trader."}
+    automatic=urlparse(callback).hostname!="127.0.0.1"
+    return {"authorization_url":context.authorization_url,"callback_url":callback,
+            "automatic_callback":automatic,
+            "instructions":("Schwab will return automatically to the Auto Trader HTTPS page."
+             if automatic else
+             "The browser may show cannot connect at 127.0.0.1:8182 because no local listener is running. This is expected. Copy the FULL callback URL from the address bar (including code and state), return to Auto Trader, and paste it into the form. Never share that URL.")}
 
 def finish(state,returned_url):
     from schwab.auth import AuthContext,client_from_received_url

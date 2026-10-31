@@ -1,3 +1,15 @@
+## v1.0.7 — Installation fixes and simplified live trading
+
+- Fix GUI setup progress: administrator creation is complete independently from optional AI, broker OAuth and module connection states.
+- Stop requiring live-trading confirmation words when saving unrelated integration settings.
+- Replace the live-trading checkbox and manually typed phrase with one ON/OFF button. ON shows an explicit real-money order confirmation popup and validates the selected Schwab account. OFF pauses order permission.
+- Clarify two optional modules: simulated paper trading versus read-only Schwab quote monitoring. The quote monitor can be selected before connecting Schwab and waits for authorization.
+- Explain 127.0.0.1:8182 points to the browser computer. A browser connection error after Schwab login is expected without a local listener. Copy the full redirect URL into the integration page.
+- Add an optional direct HTTPS NAS callback for developer apps registered to that exact address. Developer callback changes can require Schwab reapproval.
+- Prevent OAuth query-code leakage through web access logs.
+- Check public GitHub release tags from the GUI, show the repository source link, and document native TrueNAS image update support and custom YAML Source N/A.
+- Add regression tests for OAuth callback, live order confirmation, update checks and optional module setup. Existing brokerage credentials and trading data are not included.
+
 ## v1.0.6 — Unified TrueNAS app and first-run web setup
 
 - One public container image and stable tag for all Auto Trader components; no separate paper/live/market updates.
