@@ -1,3 +1,9 @@
+## v1.0.13  Explainability update release validation
+
+- Updated the profile version regression test to compare against the application VERSION file instead of hard-coding v1.0.11; this keeps the test valid for subsequent releases.
+- Preserved the v1.0.12 code and immutable tag. v1.0.12's image publication failed due to the version-specific test assertion.
+- Published the explainability changes under a new immutable release version after correcting validation. No changes to execution behavior.
+
 ## v1.0.12  Explainable trade decision records
 
 - Added app/trade_explanations.py for structured, observable trade evidence; no private model thoughts are claimed.
