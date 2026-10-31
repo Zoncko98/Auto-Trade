@@ -275,7 +275,18 @@ class Handler(BaseHTTPRequestHandler):
             if path in ("/api/research/forecast","/api/research/models"):
                 target = "/api/forecast" if path.endswith("forecast") else "/api/models"
                 try:
-                    req=Request("http://192.168.1.21:8766"+target,headers={"Accept":"application/json"})
+                    forecast_url=os.getenv("FORECAST_API_URL","").rstrip("/")
+                    if not forecast_url:return self._json(503,{"error":"Forecast service not configured"})
+                    parsed=urlparse(forecast_url)
+                    if parsed.scheme not in ("http","https") or not parsed.hostname or not parsed.port or parsed.path not in ("","/") or parsed.username or parsed.password:
+                        raise ValueError("Invalid forecast endpoint")
+                    from ipaddress import ip_address
+                    try:
+                        permitted=ip_address(parsed.hostname).is_private
+                    except ValueError:
+                        permitted=False
+                    if not permitted:raise ValueError("Forecast service must use private LAN IP")
+                    req=Request(forecast_url+target,headers={"Accept":"application/json"})
                     with urlopen(req,timeout=9) as response:
                         body=response.read(350001)
                     if len(body)>350000:

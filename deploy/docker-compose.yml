@@ -1,0 +1,70 @@
+name: auto-trader
+services:
+  dashboard:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.dashboard
+    container_name: auto-trader-dashboard
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${AUTOTRADER_DATA_DIR}/config/dashboard.env
+    environment:
+      STATE_DIR: /state
+      DASHBOARD_PORT: "8765"
+      DASHBOARD_LOCAL_AI_URL: ${AI_OLLAMA_URL}
+      FORECAST_API_URL: ${FORECAST_API_URL:-}
+      DASHBOARD_TLS_CERT: /tls/cert.pem
+      DASHBOARD_TLS_KEY: /tls/key.pem
+    ports:
+      - "${NAS_BIND_IP}:${DASHBOARD_HOST_PORT}:8765"
+    volumes:
+      - ${AUTOTRADER_DATA_DIR}/state:/state
+      - ${AUTOTRADER_DATA_DIR}/tls:/tls:ro
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD","python","-c","import ssl,urllib.request;urllib.request.urlopen('https://127.0.0.1:8765/health',timeout=5,context=ssl._create_unverified_context()).read()"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+  paper:
+    profiles: ["paper"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.paper
+    container_name: auto-trader-paper
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${AUTOTRADER_DATA_DIR}/config/paper.env
+    volumes:
+      - ${AUTOTRADER_DATA_DIR}/state:/state
+      - ${AUTOTRADER_DATA_DIR}/logs:/logs
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  live-trader:
+    profiles: ["live"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.live
+    container_name: auto-trader-live
+    restart: "no"
+    init: true
+    env_file:
+      - ${AUTOTRADER_DATA_DIR}/config/live.env
+    environment:
+      SCHWAB_ENV_FILE: /run/secrets/schwab.env
+      SCHWAB_TOKEN_FILE: /state/schwab_token.json
+      LIVE_STATE_DIR: /state/live
+    volumes:
+      - ${AUTOTRADER_DATA_DIR}/config/schwab.env:/run/secrets/schwab.env:ro
+      - ${AUTOTRADER_DATA_DIR}/state:/state
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

@@ -8,6 +8,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import ipaddress
+from urllib.parse import urlparse
+import ipaddress
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen
@@ -15,7 +19,7 @@ from urllib.error import URLError
 from live_extension import (read_decisions, read_live_risk, rows_from_live)
 
 MODEL_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}$")
-MAX_MODEL_SIZE = 7_000_000_000
+MAX_MODEL_SIZE = int(os.getenv("OLLAMA_MAX_MODEL_BYTES","7000000000"))
 MAX_DOCUMENT_BYTES = 2_000_000
 DEFAULT_MODEL = "qwen3.5:4b"
 
@@ -31,9 +35,17 @@ def _load(path: Path, default=None, limit=MAX_DOCUMENT_BYTES):
 
 def installed_models(opener=urlopen):
     """Only actual local Ollama downloads; never the cloud WebUI catalog."""
-    url=os.getenv("DASHBOARD_LOCAL_AI_URL","http://192.168.1.21:11434").rstrip("/")
-    if url!="http://192.168.1.21:11434":
+    url=os.getenv("DASHBOARD_LOCAL_AI_URL","http://local-ai:11434").rstrip("/")
+    parsed=urlparse(url)
+    if parsed.scheme not in ("http","https") or not parsed.hostname or not parsed.port or parsed.username or parsed.password or parsed.path not in ("","/"):
         raise ValueError("Invalid local model endpoint")
+    try:
+        addr=ipaddress.ip_address(parsed.hostname)
+        valid=addr.is_private or addr.is_loopback
+    except ValueError:
+        valid=parsed.hostname in ("localhost","local-ai","host.docker.internal") or parsed.hostname.endswith(".local")
+    if not valid:
+        raise ValueError("Ollama must use a private LAN endpoint")
     try:
         with opener(url+"/api/tags", timeout=4) as response:
             raw=response.read(131073)
