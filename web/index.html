@@ -9,6 +9,7 @@
 <script defer src="/app.js"></script>
 <script defer src="/local.js"></script>
 <script defer src="/forecast.js"></script>
+<script defer src="/brokers.js"></script>
 </head>
 <body>
 <div id="login-screen" class="login-screen">
@@ -54,6 +55,7 @@
         <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
       </div>
+      <button class="nav-item" data-view="brokers"><span class="nav-icon">⌘</span> Broker connections</button>
     </nav>
     <div class="sidebar-footer">
       <div class="guard-title"><span class="live-dot"></span> SYSTEM SAFEGUARDS</div>
@@ -77,6 +79,24 @@
     </header>
     <main class="content">
       <div id="toast" class="toast hidden" role="status"></div>
+      <section class="view hidden" id="view-brokers">
+        <div class="page-header"><div><p class="eyebrow">BROKERAGE CONNECTIONS</p>
+          <h1>Connect your trading platforms</h1>
+          <p class="muted">One Auto Trader workspace for multiple accounts. Account connections, quotes and permission to submit orders are separate capabilities.</p>
+        </div><button id="brokers-refresh" class="btn secondary" type="button">Refresh connections</button></div>
+        <div class="notice neutral" style="margin:14px 0">
+          <span class="notice-icon">ⓘ</span>
+          <div><strong>Live orders remain isolated to the existing Schwab worker.</strong>
+            <p>Adding a brokerage to the roadmap never enables trading. Each new adapter must pass sandbox order, account selection, risk and reconciliation checks before live use.</p></div>
+        </div>
+        <p class="panel-note" id="brokers-status" role="status">Loading broker connection capabilities…</p>
+        <div id="broker-grid" class="broker-grid" aria-live="polite"></div>
+        <section class="panel broker-notes" style="margin-top:20px;padding:20px">
+          <h2>How multi-broker trading will work</h2>
+          <p>Market research and AI trade explanations can be shared. Cash, positions, order history, pending-order checks, rate limits and maximum-loss rules will be isolated by <strong>broker and account</strong>. Choosing another broker will never redirect a Schwab order to that broker automatically.</p>
+          <p>Webull and Alpaca require their respective developer authorization and approval. Robinhood's publicly documented API is for crypto trading, not general stock trading. Until a provider's connection is implemented, this page shows its official developer requirements rather than accepting passwords or pretending it is connected.</p>
+        </section>
+      </section>
       <section class="view hidden" id="view-profile">
         <div class="page-header"><div><p class="eyebrow">ACCOUNT SECURITY</p><h1>User profile</h1>
           <p class="muted">Manage the administrator password and view the installed application version.</p></div></div>

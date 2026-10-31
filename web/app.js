@@ -109,9 +109,9 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile"].includes(view))return;
+  if(!["live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers"].includes(view))return;
   activeView=view;
-  const workspace=view==="profile"?$("workspace-select").value:(["live","decisions","live-risk","local","forecast"].includes(view)?"live":"paper");
+  const workspace=["profile","brokers"].includes(view)?$("workspace-select").value:(["live","decisions","live-risk","local","forecast"].includes(view)?"live":"paper");
   $("workspace-select").value=workspace;
   $("workspace-description").textContent=workspace==="live"
     ?"Real Schwab account · cash only":"Simulated account · no real orders";
@@ -121,12 +121,14 @@ function showView(view) {
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   const titles={live:"Schwab live",decisions:"Live AI evidence","live-risk":"Live risk settings",
     local:"Local AI models",forecast:"Next session forecast",overview:"Paper simulator",trades:"Paper history",
-    reviews:"Paper AI audit",settings:"Paper risk settings",profile:"User profile"};
+    reviews:"Paper AI audit",settings:"Paper risk settings",profile:"User profile",
+    brokers:"Broker connections"};
   $("breadcrumb").textContent=titles[view];
   if(view==="trades" || view==="reviews") loadPage(view,page[view]).catch(err=>toast(err.message,true));
   if(view==="settings" && status) populateSettings(status.control.settings);
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
+  if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
   if(view==="profile") request("/api/profile").then(p=>{
     $("profile-version").textContent="Installed v"+p.version;

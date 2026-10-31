@@ -77,3 +77,16 @@
   .workspace-menu .nav-icon{font-size:19px}
   #view-live-risk .settings-preview{position:static}
 }
+
+.broker-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:16px;margin-top:18px}
+.broker-card{padding:22px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card)}
+.broker-card-heading{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.broker-card h2{font-size:18px;margin:0}
+.broker-card .broker-status{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#b2c1d6;background:#1b2a41;border:1px solid var(--border);border-radius:8px;padding:5px 8px}
+.broker-card .broker-status.connected{color:var(--green);border-color:#396650}
+.broker-card p{color:var(--muted);line-height:1.6;font-size:12px}
+.broker-capabilities{display:grid;gap:6px;margin:10px 0 15px;font-size:12px}
+.broker-capabilities strong{color:var(--text)}
+.broker-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.broker-actions a{color:#a3c6ff;text-decoration:underline}
+.broker-note{font-size:11px;color:var(--amber);line-height:1.5}

@@ -1,5 +1,11 @@
 # Auto Trader
 
+## v1.0.10 — Multi-broker connections
+
+Auto Trader now includes a **Broker connections** workspace in its single TrueNAS app. It lists Charles Schwab, Webull, Alpaca, Robinhood Crypto and Interactive Brokers, with official API requirements and clearly labeled implementation status.
+
+Only Schwab is currently wired to the live worker. Other broker cards are **not live-ready**; they are the start of an authorized integration layer and cannot send orders. See the [multi-broker integration guide](docs/guides/multi-broker.md) and [release changelog](CHANGELOG.md). Webull Connect OAuth and Alpaca are the next implementation targets, subject to provider registration/approval.
+
 ## v1.0.9 — Built-in forecast and optional selected AI provider
 
 Forecasting now works inside the single Auto Trader TrueNAS image, with no separate AI workstation or specialist model installation needed. Automatic mode uses an existing advanced service when available and otherwise computes historical-price technical research natively. The configured local or OAuth companion can optionally add public-news commentary without access to brokerage data.

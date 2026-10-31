@@ -31,6 +31,7 @@ from live_extension import (read_live_risk,set_live_risk,validate_risk,read_deci
 from profile_auth import verify as verify_profile_password, rotate as rotate_profile_password, revision as profile_revision, ProfileError
 from update_status import update_information, public_update_information, installed_version
 from broker_market_data import read_snapshot as broker_market_snapshot
+from broker_workspace import workspace_summary as broker_workspace_summary
 from forecast_engine import (forecast as selected_forecast,
     connection as selected_forecast_connection, models as selected_forecast_models)
 from forecast_connection import (
@@ -295,6 +296,7 @@ class Handler(BaseHTTPRequestHandler):
             "/app.js": ("app.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
             "/forecast.js": ("forecast.js", "text/javascript; charset=utf-8"),
+            "/brokers.js": ("brokers.js","text/javascript; charset=utf-8"),
             "/app.css": ("app.css", "text/css; charset=utf-8"),
         }
         if path in assets:
@@ -322,6 +324,8 @@ class Handler(BaseHTTPRequestHandler):
         if not nonce:
             return self._json(401, {"error": "Sign in required"})
         try:
+            if UNIFIED_APP and path == "/api/brokers":
+                return self._json(200,broker_workspace_summary(STATE_DIR))
             if UNIFIED_APP and path == "/api/integrations":
                 return self._json(200,integration_summary(STATE_DIR))
             if UNIFIED_APP and path == "/api/schwab/accounts":

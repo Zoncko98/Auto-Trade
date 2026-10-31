@@ -1,3 +1,13 @@
+## v1.0.10 — Multi-broker workspace foundation
+
+- Added a new authenticated **Broker connections** view to the single TrueNAS Auto Trader app, accessible from both live and paper workspaces.
+- Verified and documented official API routes for Schwab, Webull Connect/OpenAPI, Alpaca Connect, Interactive Brokers and Robinhood Crypto. Clearly distinguish published provider capabilities from real integrations and account authorization.
+- Introduced a typed Python BrokerAdapter contract covering accounts, balances, positions, market quotes, order history, submission and cancellation. All non-Schwab adapters explicitly fail closed; no new live trade execution has been enabled.
+- Exposed authenticated GET /api/brokers returning non-secret capability and integration metadata. The Schwab badge reflects only presence of a saved authorization file, not proof of a valid current broker session.
+- Added the provider documentation links, exact API access prerequisites, asset-class restrictions and phased integration plan under docs/guides/multi-broker.md.
+- The existing Schwab OAuth workflow, live worker, cash-only restrictions, risk controls, paper engine, AI model settings, trade histories and TrueNAS deployment are unchanged. No new brokerage password/API key is collected.
+- Added tests for unsupported-adapter fail-closed behavior, credential non-disclosure, broker feature claims and integration statuses.
+
 ## v1.0.9 — NAS-native market forecasts and selected-provider commentary
 
 - Implemented a no-extra-model NAS-native daily market analysis engine inside the single TrueNAS app, with genuine historical data feeds, eligibility screens, technical momentum/trend/volatility/liquidity calculations and illustrative historical-volatility bands.
