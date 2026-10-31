@@ -3,7 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 # Only private local models and authenticated live/paper telemetry.
 # Old cloud-provider settings and credential endpoints are not shipped.
-COPY dashboard_control.py dashboard_server.py live_dashboard.py ./
+COPY dashboard_control.py dashboard_server.py live_dashboard.py live_extension.py ./
 COPY web/ /app/web/
 EXPOSE 8765
 CMD ["python","-u","/app/dashboard_server.py"]

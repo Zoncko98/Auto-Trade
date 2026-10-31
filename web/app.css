@@ -45,3 +45,35 @@
 #view-local .divider {height:1px;background:#263447;margin:22px 0}
 #live-order-count-note {padding:12px 16px 5px}
 @media(max-width:900px){#view-live .hero-head{display:block}#view-live .control-panel{margin-top:16px;max-width:100%}}
+
+
+/* Distinct Live / Paper environment selector and nested menus */
+.workspace-switch{margin:3px 8px 18px;padding:12px;background:#101e32;border:1px solid #2c405b;border-radius:11px}
+.workspace-switch label{display:block;color:#8094b1;text-transform:uppercase;font-size:9px;letter-spacing:1.2px;font-weight:800;margin-bottom:8px}
+.workspace-switch select{width:100%;background:#132842;border:1px solid #39608a;border-radius:8px;color:#e8f4ff;font-weight:750;font-size:12px;padding:10px 9px;cursor:pointer}
+.workspace-switch select:focus{outline:2px solid #5b99ff;outline-offset:1px}
+.workspace-switch p{font-size:10px;line-height:1.5;color:#8dabc5;margin:9px 0 0}
+.workspace-menu{display:grid;gap:6px}
+.workspace-menu .nav-item{font-size:12px}
+.evidence-expanded{background:#0a1524;border:1px solid #263c57;border-radius:8px;padding:13px;max-width:550px}
+.evidence-expanded p{font-size:11px;color:#a2b6d2;line-height:1.7;overflow-wrap:anywhere}
+.evidence-expanded ol{padding-left:19px;margin:8px 0}
+.evidence-expanded li{margin-bottom:9px;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.evidence-expanded a{color:#7ab4ff;text-decoration:underline}
+.evidence-expanded strong{color:#e0edf9}
+.subdued-evidence{font-size:10px;color:#84a3c8;margin-top:5px}
+#view-decisions details summary{cursor:pointer;display:inline-block;padding:5px 0;color:#88b9fb;font-size:11px;font-weight:700}
+#view-decisions .reason{min-width:220px;max-width:480px;overflow-wrap:anywhere}
+#view-live-risk .settings-preview{position:sticky;top:95px}
+#view-live-risk .notice{background:#34261980;border-color:#70572b}
+#view-live-risk .notice strong{color:#f5c989}
+#view-live-risk .panel-note{max-width:560px}
+@media(max-width:760px){
+  .sidebar{width:79px}
+  .workspace-switch{margin:0 0 18px;padding:4px}
+  .workspace-switch label,.workspace-switch p{display:none}
+  .workspace-switch select{font-size:9px;padding:6px 3px;max-width:68px}
+  .workspace-menu .nav-item{font-size:0}
+  .workspace-menu .nav-icon{font-size:19px}
+  #view-live-risk .settings-preview{position:static}
+}

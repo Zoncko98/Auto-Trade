@@ -262,11 +262,19 @@ class OrderLedger:
         entry["order_id"]=str(order_id)
         self.save()
 
-    def mark_terminal(self, entry, broker_state):
+    def mark_terminal(self, entry, broker_state, fill=None):
         if broker_state not in TERMINAL:
             raise LiveBlocked("Broker order not definitively terminal")
         if entry.get("state")!="ACCEPTED" or not entry.get("order_id"):
             raise LiveBlocked("Unreconciled order cannot be marked terminal")
+        if fill is not None and broker_state=="FILLED":
+            if not isinstance(fill,dict) or set(fill)!={"filled_price","filled_quantity"}:
+                raise LiveBlocked("Unverified execution fields")
+            if money(fill["filled_quantity"],"executed quantity")!=entry["quantity"]:
+                raise LiveBlocked("Executed quantity differs from order")
+            if money(fill["filled_price"],"executed price")<=0:
+                raise LiveBlocked("Executed price is invalid")
+            entry.update(fill)
         entry["state"]=broker_state
         self.save()
 

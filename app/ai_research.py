@@ -31,6 +31,7 @@ MAX_BYTES = 131072
 NEWS_WINDOW = timedelta(hours=36)
 # Process-local cache prevents repeated paid model requests on every scan.
 _MODEL_CACHE = {}
+_EVIDENCE_CACHE = {}
 CACHE_WINDOW = timedelta(minutes=15)
 
 class ResearchUnavailable(Exception):
@@ -72,8 +73,11 @@ def fetch_headlines(symbol: str, now: datetime, fetch=None) -> list[dict]:
         if not (now - NEWS_WINDOW <= date <= now + timedelta(minutes=2)):
             continue
         seen.add(title.casefold())
+        news_url=(item.findtext('link') or '').strip()
+        if not news_url.startswith('https://news.google.com/'):
+            news_url=''
         items.append({'title': title, 'source': publisher,
-                      'published_at': date.isoformat()})
+                      'published_at': date.isoformat(), 'url': news_url[:400]})
     items.sort(key=lambda item: item['published_at'], reverse=True)
     if not items:
         raise ResearchUnavailable('No independently timestamped news')
@@ -112,6 +116,7 @@ def approve_entry(symbol: str, now: datetime,
         if len(news) < 1:
             raise ResearchUnavailable('No valid dated evidence')
     except (ResearchUnavailable, GatewayUnavailable) as exc:
+        _EVIDENCE_CACHE.pop(symbol,None)
         return False, 'AI research unavailable: ' + str(exc)
     approved = sentiment >= 1 and impact >= 1
     evidence = (f'AI news gate {"PASS" if approved else "NO TRADE"}; '
@@ -119,8 +124,22 @@ def approve_entry(symbol: str, now: datetime,
                 f'catalyst={catalyst}; risk={risk}; '
                 'AI score is NOT a calibrated win probability')
     answer = (approved, evidence)
+    _EVIDENCE_CACHE[symbol] = (now, {
+        'model':str(result.get('model','local model'))[:96],
+        'headlines':news,'sentiment':sentiment,'impact':impact,
+        'catalyst':catalyst,'downside_risk':risk,'approved':approved})
     if get_headlines is fetch_headlines and classifier is classify_news:
         _MODEL_CACHE[key] = (now, answer)
         if len(_MODEL_CACHE) > 40:
             _MODEL_CACHE.clear()
     return answer
+
+
+def research_evidence(symbol, now):
+    """Last validated model assessment and public inputs, never internal thoughts."""
+    row=_EVIDENCE_CACHE.get(symbol)
+    if row is None:return {}
+    when,data=row
+    if now.tzinfo and when<=now<=when+CACHE_WINDOW:
+        return dict(data)
+    return {}

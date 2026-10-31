@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen
 from urllib.error import URLError
+from live_extension import (read_decisions, read_live_risk, rows_from_live)
 
 MODEL_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}$")
 MAX_MODEL_SIZE = 1_600_000_000
@@ -115,13 +116,15 @@ def live_state(state_dir):
     if not isinstance(journal,dict): journal={}
     orders=journal.get("orders",[])
     if not isinstance(orders,list): orders=[]
-    formatted=[]
-    for item in orders[-100:][::-1]:
-        if not isinstance(item,dict):
-            continue
-        formatted.append({key:item.get(key) for key in (
-            "created_at","symbol","action","quantity","limit_price",
-            "state","reason","order_id")})
+    trade_rows=rows_from_live(journal)
+    formatted=trade_rows[-100:][::-1]
+    decisions=read_decisions(state_dir,125)
+    try:
+        risk=read_live_risk(state_dir)
+        risk_error=""
+    except (ValueError,TypeError,OSError,KeyError) as exc:
+        risk={"version":1,"revision":-1,"settings":{}}
+        risk_error=str(exc)[:160]
     age=None
     try:
         at=datetime.fromisoformat(str(heartbeat.get("at","")).replace("Z","+00:00"))
@@ -148,6 +151,9 @@ def live_state(state_dir):
         "account":account,
         "order_count":len(orders),
         "orders":formatted,
+        "decisions":decisions,
+        "risk":risk,
+        "risk_error":risk_error,
         "journal_halted":journal.get("halted") is True,
         "halt_reason":str(journal.get("halt_reason",""))[:180] if journal.get("halted") else "",
         "selected_model":current_model(state_dir),

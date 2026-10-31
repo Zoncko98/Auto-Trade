@@ -24,6 +24,8 @@ from urllib.parse import parse_qs, urlparse
 
 from live_dashboard import (installed_models, current_model, set_model,
     live_state, set_operator_mode)
+from live_extension import (read_live_risk,set_live_risk,validate_risk,read_decisions,
+                            rows_from_live,excel_export)
 from dashboard_control import (
     MODES, checked_control, default_control, now_utc, read_control,
     validated_settings, write_atomic,
@@ -194,6 +196,12 @@ class Handler(BaseHTTPRequestHandler):
         self._headers(status, "application/json; charset=utf-8", len(data), more)
         self.wfile.write(data)
 
+    def _excel(self,filename,data):
+        self._headers(200,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            len(data),{"Content-Disposition":'attachment; filename="'+filename+'"'})
+        self.wfile.write(data)
+
     def _body(self):
         if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
             raise ValueError("Expected application/json")
@@ -263,6 +271,54 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == "/api/live":
                 return self._json(200, live_state(STATE_DIR))
+            if path == "/api/live/risk":
+                return self._json(200,read_live_risk(STATE_DIR))
+            if path == "/api/live/decisions":
+                return self._json(200,{"items":read_decisions(STATE_DIR,150)})
+            if path in ("/api/live/export.xlsx","/api/paper/export.xlsx"):
+                query=parse_qs(urlparse(self.path).query)
+                if set(query)-{"index"}:
+                    return self._json(400,{"error":"Unknown export filter"})
+                one=None
+                if "index" in query:
+                    val=query["index"][0]
+                    if not val.isdigit() or len(val)>6:
+                        return self._json(400,{"error":"Invalid trade export index"})
+                    one=int(val)
+                if path.startswith("/api/live/"):
+                    journal=_safe_load(STATE_DIR/"live"/"orders.json",{})
+                    rows=rows_from_live(journal)
+                    decisions=read_decisions(STATE_DIR,200)
+                    kind="Live"
+                else:
+                    paper=_safe_load(STATE_DIR/"paper_account.json",{})
+                    rows=[]
+                    for i,t in enumerate(paper.get("trades",[])[:10000]):
+                        if not isinstance(t,dict):continue
+                        qty=t.get("quantity")
+                        price=t.get("price")
+                        rows.append({"index":i,"created_at":t.get("timestamp"),
+                            "symbol":t.get("symbol"),"action":t.get("action"),
+                            "quantity":qty,"limit_price":price,
+                            "filled_price":price,
+                            "filled_notional":round(float(qty)*float(price),4)
+                                              if isinstance(qty,(int,float)) and isinstance(price,(int,float)) else None,
+                            "gross_realized_pnl":t.get("realized_pnl") if t.get("action")=="PAPER_SELL" else None,
+                            "state":"SIMULATED","order_id":"",
+                            "reason":str(t.get("reason",""))[:1000],
+                            "candle":None})
+                    decisions=[{"at":r.get("timestamp"),"symbol":r.get("symbol"),
+                        "decision":"APPROVED" if r.get("approved") else "REJECTED",
+                        "model":r.get("model"),
+                        "summary":r.get("reason"),"signals":r.get("risk_flags",[])}
+                        for r in paper.get("reviews",[]) if isinstance(r,dict)]
+                    kind="Paper"
+                try:
+                    content=excel_export(kind,rows,decisions,one)
+                except LookupError:
+                    return self._json(404,{"error":"Trade not found"})
+                filename="autotrader-"+kind.lower()+"-trades.xlsx" if one is None else "autotrader-"+kind.lower()+"-trade-"+str(one)+".xlsx"
+                return self._excel(filename,content)
             if path == "/api/local/models":
                 try:
                     models=installed_models()
@@ -330,6 +386,18 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if path == "/api/live/risk":
+            try:
+                payload=self._body()
+                if set(payload)!={"revision","settings"}:
+                    raise ValueError("Expected revision and risk settings")
+                outcome=set_live_risk(STATE_DIR,payload["revision"],
+                                      payload["settings"],write_atomic)
+                return self._json(200,{"ok":True,"risk":outcome})
+            except RuntimeError as exc:
+                return self._json(409,{"error":str(exc)[:160]})
+            except (ValueError,TypeError,KeyError,OSError) as exc:
+                return self._json(400,{"error":str(exc)[:160]})
         if path == "/api/local/model":
             try:
                 data=self._body()

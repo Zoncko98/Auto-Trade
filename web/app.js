@@ -82,17 +82,46 @@ function bindEvents(){
     $(kind+"-next").addEventListener("click",()=>loadPage(kind,page[kind]+1));
   }
   $("export-trades").addEventListener("click",exportTrades);
+  $("export-live-trades").addEventListener("click",()=>downloadWorkbook(
+    "/api/live/export.xlsx","autotrader-live-trades.xlsx",$("export-live-trades")));
+  $("export-live-evidence").addEventListener("click",()=>downloadWorkbook(
+    "/api/live/export.xlsx","autotrader-live-evidence.xlsx",$("export-live-evidence")));
+  $("workspace-select").addEventListener("change",event=>{
+    showView(event.target.value==="paper"?"overview":"live");
+  });
+  document.addEventListener("click",event=>{
+    const live=event.target.closest("[data-export-live-index]");
+    const paper=event.target.closest("[data-export-paper-index]");
+    if(live){
+      const index=Number(live.dataset.exportLiveIndex);
+      downloadWorkbook("/api/live/export.xlsx?index="+index,
+        "autotrader-live-trade-"+index+".xlsx",live);
+    } else if(paper){
+      const index=Number(paper.dataset.exportPaperIndex);
+      downloadWorkbook("/api/paper/export.xlsx?index="+index,
+        "autotrader-paper-trade-"+index+".xlsx",paper);
+    }
+  });
 }
 function showView(view) {
-  if(!["live","local","overview","trades","reviews","settings"].includes(view))return;
+  if(!["live","decisions","live-risk","local","overview","trades","reviews","settings"].includes(view))return;
   activeView=view;
+  const workspace=["live","decisions","live-risk","local"].includes(view)?"live":"paper";
+  $("workspace-select").value=workspace;
+  $("workspace-description").textContent=workspace==="live"
+    ?"Real Schwab account · cash only":"Simulated account · no real orders";
+  $("live-nav-group").classList.toggle("hidden",workspace!=="live");
+  $("paper-nav-group").classList.toggle("hidden",workspace!=="paper");
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!==`view-${view}`));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
-  const titles={live:"Schwab live",local:"Local AI models",overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",settings:"Paper risk settings"};
+  const titles={live:"Schwab live",decisions:"Live AI evidence","live-risk":"Live risk settings",
+    local:"Local AI models",overview:"Paper simulator",trades:"Paper history",
+    reviews:"Paper AI audit",settings:"Paper risk settings"};
   $("breadcrumb").textContent=titles[view];
   if(view==="trades" || view==="reviews") loadPage(view,page[view]).catch(err=>toast(err.message,true));
   if(view==="settings" && status) populateSettings(status.control.settings);
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
+  if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
 }
 async function refreshAll(){
   if(refreshing)return;
@@ -105,6 +134,8 @@ async function refreshAll(){
     status=response;
     renderOverview(response,performance.points||[],trades.items||[]);
     renderLiveView(live);
+    if(activeView==="live-risk"&&document.activeElement&&!document.activeElement.closest("form"))
+      populateLiveRisk(live);
     $("trade-count-nav").textContent=intNum(response.account.trade_count);
     if(activeView==="trades" || activeView==="reviews"){
       await loadPage(activeView,page[activeView]);
@@ -257,7 +288,7 @@ async function loadPage(kind,targetPage){
   $(kind+"-prev").disabled=payload.page<=1;
   $(kind+"-next").disabled=payload.page*payload.limit>=payload.total;
   if(kind==="trades") {
-    $("trades-table").innerHTML=payload.items.length?payload.items.map(t=>{
+    $("trades-table").innerHTML=payload.items.length?payload.items.map((t,i)=>{
       const pnl=Number(t.realized_pnl||0);
       const reason=t.reason||"No rationale recorded (legacy trade)";
       const ai=t.ai_review?`<div class="muted-cell">AI: ${esc(t.ai_review.model||"unknown")} · ${esc(t.ai_review.reason||"")}</div>`:"";
@@ -266,7 +297,8 @@ async function loadPage(kind,targetPage){
         <td><span class="pill ${t.action==="PAPER_BUY"?"buy":"sell"}">${esc(t.action)}</span></td>
         <td>${esc(t.quantity)}</td><td>${money(t.price)}</td>
         <td class="${pnl>=0?"green":"red"}">${t.action==="PAPER_SELL"?money(pnl):"—"}</td>
-        <td class="reason">${esc(reason)}${ai}</td></tr>`;
+        <td class="reason">${esc(reason)}${ai}</td>
+        <td><button class="btn secondary tiny" data-export-paper-index="${payload.total-(payload.page-1)*payload.limit-1-i}">↓ XLSX</button></td></tr>`;
     }).join(""):'<tr><td colspan="7" class="empty-row">No executed simulated trades yet.</td></tr>';
   } else {
     $("reviews-table").innerHTML=payload.items.length?payload.items.map(r=>
@@ -277,31 +309,29 @@ async function loadPage(kind,targetPage){
       :'<tr><td colspan="6" class="empty-row">No AI evaluations recorded yet.</td></tr>';
   }
 }
-function toCsvCell(v){
-  let s=String(v??"");
-  if(/^[=+@\-\t\r]/.test(s))s="'"+s;
-  return '"'+s.replaceAll('"','""')+'"';
+async function downloadWorkbook(url,filename,button){
+  const original=button?.textContent;
+  if(button){button.disabled=true;button.textContent="Preparing…";}
+  try{
+    const response=await fetch(url,{credentials:"same-origin",cache:"no-store",
+      headers:{"Accept":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}});
+    if(response.status===401){csrf=null;showLogin();throw Error("Session expired. Please sign in.");}
+    if(!response.ok){
+      const text=await response.json().catch(()=>({}));
+      throw Error(text.error||"Excel export failed (HTTP "+response.status+")");
+    }
+    const type=response.headers.get("Content-Type")||"";
+    if(!type.includes("spreadsheetml.sheet"))throw Error("Server did not produce an Excel workbook");
+    const blob=await response.blob();
+    if(!blob.size||blob.size>15_000_000)throw Error("Excel workbook size invalid");
+    const address=URL.createObjectURL(blob),link=document.createElement("a");
+    link.href=address;link.download=filename;document.body.appendChild(link);
+    link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(address),1000);
+    toast("Excel workbook downloaded.");
+  }catch(err){toast(err.message,true);}
+  finally{if(button){button.disabled=false;button.textContent=original;}}
 }
 async function exportTrades(){
-  const button=$("export-trades");button.disabled=true;button.textContent="Preparing CSV…";
-  try{
-    const records=[];
-    for(let p=1;p<=5000;p++){
-      const response=await request(`/api/trades?page=${p}&limit=100`);
-      records.push(...response.items);
-      if(p*100>=response.total)break;
-    }
-    const keys=["timestamp","symbol","action","quantity","price","realized_pnl","reason","ai_decision","ai_model","ai_reason"];
-    const csv=[keys.join(","),...records.map(r=>{
-      const values=[r.timestamp,r.symbol,r.action,r.quantity,r.price,r.realized_pnl,
-        r.reason,r.ai_review?.approved?"APPROVE":r.ai_review?"REJECT":"",r.ai_review?.model,r.ai_review?.reason];
-      return values.map(toCsvCell).join(",");
-    })].join("\r\n");
-    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
-    const url=URL.createObjectURL(blob),link=document.createElement("a");
-    link.href=url;link.download="tradepilot-trades-"+new Date().toISOString().slice(0,10)+".csv";
-    document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
-    toast(`Exported ${records.length} paper trades.`);
-  }catch(err){toast(err.message,true);}finally{button.disabled=false;button.textContent="↓ Export all trades";}
+  await downloadWorkbook("/api/paper/export.xlsx","autotrader-paper-trades.xlsx",$("export-trades"));
 }
 document.addEventListener("DOMContentLoaded",init);

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0b1220">
-<title>Auto Trader · Schwab Live Command Center</title>
+<title>Auto Trader · Live & Paper Command Center</title>
 <link rel="stylesheet" href="/app.css">
 <script defer src="/app.js"></script>
 <script defer src="/local.js"></script>
@@ -28,14 +28,28 @@
 <div id="app" class="app hidden">
   <aside class="sidebar">
     <div class="side-brand"><span class="brand-mark">◈</span><div><strong>Auto Trader</strong><small>TRUE NAS · LOCAL AI</small></div></div>
-    <div class="workspace-label">WORKSPACE</div>
+    <div class="workspace-label">TRADING WORKSPACE</div>
+    <div class="workspace-switch">
+      <label for="workspace-select">Trading environment</label>
+      <select id="workspace-select" aria-label="Trading environment">
+        <option value="live" selected>● LIVE TRADING</option>
+        <option value="paper">◇ PAPER TRADING</option>
+      </select>
+      <p id="workspace-description">Real Schwab account · cash only</p>
+    </div>
     <nav class="side-nav" aria-label="Main navigation">
-      <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Schwab live <span id="live-nav-count" class="nav-counter">0</span></button>
-      <button class="nav-item" data-view="local"><span class="nav-icon">✧</span> Local AI models</button>
-      <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper simulator</button>
-      <button class="nav-item" data-view="trades"><span class="nav-icon">⇄</span> Paper trades <span id="trade-count-nav" class="nav-counter">0</span></button>
-      <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
-      <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
+      <div id="live-nav-group" class="workspace-menu">
+        <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Live overview <span id="live-nav-count" class="nav-counter">0</span></button>
+        <button class="nav-item" data-view="decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
+        <button class="nav-item" data-view="live-risk"><span class="nav-icon">⚙</span> Live risk settings</button>
+        <button class="nav-item" data-view="local"><span class="nav-icon">▣</span> Local AI models</button>
+      </div>
+      <div id="paper-nav-group" class="workspace-menu hidden">
+        <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper overview</button>
+        <button class="nav-item" data-view="trades"><span class="nav-icon">⇄</span> Paper trades <span id="trade-count-nav" class="nav-counter">0</span></button>
+        <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <div class="guard-title"><span class="live-dot"></span> SYSTEM SAFEGUARDS</div>
@@ -107,10 +121,72 @@
           </section>
         </div>
         <div class="panel list-panel">
-          <div class="panel-heading"><div><h2>Real Schwab order journal</h2><p>Pending, accepted, filled, canceled and rejected orders; why each was initiated</p></div><span class="time-label">LIVE BROKERAGE</span></div>
-          <div class="table-wrap"><table><thead><tr><th>Created (UTC)</th><th>Symbol</th><th>Action</th><th>Shares</th><th>Limit</th><th>Broker state</th><th>Decision rationale</th></tr></thead><tbody id="live-orders-table"><tr><td colspan="7" class="empty-row">No live orders have been submitted.</td></tr></tbody></table></div>
+          <div class="panel-heading"><div><h2>Real Schwab order journal</h2><p>Broker orders, verified executions, realized gross P/L and exact decision evidence</p></div>
+            <button id="export-live-trades" class="btn secondary">↓ Export live Excel</button></div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>Created (UTC)</th><th>Symbol</th><th>Action</th><th>Shares</th><th>Limit</th>
+            <th>Executed</th><th>Gross P/L</th><th>Broker state</th><th>Decision rationale</th><th>Excel</th>
+          </tr></thead><tbody id="live-orders-table"><tr><td colspan="10" class="empty-row">No live orders have been submitted.</td></tr></tbody></table></div>
           <div id="live-order-count-note" class="panel-note">Awaiting journal records.</div>
+          <p class="panel-note">Limit price is not a fill price. Gross P/L is blank when an execution or original cost basis cannot be independently verified. Fees are excluded.</p>
         </div>
+      </section>
+      <section class="view hidden" id="view-decisions">
+        <div class="page-header"><div>
+          <p class="eyebrow">LIVE BROKERAGE · TRANSPARENT EVIDENCE</p>
+          <h1>AI decisions &amp; trade evidence</h1>
+          <p class="muted">See what the strategy observed, the local model's structured assessment, supporting headlines and why an order was proposed or rejected.</p>
+        </div><button class="btn secondary" id="export-live-evidence">↓ Export evidence Excel</button></div>
+        <div class="notice neutral"><span class="notice-icon">✧</span><div>
+          <strong>Decision evidence, not hidden model reasoning</strong>
+          <p>Technical signals choose a candidate; the local AI evaluates dated public news and can veto buys. You see the model's recorded sentiment, impact, catalyst, downside risk, headline sources and resulting action. A model score is not a probability of profit.</p>
+        </div></div>
+        <section class="panel list-panel">
+          <div class="panel-heading"><div><h2>Live decision audit trail</h2><p id="live-decisions-count">No evaluations recorded yet</p></div><span class="time-label">REAL-MONEY DECISIONS</span></div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>Evaluated UTC</th><th>Symbol</th><th>Result</th><th>Local model</th>
+            <th>Decision summary</th><th>Market &amp; news evidence</th>
+          </tr></thead><tbody id="live-decisions-table"><tr><td colspan="6" class="empty-row">Trade decisions will be recorded during the next market session.</td></tr></tbody></table></div>
+        </section>
+      </section>
+      <section class="view hidden" id="view-live-risk">
+        <div class="page-header"><div>
+          <p class="eyebrow">LIVE SCHWAB · CASH-FUNDED CAPITAL</p>
+          <h1>Live trading risk settings</h1>
+          <p class="muted">Adjust how much real money the bot may commit. Values cannot exceed built-in cash-only safety limits.</p>
+        </div><span class="paper-label">LIVE · REAL MONEY</span></div>
+        <div class="notice"><span class="notice-icon">!</span><div>
+          <strong>These controls affect real brokerage orders</strong>
+          <p>Changes are applied on the worker's next scan. They will not modify existing broker orders or loosen hard limits. Pausing the worker is separate.</p></div></div>
+        <form id="live-risk-form" class="settings-layout">
+          <section class="panel settings-main">
+            <div class="panel-heading"><div><h2>Cash allocation</h2><p>All purchases require broker-confirmed, non-borrowed cash</p></div></div>
+            <div class="setting-item"><div><label for="live-allocation_pct">Available cash allocation</label><p>Percent of verified cash available for each new order.</p></div><div class="setting-control"><input id="live-allocation_pct" type="number" min="0" max="100" step="1" required><span>%</span></div></div>
+            <div class="setting-item"><div><label for="live-max_order_usd">Maximum purchase amount</label><p>Per-order dollar cap; hard maximum $25.</p></div><div class="setting-control"><span>$</span><input id="live-max_order_usd" type="number" min="1" max="25" step=".01" required></div></div>
+            <div class="setting-item"><div><label for="live-max_position_pct">Maximum position size</label><p>Percent of the $100 strategy capital that one purchase can use.</p></div><div class="setting-control"><input id="live-max_position_pct" type="number" min="1" max="25" step=".1" required><span>%</span></div></div>
+            <div class="panel-heading separator"><div><h2>Trade &amp; loss limits</h2><p>Strict upper bounds remain enforced in the live worker</p></div></div>
+            <div class="setting-item"><div><label for="live-max_daily_loss">Daily loss threshold</label><p>Blocks new buys when the equity drawdown hits this amount; not a guaranteed stop-loss.</p></div><div class="setting-control"><span>$</span><input id="live-max_daily_loss" type="number" min=".5" max="5" step=".5" required></div></div>
+            <div class="setting-item"><div><label for="live-max_open_positions">Simultaneous holdings</label><p>Hard maximum of three distinct positions.</p></div><div class="setting-control"><input id="live-max_open_positions" type="number" min="1" max="3" step="1" required><span>slots</span></div></div>
+            <div class="setting-item"><div><label for="live-max_buys_per_day">Daily buy orders</label><p>Up to three purchases, only when signals and funding qualify.</p></div><div class="setting-control"><input id="live-max_buys_per_day" type="number" min="1" max="3" step="1" required><span>buys</span></div></div>
+            <div class="setting-item"><div><label for="live-max_orders_per_day">Total daily orders</label><p>Up to seven orders including sells. This must not be less than daily buys.</p></div><div class="setting-control"><input id="live-max_orders_per_day" type="number" min="1" max="7" step="1" required><span>orders</span></div></div>
+            <div class="setting-item"><div><label for="live-daily_growth_target_pct">Daily growth objective</label><p>For reporting only; never forces a trade or promises a result.</p></div><div class="setting-control"><input id="live-daily_growth_target_pct" type="number" min="0" max="10" step=".1" required><span>%</span></div></div>
+            <div class="settings-submit"><p id="live-risk-message" role="status"></p><button class="btn primary" id="live-risk-save" type="submit">Save live risk limits</button></div>
+          </section>
+          <aside class="settings-side">
+            <section class="panel settings-preview">
+              <h2>Next live purchase ceiling</h2><p>Calculated from the latest broker snapshot; quotes and live eligibility are checked again before an order.</p>
+              <div class="preview-big" id="live-risk-order-preview">—</div><small>Maximum nominal purchase budget</small>
+              <div class="preview-breakdown"><span>Verified cash</span><strong id="live-risk-cash-preview">—</strong></div>
+              <div class="preview-breakdown"><span>Daily loss cap</span><strong id="live-risk-loss-preview">—</strong></div>
+              <div class="preview-breakdown"><span>Order slots/day</span><strong id="live-risk-orders-preview">—</strong></div>
+              <div class="preview-breakdown"><span>Growth objective</span><strong id="live-risk-target-preview">—</strong></div>
+            </section>
+            <section class="panel instruction-panel"><span>◈</span><h2>Independent hard guardrails</h2>
+              <p>$100 strategy capital · no margin debt · no shorts · no options · one unresolved brokerage order at a time.</p>
+              <p>Changes do not force Monday profits or bypass settlement and duplicate-order controls.</p>
+            </section>
+          </aside>
+        </form>
       </section>
       <section class="view hidden" id="view-overview">
         <div class="hero-head">
@@ -167,10 +243,10 @@
         <div class="footer-note">This page is the separate paper simulation. Go to Schwab live for real-money account status, orders and rationale.</div>
       </section>
       <section class="view hidden" id="view-trades">
-        <div class="page-header"><div><p class="eyebrow">TRANSACTION AUDIT</p><h1>Trade history</h1><p class="muted">Every executed paper trade with its strategy rationale and AI approval.</p></div><button id="export-trades" class="btn secondary">↓ Export all trades</button></div>
+        <div class="page-header"><div><p class="eyebrow">TRANSACTION AUDIT</p><h1>Trade history</h1><p class="muted">Every executed paper trade with its strategy rationale and AI approval.</p></div><button id="export-trades" class="btn secondary">↓ Export paper Excel</button></div>
         <div class="panel list-panel">
           <div class="panel-heading"><div><h2>Execution log</h2><p id="trades-total">Loading...</p></div><span class="paper-label">SIMULATED FILLS</span></div>
-          <div class="table-wrap"><table><thead><tr><th>Date & time (UTC)</th><th>Asset</th><th>Action</th><th>Quantity</th><th>Price</th><th>Realized P&L</th><th>Why this trade?</th></tr></thead><tbody id="trades-table"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Date & time (UTC)</th><th>Asset</th><th>Action</th><th>Quantity</th><th>Price</th><th>Realized P&L</th><th>Why this trade?</th><th>Excel</th></tr></thead><tbody id="trades-table"></tbody></table></div>
           <div class="pager"><button id="trades-prev" class="btn secondary tiny">← Previous</button><span id="trades-page">Page 1</span><button id="trades-next" class="btn secondary tiny">Next →</button></div>
         </div>
       </section>

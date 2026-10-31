@@ -23,7 +23,8 @@ from live_order_safety import (CAPITAL, DAILY_LOSS, LiveBlocked, OrderLedger,
     OPEN_STATUSES, TERMINAL, buy_quantity, cross_signal, equity_value,
     money, position_snapshot, quote_levels, sell_limit, verified_cash)
 from autonomous_selector import UNIVERSE, ranked_candidates, choose_entry
-from ai_research import approve_entry
+from ai_research import approve_entry, research_evidence
+from live_extension import (read_live_risk, broker_fills, log_decision)
 
 CONFIG_PATH = Path(os.getenv("SCHWAB_ENV_FILE",
     str(Path.home() / ".config" / "auto-trader" / "schwab.env")))
@@ -234,7 +235,8 @@ def reconcile(client, account_hash, ledger):
                 if status!="FILLED" and filled!=0:
                     ledger.halt("Partial fill in terminal broker order: manual review")
                     raise LiveBlocked("Canceled or rejected order has a partial fill")
-                ledger.mark_terminal(local, status)
+                fill=broker_fills(remote,local['quantity']) if status=='FILLED' else None
+                ledger.mark_terminal(local, status, fill=fill)
             elif status not in OPEN_STATUSES:
                 ledger.halt("Unknown broker order state")
                 raise LiveBlocked("Unknown live order state")
@@ -296,10 +298,12 @@ def trading_settlement_pending(ledger, now):
     return current_day<next_day
 
 
-def risk_preflight(ledger, positions, equity, cash, exposure, symbol):
+def risk_preflight(ledger, positions, equity, cash, exposure, symbol, settings=None):
     held=owned_positions(ledger)
     if held != positions:
         raise LiveBlocked("Broker positions differ from bot's confirmed fills")
+    # Existing positions remain manageable even if the operator lowers the
+    # new-entry slot cap. Only the immutable absolute safety limit can halt.
     if len(positions) > MAX_CONCURRENT_POSITIONS:
         raise LiveBlocked("Maximum simultaneously held positions exceeded")
     if exposure > CAPITAL * Decimal("2"):
@@ -310,7 +314,8 @@ def risk_preflight(ledger, positions, equity, cash, exposure, symbol):
         ledger.data["day_start_equity"]=str(equity)
         ledger.save()
     start=money(ledger.data["day_start_equity"], "day start equity")
-    loss_hit = start-equity >= DAILY_LOSS
+    hard_limit=DAILY_LOSS if settings is None else min(DAILY_LOSS,Decimal(str(settings['max_daily_loss'])))
+    loss_hit = start-equity >= hard_limit
     if loss_hit and not held:
         raise LiveBlocked("Maximum daily account drawdown hit")
     return held.get(symbol,0), loss_hit
@@ -404,7 +409,30 @@ def _orders_today(ledger, now, action=None):
     return count
 
 
+def _live_risk():
+    try:
+        return read_live_risk(STATE_DIR)['settings']
+    except (OSError,TypeError,KeyError,ValueError) as exc:
+        raise LiveBlocked("Cannot validate current live risk settings: "+str(exc)) from None
+
+
+def _audit(now, symbol, decision, summary, candle=None, signals=None, details=None):
+    details=details if isinstance(details,dict) else {}
+    log_decision(STATE_DIR,{
+        "at":now.isoformat(),"symbol":symbol,"decision":decision,
+        "summary":str(summary)[:500],"candle":candle,
+        "signals":signals or {},
+        "model":str(details.get("model","No model used"))[:96],
+        "sentiment":details.get("sentiment"),
+        "impact":details.get("impact"),
+        "catalyst":str(details.get("catalyst",""))[:180],
+        "downside_risk":str(details.get("downside_risk",""))[:180],
+        "headlines":(details.get("headlines") or [])[:6]
+    })
+
+
 def attempt(client, account_hash, ledger, now, submit):
+    limits=_live_risk()
     # The broker and order journal must independently agree before every order.
     acct,positions,exposure,cash,equity=get_snapshot(client,account_hash)
     adopt_existing_account_position(ledger,positions)
@@ -413,11 +441,11 @@ def attempt(client, account_hash, ledger, now, submit):
         return
     acct,positions,exposure,cash,equity=get_snapshot(client,account_hash)
     _,loss_hit=risk_preflight(ledger,positions,equity,cash,exposure,
-                             next(iter(positions),""))
+                             next(iter(positions),""),limits)
     if not market_is_normal(client,now):
         print("Market closed / outside allowed session; no order.")
         return
-    if _orders_today(ledger,now)>=MAX_DAILY_ACTIONS:
+    if _orders_today(ledger,now)>=min(MAX_DAILY_ACTIONS,limits['max_orders_per_day']):
         print("Daily brokerage order cap reached; monitoring existing positions.")
         return
 
@@ -452,7 +480,7 @@ def attempt(client, account_hash, ledger, now, submit):
                  f"limit={price}, shares={qty}")
         action="SELL"
     else:
-        if len(positions)>=MAX_CONCURRENT_POSITIONS:
+        if len(positions)>=min(MAX_CONCURRENT_POSITIONS,limits['max_open_positions']):
             print("Maximum concurrent positions held; managing existing inventory.")
             return
         if trading_settlement_pending(ledger,now) and not (
@@ -461,20 +489,31 @@ def attempt(client, account_hash, ledger, now, submit):
                   "available for non-borrowed trading.")
             return
         buys_today=_orders_today(ledger,now,action="BUY")
-        if loss_hit or buys_today>=MAX_DAILY_BUYS or cash<Decimal("5"):
+        if loss_hit or buys_today>=min(MAX_DAILY_BUYS,limits['max_buys_per_day']) or cash<Decimal("5"):
             print("No new entries: drawdown, daily-entry cap or insufficient cash.")
             return
         candidate=scan_entries(client,now,excluded=positions.keys())
         if candidate is None:
+            if submit:_audit(now,"-","NO_SIGNAL","No eligible completed 3/5-bar upward crossover; stay in cash",
+                              signals={"candidate_universe":len(UNIVERSE)})
             print("No qualifying automatic entry signal; remain in available cash.")
             return
         allowed,ai_reason=approve_entry(candidate.symbol,now)
+        details=research_evidence(candidate.symbol,now)
+        signals={"technical":candidate.reason,"rank":str(candidate.score),
+                 "bid":str(candidate.bid),"ask":str(candidate.ask),
+                 "rule":"completed 3/5-bar crossover"}
         if not allowed:
+            if submit:_audit(now,candidate.symbol,"AI_VETO",ai_reason,
+                              candidate.candle,signals,details)
             print(f"AI gated entry for {candidate.symbol}: {ai_reason}")
             return
         symbol=candidate.symbol
         candle=candidate.candle
-        qty,price=buy_quantity(candidate.ask,cash,exposure)
+        discretionary=min(cash*Decimal(str(limits['allocation_pct']))/100,
+                         Decimal(str(limits['max_order_usd'])),
+                         CAPITAL*Decimal(str(limits['max_position_pct']))/100)
+        qty,price=buy_quantity(candidate.ask,discretionary,exposure)
         action="BUY"
         reason=(candidate.reason+f"; {ai_reason}; selected quantity={qty}; "
                 f"budgeted limit={price}; verified cash={cash}")
@@ -488,7 +527,15 @@ def attempt(client, account_hash, ledger, now, submit):
     if not submit:
         print("Order preview only: execution has not been activated.")
         return
-
+    # Record the observable decision and supporting facts before broker POST.
+    # Rule-based opening SPYD sells do NOT pretend to involve AI inference.
+    if action=="SELL":
+        _audit(now,symbol,"ORDER_INTENT",reason,candle,
+               {"rule":"Authorized SPYD liquidation" if symbol=="SPYD" else "3/5-bar downward crossover",
+                "bid":str(bid),"ask":str(ask),"limit":str(price)},
+               {"model":"No AI used for sell decision"})
+    else:
+        _audit(now,symbol,"ORDER_INTENT",reason,candle,signals,details)
     from schwab.orders.equities import equity_buy_limit,equity_sell_limit
     from schwab.utils import Utils
     entry=ledger.record_before_network(symbol,action,qty,price,candle,
