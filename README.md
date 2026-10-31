@@ -1,5 +1,8 @@
 # Auto Trader
 
+> **Release status (October 31, 2026):** Every version before **v1.1.7** (v0.9.0-beta, v1.0.x, and v1.1.1-v1.1.6) is **DEPRECATED / UNSUPPORTED** due to incomplete or malfunctioning paper-trading functionality. Git tags are retained for historical reproducibility. **v1.1.7** is the current supported experimental build, but neither profitability nor live-broker execution is certified.
+
+
 ## v1.0.11 — Installed version in sidebar
 
 The bottom-left corner of Auto Trader now displays its installed application version directly from the local profile endpoint. This replaces the legacy Schwab-only sentence and is independent of the remote release notifier.

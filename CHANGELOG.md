@@ -1,3 +1,7 @@
+## Historical version status
+
+Every tag before v1.1.7 is deprecated because the paper workflow was incomplete or malfunctioning. Tags remain for historical inspection only. v1.1.7 is experimental and is not certified for profitability or live execution.
+
 ## v1.1.7 - Paper worker and market data repair
 
 - Paper worker now receives the exact local Ollama /api/generate endpoint it requires, without changing live worker settings.
