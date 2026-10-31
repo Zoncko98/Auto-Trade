@@ -1,3 +1,13 @@
+## v1.0.17  Verified local AI model metadata and readiness UI
+
+- The authenticated readiness API now queries the configured private-LAN Ollama /api/show endpoint with a five-second timeout and bounded response size.
+- Validates actual model parameter_size metadata rather than trusting the model-name suffix; unknown, undersized or unavailable models are explicitly reported as unverified.
+- Dashboard sidebar shows SIZE VERIFIED, BELOW 4B or AI OFFLINE with clear limitations.
+- No inference payload, account data or broker credentials are sent during metadata validation.
+- Metadata verification is not a structured-response capability test and does not yet change live entry authorization; the existing fail-closed AI news veto remains in force.
+- Added mocked unit tests for verified metadata and provider failure. No paper or live orders were placed.
+- Existing live position SELL protections and risk settings are untouched.
+
 ## v1.0.16  Visible AI configuration readiness
 
 - Added an authenticated sidebar AI readiness indicator and failure/uncertainty explanations, refreshed every 30 seconds.

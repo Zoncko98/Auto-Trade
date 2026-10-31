@@ -64,6 +64,16 @@ async function refreshAIReadiness(){
   try{
     const info=await request("/api/ai/readiness");
     const claim=info.size_claim_meets_minimum===true;
+    if(info.status==="metadata_verified" || info.status==="below_minimum" ||
+       info.status==="unavailable_or_invalid_metadata"){
+      indicator.textContent=info.status==="metadata_verified"?"SIZE VERIFIED":
+        info.status==="below_minimum"?"BELOW 4B":"AI OFFLINE";
+      detail.textContent=info.status==="metadata_verified"?
+        "Ollama model size verified; response capability is not yet tested.":
+        info.status==="below_minimum"?"Configured local AI model is below 4B.":
+        "Unable to verify Ollama model; check model and network.";
+      return;
+    }
     indicator.textContent=info.status==="not_configured"?"UNCONFIGURED":
       info.status==="unverified_or_below_minimum"?"UNVERIFIED":"CHECK REQUIRED";
     detail.textContent=info.provider==="ollama"?
