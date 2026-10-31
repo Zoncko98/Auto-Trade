@@ -1,3 +1,8 @@
+## v1.1.8 - Correct paper market-feed telemetry
+
+- Paper worker reports source observation count, last check, feed enablement and unavailable symbols in runtime heartbeat.
+- Existing dashboard distinguishes functioning public market feed from missing data. AI reviewer timeouts remain real vetoes.
+
 ## Historical version status
 
 Every tag before v1.1.7 is deprecated because the paper workflow was incomplete or malfunctioning. Tags remain for historical inspection only. v1.1.7 is experimental and is not certified for profitability or live execution.

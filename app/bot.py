@@ -153,6 +153,10 @@ def main() -> int:
             write_atomic(runtime_path, {
                 "updated_at": now_utc(), "mode": mode, "revision": revision,
                 "last_error": last_error, "paper_only": True,
+                "public_market_feed": boolean("PAPER_PUBLIC_MARKET_DATA"),
+                "paper_quotes_available": last_feed["market_count"] if last_feed else 0,
+                "paper_feed_checked_at": last_feed["checked_at"] if last_feed else None,
+                "paper_feed_unavailable": sorted(last_feed["unavailable"]) if last_feed else [],
                 "ai_model_configured": bool(reviewer.url and reviewer.model),
                 "equity": round(engine.equity(), 2),
                 "cash": round(engine.state["cash"], 2),

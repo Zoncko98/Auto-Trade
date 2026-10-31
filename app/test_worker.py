@@ -37,6 +37,8 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(result["mode"],"stopped")
         self.assertEqual(result["trades"],0)
         self.assertTrue(result["paper_only"])
+        self.assertFalse(result["public_market_feed"])
+        self.assertEqual(result["paper_quotes_available"],0)
 
     def test_mode_changes_are_applied(self):
         control=default_control()
