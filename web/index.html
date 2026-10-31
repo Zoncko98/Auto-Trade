@@ -33,28 +33,97 @@
 <div id="app" class="app hidden">
   <aside class="sidebar">
     <div class="side-brand"><span class="brand-mark">◈</span><div><strong>Auto Trader</strong><small>LOCAL OR CLOUD AI</small></div></div>
-    <div class="workspace-label workspace-heading">
-      <span>YOUR WORKSPACES</span><span class="workspace-count" id="workspace-count">2 AVAILABLE</span>
+    <div class="sidebar-section-heading">NAVIGATION</div>
+    <button class="nav-item active overview-nav" type="button" data-view="workspaces">
+      <span class="nav-icon" aria-hidden="true">▦</span> Account overview
+    </button>
+    <div id="sidebar-account-context" class="sidebar-account-context hidden">
+      <span class="sidebar-context-label">OPEN ACCOUNT</span>
+      <strong id="sidebar-current-account">Schwab live</strong>
     </div>
-    <div class="workspace-tile-grid" role="group" aria-label="Choose trading workspace">
-      <button class="workspace-tile is-active" type="button" data-workspace="live" aria-pressed="true"
+    <nav class="side-nav" aria-label="Main navigation">
+      <div id="live-nav-group" class="workspace-menu hidden">
+        <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Live overview <span id="live-nav-count" class="nav-counter">0</span></button>
+        <button class="nav-item" data-view="decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
+        <button class="nav-item" data-view="live-risk"><span class="nav-icon">⚙</span> Live risk settings</button>
+        <button class="nav-item" data-view="local"><span class="nav-icon">▣</span> AI workstation models</button>
+        <button class="nav-item" data-view="forecast"><span class="nav-icon">◷</span> Next session forecast</button>
+      </div>
+      <div id="paper-nav-group" class="workspace-menu hidden">
+        <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper overview</button>
+        <button class="nav-item" data-view="trades"><span class="nav-icon">⇄</span> Paper trades <span id="trade-count-nav" class="nav-counter">0</span></button>
+        <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
+      </div>
+      <button class="nav-item" data-view="brokers"><span class="nav-icon">⌘</span> Manage broker connections</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="guard-title"><span class="live-dot"></span> SYSTEM SAFEGUARDS</div>
+      <div class="side-safety"><span>Schwab live worker</span><strong id="side-live-status">OFF</strong></div>
+      <div class="side-safety"><span>Margin / options / shorts</span><strong>OFF</strong></div>
+      <div class="side-safety"><span>Local AI buy filter</span><strong>ON</strong></div>
+      <div class="side-safety"><span>Configured AI readiness</span><strong id="ai-readiness-indicator" role="status">CHECKING</strong></div>
+      <p id="ai-readiness-detail" class="muted" aria-live="polite">Verifying AI configuration…</p>
+      <p id="sidebar-app-version" role="status" aria-label="Installed Auto Trader version">Auto Trader · Checking version…</p>
+    </div>
+  </aside>
+  <div class="main-shell">
+    <header class="topbar">
+      <div class="breadcrumb"><button class="breadcrumb-home" type="button" data-view="workspaces">Account overview</button>
+        <span id="breadcrumb-divider" class="hidden">/</span> <strong id="breadcrumb">All accounts</strong></div>
+      <div class="top-actions">
+        <span id="live-mode-banner" class="paper-label hidden">LIVE WORKER NOT ARMED</span>
+        <a id="update-banner" class="paper-label hidden" href="#" target="_blank" rel="noopener noreferrer"
+          aria-live="polite" title="Read release details before installing">Update available</a>
+        <span id="server-pill" class="status-pill"><span class="live-dot"></span> Checking server</span>
+        <button id="refresh-btn" class="icon-button" aria-label="Refresh dashboard" title="Refresh">↻</button>
+        <button id="profile-btn" class="btn secondary tiny" data-view="profile" aria-label="Open user profile">◉ Profile</button>
+      </div>
+    </header>
+    <main class="content">
+      <div id="toast" class="toast hidden" role="status"></div>
+      <section class="view" id="view-workspaces">
+        <div class="workspace-hero">
+          <div><p class="eyebrow">ACCOUNT COMMAND CENTER</p>
+            <h1>Your trading workspaces</h1>
+            <p class="muted">See your trading accounts at a glance. Select an account to open its full dashboard.</p>
+          </div>
+          <div class="workspace-hero-pills">
+            <span class="workspace-overview-stat">● 2 available</span>
+            <span class="workspace-overview-stat muted-stat">4 coming soon</span>
+          </div>
+        </div>
+        <div class="workspace-section-bar"><h2>Available accounts</h2>
+          <p>Real and simulated funds are always separate.</p></div>
+    <div class="workspace-tile-grid" role="group" aria-label="Open a trading account">
+      <button class="workspace-tile workspace-tile-featured" type="button" data-workspace="live"
         aria-label="Open Charles Schwab live trading dashboard" title="Open Schwab live trading dashboard">
         <span class="workspace-tile-icon schwab-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-6 9 6"/><path d="M5 10v9m5-9v9m4-9v9m5-9v9M3 21h18"/></svg>
         </span>
-        <span class="workspace-tile-title">Schwab</span>
+        <span class="workspace-tile-title">Charles Schwab</span>
+        <span class="workspace-tile-subtitle">Real brokerage · Cash-only trading</span>
+        <span class="workspace-tile-equity-label">BROKER-REPORTED EQUITY</span>
         <span class="workspace-tile-balance" id="workspace-schwab-balance" aria-live="off">Balance unavailable</span>
-        <span class="workspace-tile-status" id="workspace-schwab-status">LIVE ACCOUNT</span>
+        <span class="workspace-tile-status" id="workspace-schwab-status">CHECKING CONNECTION</span>
+        <span class="workspace-tile-open" aria-hidden="true">Open live dashboard ↗</span>
       </button>
-      <button class="workspace-tile" type="button" data-workspace="paper" aria-pressed="false"
+      <button class="workspace-tile workspace-tile-featured" type="button" data-workspace="paper"
         aria-label="Open paper trading simulator" title="Open paper trading simulator">
         <span class="workspace-tile-icon paper-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7V5a2 2 0 0 0-2-2H6a3 3 0 0 0 0 6h14"/><path d="M3 6v13a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1V10a1 1 0 0 0-1-1H6"/><path d="M16 14h5v4h-5a2 2 0 0 1 0-4Z"/></svg>
         </span>
-        <span class="workspace-tile-title">Paper</span>
+        <span class="workspace-tile-title">Paper Trading</span>
+        <span class="workspace-tile-subtitle">Simulated environment · No real brokerage orders</span>
+        <span class="workspace-tile-equity-label">SIMULATED EQUITY</span>
         <span class="workspace-tile-balance" id="workspace-paper-balance" aria-live="off">Balance unavailable</span>
-        <span class="workspace-tile-status">SIMULATED</span>
+        <span class="workspace-tile-status">SIMULATED · NO REAL ORDERS</span>
+        <span class="workspace-tile-open" aria-hidden="true">Open paper dashboard ↗</span>
       </button>
+    </div>
+    <div class="workspace-section-bar coming"><h2>Coming soon</h2>
+      <p>More brokerage connections are planned.</p></div>
+    <div class="workspace-upcoming-grid">
       <button class="workspace-tile is-coming-soon" type="button" data-workspace="webull"
         disabled aria-label="Webull, coming soon" title="Webull account integration coming soon">
         <span class="workspace-tile-icon" aria-hidden="true">
@@ -82,53 +151,15 @@
         <span class="workspace-tile-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
         </span>
-        <span class="workspace-tile-title">IBKR</span>
+        <span class="workspace-tile-title">Interactive Brokers</span>
         <span class="workspace-tile-status">COMING SOON</span>
       </button>
     </div>
-    <p class="workspace-description" id="workspace-description" aria-live="polite">
-      Schwab live dashboard · cash-only controls
-    </p>
-    <nav class="side-nav" aria-label="Main navigation">
-      <div id="live-nav-group" class="workspace-menu">
-        <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Live overview <span id="live-nav-count" class="nav-counter">0</span></button>
-        <button class="nav-item" data-view="decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
-        <button class="nav-item" data-view="live-risk"><span class="nav-icon">⚙</span> Live risk settings</button>
-        <button class="nav-item" data-view="local"><span class="nav-icon">▣</span> AI workstation models</button>
-        <button class="nav-item" data-view="forecast"><span class="nav-icon">◷</span> Next session forecast</button>
-      </div>
-      <div id="paper-nav-group" class="workspace-menu hidden">
-        <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper overview</button>
-        <button class="nav-item" data-view="trades"><span class="nav-icon">⇄</span> Paper trades <span id="trade-count-nav" class="nav-counter">0</span></button>
-        <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
-        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
-      </div>
-      <button class="nav-item" data-view="brokers"><span class="nav-icon">⌘</span> Manage broker connections</button>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="guard-title"><span class="live-dot"></span> SYSTEM SAFEGUARDS</div>
-      <div class="side-safety"><span>Schwab live worker</span><strong id="side-live-status">OFF</strong></div>
-      <div class="side-safety"><span>Margin / options / shorts</span><strong>OFF</strong></div>
-      <div class="side-safety"><span>Local AI buy filter</span><strong>ON</strong></div>
-      <div class="side-safety"><span>Configured AI readiness</span><strong id="ai-readiness-indicator" role="status">CHECKING</strong></div>
-      <p id="ai-readiness-detail" class="muted" aria-live="polite">Verifying AI configuration&</p>
-      <p id="sidebar-app-version" role="status" aria-label="Installed Auto Trader version">Auto Trader · Checking version…</p>
-    </div>
-  </aside>
-  <div class="main-shell">
-    <header class="topbar">
-      <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb">Schwab live</strong></div>
-      <div class="top-actions">
-        <span id="live-mode-banner" class="paper-label">LIVE WORKER NOT ARMED</span>
-        <a id="update-banner" class="paper-label hidden" href="#" target="_blank" rel="noopener noreferrer"
-          aria-live="polite" title="Read release details before installing">Update available</a>
-        <span id="server-pill" class="status-pill"><span class="live-dot"></span> Checking server</span>
-        <button id="refresh-btn" class="icon-button" aria-label="Refresh dashboard" title="Refresh">↻</button>
-        <button id="profile-btn" class="btn secondary tiny" data-view="profile" aria-label="Open user profile">◉ Profile</button>
-      </div>
-    </header>
-    <main class="content">
-      <div id="toast" class="toast hidden" role="status"></div>
+        <div class="workspace-footnote" role="note"><span aria-hidden="true">ⓘ</span>
+          <p>Schwab equity requires a recent broker snapshot. Paper equity is simulated.
+          Opening a workspace never changes trading permissions or initiates orders.</p>
+        </div>
+      </section>
       <section class="view hidden" id="view-brokers">
         <div class="page-header"><div><p class="eyebrow">BROKERAGE CONNECTIONS</p>
           <h1>Connect your trading platforms</h1>
@@ -185,7 +216,7 @@
             <button id="logout-btn" class="btn secondary" type="button">Log out</button></div>
         </section>
       </section>
-      <section class="view" id="view-live">
+      <section class="view hidden" id="view-live">
         <div class="hero-head">
           <div>
             <p class="eyebrow">CHARLES SCHWAB · AUTONOMOUS TRADING</p>

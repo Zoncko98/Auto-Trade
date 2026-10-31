@@ -53,6 +53,7 @@ jobs:
           node --check web/setup.js
           node tests/test_setup_pages.cjs
           node tests/test_workspace_balances.cjs
+          node tests/test_main_overview.cjs
           node --check web/brokers.js
           node --check web/setup.js
           node --check web/forecast.js
@@ -62,6 +63,26 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check UI-only stable refresh
+        id: visual
+        if: github.ref_type == 'branch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Never change trading modules or config in an unversioned UI refresh.
+          [[ "$GITHUB_REF_NAME" == "main" ]] || exit 0
+          [[ "$(cat VERSION)" == "1.1.2" ]] || exit 0
+          git fetch -q origin tag v1.1.2
+          changed="$(git diff --name-only v1.1.2 HEAD)"
+          [[ -n "$changed" ]] || exit 0
+          while IFS= read -r file; do
+            case "$file" in
+              web/index.html|web/app.js|web/workspace.css|app/test_workspace_tiles.py|tests/test_main_overview.cjs|.github/workflows/publish-private-images.yml) ;;
+              *) echo "Not a visual-only refresh: $file"; exit 0 ;;
+            esac
+          done <<< "$changed"
+          echo "stable=true" >> "$GITHUB_OUTPUT"
+          echo "UI-only refresh authorized for mutable stable image"
       - name: Generate one-app image tags
         id: tags
         shell: bash
@@ -76,6 +97,9 @@ jobs:
               echo "$name:stable"
             else
               echo "$name:candidate"
+              if [[ "${{ steps.visual.outputs.stable }}" == "true" ]]; then
+                echo "$name:stable"
+              fi
             fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"

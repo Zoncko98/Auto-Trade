@@ -7,7 +7,7 @@ const esc = (v) => String(v ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"
 const pct = (v) => `${Number(v)||0}%`;
 let csrf = null;
 let status = null;
-let activeView = "live";
+let activeView = "workspaces";
 let activeWorkspace = "live";
 const AVAILABLE_WORKSPACES = Object.freeze(["live","paper"]);
 // Do not format missing numbers as $0.00, and never render stale broker
@@ -47,19 +47,9 @@ function clearWorkspaceBalances(){
     if(el){el.textContent="Balance unavailable";el.title="Sign in and refresh to view available equity";}
   }
 }
-function selectWorkspaceTile(workspace) {
+function selectWorkspace(workspace){
   if(!AVAILABLE_WORKSPACES.includes(workspace))return false;
   activeWorkspace=workspace;
-  document.querySelectorAll(".workspace-tile").forEach(tile=>{
-    const selected=tile.dataset.workspace===workspace && !tile.disabled;
-    tile.classList.toggle("is-active",selected);
-    if(!tile.disabled)tile.setAttribute("aria-pressed",String(selected));
-  });
-  $("workspace-description").textContent=workspace==="live"?
-    "Schwab live dashboard · cash-only controls":
-    "Paper simulator · virtual funds only";
-  $("live-nav-group").classList.toggle("hidden",workspace!=="live");
-  $("paper-nav-group").classList.toggle("hidden",workspace!=="paper");
   return true;
 }
 async function loadWorkspaceAvailability() {
@@ -71,11 +61,11 @@ async function loadWorkspaceAvailability() {
       result.brokers.find(item=>item.id==="schwab"):null;
     const label=$("workspace-schwab-status");
     if(label)label.textContent=schwab?.integration_status==="authorization_saved"?
-      "AUTH SAVED":"CONNECT ACCOUNT";
+      "AUTH SAVED":"NEEDS CONNECTION";
   } catch (_) {
     // The Schwab workspace remains navigable for users to complete setup.
     const label=$("workspace-schwab-status");
-    if(label)label.textContent="LIVE ACCOUNT";
+    if(label)label.textContent="STATUS UNAVAILABLE";
   }
 }
 let page = {trades:1,reviews:1};
@@ -117,6 +107,8 @@ function showLogin(){
 function showApp(){
   $("login-screen").classList.add("hidden");
   $("app").classList.remove("hidden");
+  // Sign-in and restored sessions always land on the account overview.
+  showView("workspaces");
   // Use the local installed version, not the remote GitHub release.
   loadWorkspaceAvailability().catch(()=>{});
   request("/api/profile").then(profile=>{
@@ -224,18 +216,26 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers"].includes(view))return;
   activeView=view;
-  const workspace=["profile","brokers"].includes(view)?activeWorkspace:
-    (["live","decisions","live-risk","local","forecast"].includes(view)?"live":"paper");
-  selectWorkspaceTile(workspace);
-  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!==`view-${view}`));
+  const liveViews=["live","decisions","live-risk","local","forecast"];
+  const paperViews=["overview","trades","reviews","settings"];
+  if(liveViews.includes(view))selectWorkspace("live");
+  if(paperViews.includes(view))selectWorkspace("paper");
+  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":null;
+  $("sidebar-account-context").classList.toggle("hidden",context===null);
+  if(context)$("sidebar-current-account").textContent=context==="live"?"Schwab live":"Paper Trading";
+  $("live-nav-group").classList.toggle("hidden",context!=="live");
+  $("paper-nav-group").classList.toggle("hidden",context!=="paper");
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!=="view-"+view));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
-  const titles={live:"Schwab live",decisions:"Live AI evidence","live-risk":"Live risk settings",
-    local:"Local AI models",forecast:"Next session forecast",overview:"Paper simulator",trades:"Paper history",
-    reviews:"Paper AI audit",settings:"Paper risk settings",profile:"User profile",
-    brokers:"Broker connections"};
+  const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
+    "live-risk":"Live risk settings",local:"Local AI models",forecast:"Next session forecast",
+    overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
+    settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections"};
+  $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
+  $("live-mode-banner").classList.toggle("hidden",!liveViews.includes(view));
   if(view==="trades" || view==="reviews") loadPage(view,page[view]).catch(err=>toast(err.message,true));
   if(view==="settings"){
     if(status) populateSettings(status.control.settings);

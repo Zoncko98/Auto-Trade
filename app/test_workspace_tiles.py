@@ -39,9 +39,15 @@ class WorkspaceTileTests(unittest.TestCase):
         for name in ("live","paper"):
             with self.subTest(name=name):
                 self.assertNotIn("disabled",tiles[name]["attrs"])
-                self.assertIn("aria-pressed",tiles[name]["attrs"])
-        self.assertEqual(tiles["live"]["attrs"]["aria-pressed"],"true")
-        self.assertEqual(tiles["paper"]["attrs"]["aria-pressed"],"false")
+                self.assertIn("workspace-tile-featured",tiles[name]["attrs"]["class"])
+        self.assertEqual(self.html.count('id="view-workspaces"'),1)
+        self.assertIn('id="view-live"',self.html)
+        self.assertIn('id="sidebar-account-context"',self.html)
+        self.assertIn('class="workspace-tile-grid"',self.html)
+        self.assertIn('class="workspace-upcoming-grid"',self.html)
+        self.assertIn('id="breadcrumb-divider"',self.html)
+        self.assertNotIn('aria-pressed="true"',self.html)
+
     def test_unimplemented_providers_are_grey_disabled_coming_soon(self):
         for name in ("webull","robinhood_crypto","alpaca","interactive_brokers"):
             with self.subTest(name=name):
@@ -51,28 +57,33 @@ class WorkspaceTileTests(unittest.TestCase):
                 self.assertIn("COMING SOON","".join(tile["text"]))
                 self.assertIn("coming soon",tile["attrs"]["aria-label"].lower())
         self.assertIn(".workspace-tile.is-coming-soon",self.css)
-        self.assertIn("cursor: not-allowed",self.css)
-    def test_old_dropdown_replaced_and_navigation_kept(self):
+        self.assertIn("cursor:not-allowed",self.css)
+    def test_landing_view_and_nested_account_navigation(self):
         self.assertNotIn('id="workspace-select"',self.html)
         self.assertNotIn('$("workspace-select")',self.js)
-        self.assertIn('id="live-nav-group"',self.html)
-        self.assertIn('id="paper-nav-group"',self.html)
+        self.assertIn('let activeView = "workspaces";',self.js)
+        self.assertIn('showView("workspaces");',self.js)
+        self.assertIn('id="live-nav-group" class="workspace-menu hidden"',self.html)
+        self.assertIn('id="paper-nav-group" class="workspace-menu hidden"',self.html)
         self.assertIn('showView(tile.dataset.workspace==="paper"?"overview":"live")',self.js)
         self.assertIn('if(!AVAILABLE_WORKSPACES.includes(workspace))return false;',self.js)
-        self.assertIn('tile.classList.toggle("is-active",selected)',self.js)
-        self.assertIn('tile.setAttribute("aria-pressed",String(selected))',self.js)
+        self.assertIn('const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":null;',self.js)
+        self.assertIn('view==="workspaces"',self.js)
+        self.assertIn('id="view-live"',self.html)
+        self.assertIn('id="view-overview"',self.html)
+
     def test_read_only_connected_status_does_not_authorize_trading(self):
         self.assertIn('request("/api/brokers")',self.js)
-        self.assertIn('"AUTH SAVED":"CONNECT ACCOUNT"',self.js)
+        self.assertIn('"AUTH SAVED":"NEEDS CONNECTION"',self.js)
         self.assertIn('Schwab workspace remains navigable',self.js)
         self.assertNotIn("submit_order(",self.js)
     def test_mobile_and_keyboard_accessibility(self):
         self.assertEqual(self.parsed.labels,["stylesheet"])
         self.assertIn('"/workspace.css": ("workspace.css", "text/css; charset=utf-8")',self.server)
         self.assertIn("focus-visible",self.css)
-        self.assertIn("@media (max-width: 760px)",self.css)
+        self.assertTrue("@media(max-width:760px)" in self.css or "@media (max-width: 760px)" in self.css)
         self.assertIn("prefers-reduced-motion",self.css)
-        self.assertIn('aria-label="Choose trading workspace"',self.html)
+        self.assertIn('aria-label="Open a trading account"',self.html)
 
 if __name__=="__main__":
     unittest.main()
