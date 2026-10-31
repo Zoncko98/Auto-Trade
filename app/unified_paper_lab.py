@@ -1,4 +1,4 @@
-import json,math,threading
+import json,math,threading,time
 from datetime import datetime,timezone,timedelta
 from urllib.request import Request,urlopen
 from crypto_prediction_lab import candles,load,_write,_utc
@@ -26,7 +26,17 @@ def report(path):
         records=[r for r in rows if r["market"]==market]
         completed=[r for r in records if r.get("outcome")]
         pnl=sum(r["outcome"]["net"] for r in completed)
-        accounts[market]={"predictions":len(records),"settled":len(completed),
+        ordered=sorted((r for r in completed if r["direction"]=="UP"),key=lambda x:x["outcome"]["at"])
+        balance=100.;peak=100.;maximum_dd=0.;daily={}
+        for r in ordered:
+            amount=r["outcome"]["net"];balance+=amount
+            peak=max(peak,balance);maximum_dd=max(maximum_dd,100*(peak-balance)/peak)
+            day=r["outcome"]["at"][:10]
+            daily[day]=daily.get(day,0.)+amount
+        accounts[market]={"maximum_drawdown_pct":round(maximum_dd,3),
+            "days_scored":len(daily),"days_target_hit":sum(v>=1 for v in daily.values()),
+            "daily_net":{key:round(value,4) for key,value in sorted(daily.items())[-30:]},
+            "predictions":len(records),"settled":len(completed),
             "accuracy":round(sum(r["outcome"]["correct"] for r in completed)/len(completed),4) if completed else None,
             "paper_net":round(pnl,4),"virtual_equity":round(100+pnl,4)}
     return {"accounts":accounts,"records":rows[-50:][::-1],"paper_only":True}
@@ -67,3 +77,31 @@ def cycle(path,get_bars=fetch,predict=infer,now=None):
             except Exception:errors[symbol]="AI unavailable or invalid"
         if added or settled:_write(path,records)
         return {"added":added,"settled":settled,"errors":errors,"report":report(path)}
+
+
+def schedule_status(state_dir):
+    root=__import__("pathlib").Path(state_dir)/"paper-research"
+    try:
+        doc=json.loads((root/"schedule.json").read_text())
+        return {"enabled":doc.get("enabled") is True,"interval_minutes":60}
+    except (OSError,ValueError,TypeError):
+        return {"enabled":False,"interval_minutes":60}
+
+def set_schedule(state_dir,enabled):
+    if type(enabled) is not bool:raise ValueError("enabled must be boolean")
+    root=__import__("pathlib").Path(state_dir)/"paper-research"
+    with lock:
+        _write(root/"schedule.json",{"enabled":enabled})
+    return schedule_status(state_dir)
+
+def research_scheduler(state_dir):
+    """Opt-in periodic research, never broker execution. One dashboard process only."""
+    root=__import__("pathlib").Path(state_dir)/"paper-research"
+    last=0.
+    while True:
+        time.sleep(30)
+        if not schedule_status(state_dir)["enabled"]:continue
+        if time.monotonic()-last<3600:continue
+        last=time.monotonic()
+        try:cycle(root/"records.json")
+        except Exception:pass  # No fabricated predictions; retry next interval.

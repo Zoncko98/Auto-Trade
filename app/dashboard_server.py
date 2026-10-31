@@ -334,7 +334,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == "/api/paper-lab":
                 from unified_paper_lab import report
-                return self._json(200,report(STATE_DIR/"paper-research"/"records.json"))
+                from unified_paper_lab import schedule_status
+                value=report(STATE_DIR/"paper-research"/"records.json")
+                value["schedule"]=schedule_status(STATE_DIR)
+                return self._json(200,value)
             if UNIFIED_APP and path == "/api/ai/readiness":
                 cfg=integration_settings(STATE_DIR)
                 result=ai_readiness_summary(cfg)
@@ -523,6 +526,13 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if path == "/api/paper-lab/schedule":
+            from unified_paper_lab import set_schedule
+            try:
+                data=self._body()
+                return self._json(200,set_schedule(STATE_DIR,data.get("enabled")))
+            except (ValueError,TypeError,OSError) as exc:
+                return self._json(400,{"error":str(exc)[:120]})
         if path == "/api/paper-lab/run":
             from unified_paper_lab import cycle
             return self._json(200,cycle(STATE_DIR/"paper-research"/"records.json"))
@@ -686,6 +696,8 @@ def main():
     context.load_cert_chain(certfile=cert, keyfile=key)
     httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
     print(f"TradePilot dashboard HTTPS ready on {BIND_ADDRESS}:{PORT}", flush=True)
+    from unified_paper_lab import research_scheduler
+    threading.Thread(target=research_scheduler,args=(STATE_DIR,),daemon=True).start()
     httpd.serve_forever(poll_interval=0.5)
 
 

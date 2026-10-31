@@ -1,4 +1,4 @@
-## v1.1.4 - Unified paper research\n\n- Stocks and crypto AI predictions, paper outcome evaluation, and authenticated dashboard interface.\n- Manual research run controls; no simulated orders and no paper fallback to live execution.\n- Results are hypothetical, not validated executable trade profitability.\n\n## v1.1.3  Crypto AI research adapter
+## v1.1.4 - Unified paper research\n\n- Stocks and crypto AI predictions, paper outcome evaluation, and authenticated dashboard interface.\n- Manual research controls plus opt-in hourly automatic predictions. Daily $1 target tracking and maximum drawdown. No paper fallback to live execution.\n- Results are hypothetical, not validated executable trade profitability.\n\n## v1.1.3  Crypto AI research adapter
 
 - Connects the isolated crypto prediction lab to existing local Ollama and Open WebUI chat interfaces via validated JSON directions and horizons.
 - Read-only, manually invoked research cycle; collects completed public hourly closes, scores matured previous predictions and locks new model output before future outcomes.
