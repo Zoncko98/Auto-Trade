@@ -10,7 +10,9 @@ Auto Trader now has a CI pipeline that builds separate **linux/amd64** images fo
 | --- | --- | --- |
 | `ghcr.io/zoncko98/auto-trade-dashboard:stable` | HTTPS dashboard | No |
 | `ghcr.io/zoncko98/auto-trade-paper:stable` | Existing `tradepilot` paper container | Paper only |
-| `ghcr.io/zoncko98/auto-trade-live:stable` | Separately gated live broker worker | Not deployed automatically |
+| `ghcr.io/zoncko98/auto-trade-live:v1.0.3` | Separately gated live broker worker | Not deployed automatically |
+
+The live-worker image is deliberately **version-pinned**, not tagged stable, to discourage accidental upgrades during open brokerage orders.
 
 The workflow also produces immutable `:v1.0.x` tags for rollback, plus `:candidate` images on development pushes to `main`.
 

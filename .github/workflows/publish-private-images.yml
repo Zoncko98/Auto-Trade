@@ -71,7 +71,10 @@ jobs:
             echo "list<<EOF"
             if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
               echo "${name}:${GITHUB_REF_NAME}"
-              echo "${name}:stable"
+              # Keep the brokerage worker version-pinned, not on a moving stable tag.
+              if [[ "$COMPONENT" != "live" ]]; then
+                echo "${name}:stable"
+              fi
             else
               echo "${name}:candidate"
             fi
