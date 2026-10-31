@@ -89,3 +89,10 @@ Merged portable installer and registry update setup with v1.0.3 release, and add
 - Added read-only Schwab quote collector with protected timestamped cache and live quote display in forecasts.
 - Added MIT licensing, public security guidance and full-history credential pattern scan of 218 objects (no matches).
 - No automatically authorized trades. Broker entitlements and OAuth real-account tests remain user-dependent.
+
+
+## v1.0.5 — Public container images and dashboard build correction
+
+- Fix dashboard image build to use repository-root context and deploy/Dockerfile.dashboard, including the web interface.
+- Preserve versioned images for all services, mutable stable tags for dashboard/paper/market, and pinned live-broker worker.
+- No order execution or operator permission changes.

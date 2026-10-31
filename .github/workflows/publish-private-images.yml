@@ -1,4 +1,4 @@
-name: Publish private TrueNAS images
+name: Publish Auto Trader TrueNAS images
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
       matrix:
         include:
           - component: dashboard
-            dockerfile: app/Dockerfile.dashboard
+            dockerfile: deploy/Dockerfile.dashboard
           - component: paper
             dockerfile: app/Dockerfile
           - component: live
@@ -55,7 +55,7 @@ jobs:
           python -m unittest discover -s app -p test_https.py -v
           python -m unittest discover -s app -p test_profile_update.py -v
           python -m unittest discover -s app -p test_update_checker.py -v
-      - name: Login to private GitHub Container Registry
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -82,10 +82,10 @@ jobs:
             fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-      - name: Build and publish private image
+      - name: Build and publish image
         uses: docker/build-push-action@v6
         with:
-          context: ./app
+          context: ${{ matrix.component == 'dashboard' && '.' || './app' }}
           file: ./${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64
