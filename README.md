@@ -12,3 +12,6 @@ passwords, and it does not guarantee trading profits.
 
 Supported external AI: private-LAN Ollama and OpenAI-compatible HTTPS APIs.
 Native Anthropic and Gemini API protocols require additional adapters.
+
+Optional separate Windows forecasting service source and setup:
+see ai-workstation/README.md (this component is NOT installed on TrueNAS).

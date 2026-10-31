@@ -35,7 +35,7 @@ During setup you choose:
 - The NAS LAN IP to bind and an HTTPS port (8765 by default).
 - A dashboard password, entered privately without command-line arguments.
 - Ollama on a private LAN, or an OpenAI-compatible HTTPS provider API, or no AI.
-- Optionally an independent read-only forecast service such as http://192.168.1.21:8766.
+- Optionally an independent read-only forecast service such as http://192.168.1.100:8766.
 - Optionally Schwab *developer* app key, secret, and registered callback URL.
 
 Configuration files are generated with permissions 0600 under the new data
@@ -53,7 +53,7 @@ If you entered bind address 0.0.0.0, replace it with your actual NAS IP in the U
 ### Ollama (local network)
 Supply a private endpoint, for example:
 
-    http://192.168.1.21:11434
+    http://192.168.1.100:11434
 
 Use the API listener, NOT an Open WebUI browser URL. Check that the NAS can reach
 GET /api/tags and that Ollama listens on a LAN interface. Pull a compatible model,
@@ -69,8 +69,9 @@ Their native SDK/API adapters are future additions. AI decisions only assess
 public, timestamped news and cannot replace mechanical risk controls.
 
 ### Forecast service
-For an independent Windows inference computer, enter its private LAN forecast
-service URL, e.g. http://192.168.1.21:8766.
+Install the optional research service on a separate Windows host using
+ai-workstation/README.md. For that independent computer, enter its private LAN forecast
+service URL, e.g. http://192.168.1.100:8766.
 The dashboard displays the five ranked research candidates from the service.
 No trading orders are issued by the forecast API.
 

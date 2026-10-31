@@ -160,7 +160,7 @@ def main():
     choice=prompt("AI provider: 1 Ollama / 2 OpenAI-compatible / 3 None","1")
     ai={"provider":{"1":"ollama","2":"openai-compatible","3":"none"}.get(choice,"none")}
     if ai["provider"]=="ollama":
-        ai["url"]=prompt("Ollama LAN API URL","http://192.168.1.21:11434")
+        ai["url"]=prompt("Ollama LAN API URL","http://192.168.1.100:11434")
         ai["model"]=prompt("Ollama model tag","qwen3.5:4b")
     elif ai["provider"]=="openai-compatible":
         ai["base_url"]=prompt("Provider HTTPS base URL","https://api.openai.com")
