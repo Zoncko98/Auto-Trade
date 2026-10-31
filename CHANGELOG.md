@@ -1,3 +1,14 @@
+## v1.1.1  Isolated crypto prediction research core
+
+- Added independently stored, time-locked BTC/USD and ETH/USD forward predictions, with 1-, 4- and 24-hour horizons.
+- Added public Kraken hourly OHLC ingestion, excluding the potentially incomplete latest candle.
+- Scoring waits until the future outcome candle is complete; original predictions are never revised in place.
+- Includes explicitly hypothetical $100 long/short directional notional calculations with 20 bps fee and 10 bps slippage per side. DOWN is analytics only, not an executable short order.
+- Supports source labels for externally generated AI predictions or simple baseline comparisons; it does not claim to run an AI model by itself.
+- Strict isolation: no Schwab integration, broker actions, execution fallback, paper-to-live migration, or account-balance mutation.
+- Four tests with synthetic price observations; no paper or live brokerage orders.
+- Research-core release only. No UI changes; UI integration can be handled by the parallel visual agent.
+
 ## v1.1.0 — Unified trading workspaces and streamlined setup
 
 This version integrates the complete v1.0.18 stable trading engine, AI position reviews and model readiness with the accessibility and user-experience work below. Existing broker tokens, real-money trading authorization, positions and risk limits are preserved in persistent storage. The UI is a presentation and authenticated configuration update, not an automatic change to order execution.
