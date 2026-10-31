@@ -1,3 +1,13 @@
+## v1.0.18  Recurring advisory AI reviews for live positions
+
+- Added periodic (15-minute minimum per symbol) structured AI news assessments for already-held live positions.
+- Uses the existing strictly validated live AI-review response schema; missing, malformed, or unavailable responses remain fail-closed for new BUY entries.
+- Position review outputs are explicitly advisory, never automatic SELL commands; existing independent downward-crossover and authorized protective exits take priority.
+- Records bounded, non-secret position AI review telemetry to the existing private live-state volume, without sending holdings or account data to the AI.
+- Adds four isolated unit tests with mocked AI providers. No paper trades or live test orders.
+- Does not yet verify structured capabilities for all configured cloud providers or implement AI-generated SELL/REDUCE execution. These require separate validation.
+- Does not modify live settings or redeploy TrueNAS.
+
 ## v1.0.17  Verified local AI model metadata and readiness UI
 
 - The authenticated readiness API now queries the configured private-LAN Ollama /api/show endpoint with a five-second timeout and bounded response size.

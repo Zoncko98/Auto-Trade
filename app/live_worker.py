@@ -26,6 +26,7 @@ from live_order_safety import (CAPITAL, DAILY_LOSS, LiveBlocked, OrderLedger,
 from autonomous_selector import UNIVERSE, ranked_candidates, choose_entry
 from trade_explanations import comparisons, explanation
 from ai_research import approve_entry, research_evidence
+from live_position_ai import review_held
 from live_extension import (read_live_risk, broker_fills, log_decision)
 
 CONFIG_PATH = Path(os.getenv("SCHWAB_ENV_FILE",
@@ -486,6 +487,20 @@ def attempt(client, account_hash, ledger, now, submit):
                  f"limit={price}, shares={qty}")
         action="SELL"
     else:
+        # Advisory AI review of held positions. Never converts an AI opinion into a SELL.
+        # Persist state independently of the broker ledger; never block protective exits.
+        if submit and positions:
+            review_path=STATE_DIR/"position_ai_reviews.json"
+            try:
+                prior=json.loads(review_path.read_text())
+                if not isinstance(prior,dict):prior={}
+            except (OSError,ValueError,TypeError):
+                prior={}
+            reports=review_held(positions,now,prior)
+            try:
+                write_private_json(review_path,reports)
+            except (OSError,TypeError,ValueError) as exc:
+                print("Position AI review telemetry unavailable:",type(exc).__name__)
         if len(positions)>=min(MAX_CONCURRENT_POSITIONS,limits['max_open_positions']):
             print("Maximum concurrent positions held; managing existing inventory.")
             return
