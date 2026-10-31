@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0b1220"><title>Auto Trader · First-run Setup</title>
+<meta name="theme-color" content="#0b1220"><title>Auto Trader · Initial Setup</title>
 <link rel="stylesheet" href="/app.css"><script defer src="/setup.js"></script></head>
 <body><main class="login-screen" style="padding:22px;display:flex;align-items:flex-start">
 <section class="login-card" style="width:min(860px,98vw);max-width:860px;margin:18px auto">
 <div class="brand-mark big">◈</div><p class="eyebrow">WELCOME TO AUTO TRADER</p>
-<h1>Set up your trading workstation</h1>
-<p class="login-subtitle">One app. Configure your administrator account, AI connection and optional Schwab access here. No trading begins during installation.</p>
+<h1>Create your account and choose AI</h1>
+<p class="login-subtitle">Just two steps: protect your dashboard and select an AI model. Broker accounts and risk settings can be configured later in their own workspace. No live trading starts during installation.</p>
 <form id="first-run-form" autocomplete="off">
   <h2>1. Claim this installation</h2>
   <p>In TrueNAS → Apps → Auto Trader → Workloads → Logs, copy the one-time setup code. You won't need the shell.</p>
@@ -14,10 +14,10 @@
   <input id="setup-code" type="text" required minlength="24" maxlength="24" autocomplete="off" placeholder="Code shown in app logs">
   <label for="setup-username">Administrator username</label>
   <input id="setup-username" type="text" required value="admin" pattern="[A-Za-z0-9._-]{3,32}" maxlength="32" autocomplete="username">
-  <label for="setup-password">Administrator password (at least 20 characters)</label>
-  <input id="setup-password" type="password" required minlength="20" maxlength="256" autocomplete="new-password">
+  <label for="setup-password">Administrator password (10+ characters, uppercase, number and symbol)</label>
+  <input id="setup-password" type="password" required minlength="10" maxlength="256" autocomplete="new-password">
   <label for="setup-confirm">Confirm administrator password</label>
-  <input id="setup-confirm" type="password" required minlength="20" maxlength="256" autocomplete="new-password">
+  <input id="setup-confirm" type="password" required minlength="10" maxlength="256" autocomplete="new-password">
   <h2 style="margin-top:22px">2. Select your AI</h2>
   <label for="setup-provider">AI provider</label>
   <select id="setup-provider">
@@ -41,54 +41,9 @@
     <label for="setup-oauth-token">Connection token (24+ characters, stored privately)</label>
     <input id="setup-oauth-token" type="password" autocomplete="new-password">
   </div>
-  <section id="forecast-setup" style="margin:20px 0;padding:16px;border:1px solid #36516e;border-radius:12px">
-    <h2>Forecast research — built into Auto Trader</h2>
-    <p class="panel-note"><strong>No additional forecasting software required.</strong> Auto Trader calculates technical indicators from dated public market data inside this TrueNAS container. Optionally use your already-connected Ollama or cloud OAuth AI to review public financial headlines. Advanced specialist models on another computer remain optional.</p>
-    <label for="setup-forecast-mode">Forecast analysis mode</label>
-    <select id="setup-forecast-mode">
-      <option value="auto">Automatic — advanced service when connected; otherwise built-in analysis</option>
-      <option value="built_in">Built-in NAS analysis — no separate models or workstation</option>
-      <option value="advanced">Prefer advanced Chronos / LightGBM / FinBERT workstation</option>
-    </select>
-    <label><input type="checkbox" id="setup-forecast-ai-review"> Add public-news review using my selected AI provider</label>
-    <p class="panel-note">Optional: sends only public, dated financial headlines to your configured Ollama/ChatGPT/Gemini connection. Never sends Schwab account details, holdings, passwords or orders. AI reviews are qualitative; prices and indicators are always calculated from market data.</p>
-    <p class="panel-note">Built-in mode uses historical price and volume data directly, and does not need a forecast URL. The separate advanced research companion (optional) normally uses port <strong>8766</strong>, not the Ollama chat API port 11434. When using Automatic mode, a configured specialist service takes priority and built-in analysis is the fallback.</p>
-    <label for="setup-forecast">Forecast service URL (optional override)</label>
-    <input id="setup-forecast" type="url" placeholder="http://YOUR_AI_COMPUTER_IP:8766">
-    <p id="forecast-connection-hint" class="panel-note">Built-in mode works on TrueNAS with no extra installation. The separate advanced service is optional.</p>
-    <button class="btn secondary" id="test-forecast" type="button">Test forecast connection</button>
-    <p id="forecast-test-status" role="status" class="panel-note">Connection test is available after creating the administrator account.</p>
-    <details><summary>What does the forecast analyze?</summary>
-      <p>The NAS-native analysis screens a fixed 24-stock research universe using up to two years of daily prices and volume, latest close <strong>$5–$25</strong>, 20-session average volume <strong>200,000+ shares</strong>, sufficient bars and recent data. It scores momentum, trend, relative volume and volatility using reproducible formulas. Its historical-volatility band is an illustrative range, not a calibrated prediction.</p>
-      <p>Inputs include daily returns, 5/20/50-session trend comparisons, 10/30-session volatility, relative volume, recent highs and lows, and timestamped financial-news headlines.</p>
-      <p><strong>Selected AI provider:</strong> when enabled, reviews source-dated public headlines for sentiment, catalysts and downside risks only. <strong>Optional advanced mode:</strong> LightGBM checks a return estimate against chronological holdout, Chronos-Bolt displays scenario quantiles and FinBERT classifies headline sentiment. Neither cloud nor local AI is permitted to fabricate historical measurements or trigger orders.</p>
-      <p>Built-in analyses refresh periodically on the NAS and preserve their last completed dated snapshot. The advanced AI computer runs on its separate scheduled refresh. Neither mode produces executable prices, calibrated profitability predictions or broker-order authorization.</p>
-    </details>
-    <details><summary>How to install or troubleshoot the forecast service</summary>
-      <p><strong>Most users can skip this.</strong> Built-in forecasting requires only the Auto Trader app and outbound access to supported historical market-data feeds. For advanced models, install Python 3.12 on a separate machine, download the repository's <code>ai-workstation</code> requirements and run <code>forecast_service.py</code>. Model weights stay on that machine.</p>
-      <p>Set the AI computer's <code>AUTOTRADER_AI_BIND</code> to its private LAN IP and <code>AUTOTRADER_AI_PORT</code> to <code>8766</code>. Restrict the Windows firewall port to your TrueNAS address. Verify <code>http://AI_COMPUTER_IP:8766/health</code> and then click Test forecast connection. The forecast endpoint is <code>/api/forecast</code>; the dashboard URL field should contain only the host and port.</p>
-      <p><a target="_blank" rel="noopener noreferrer" href="https://github.com/Zoncko98/Auto-Trade/blob/main/docs/guides/forecast-research.md">Full forecast installation guide, sources and model explanations</a></p>
-    </details>
-  </section>
-  <h2 style="margin-top:22px">3. Schwab account (optional)</h2>
-  <p>Use your Schwab Developer app key and secret. After installation, click “Connect Schwab account” and sign in at Schwab's website. Never enter your brokerage password here.</p>
-  <label for="setup-schwab-key">Schwab developer app key</label>
-  <input id="setup-schwab-key" type="text" autocomplete="off" maxlength="256">
-  <label for="setup-schwab-secret">Schwab developer app secret</label>
-  <input id="setup-schwab-secret" type="password" autocomplete="new-password" maxlength="256">
-  <label for="setup-schwab-callback">Exact registered Schwab OAuth callback URL</label>
-  <input id="setup-schwab-callback" type="url" value="https://127.0.0.1:8182">
-  <p class="panel-note">If using 127.0.0.1:8182, the browser may say the page cannot be reached after Schwab login. That's normal: copy the full redirected URL from the address bar and paste it in Profile → Integrations to complete authorization. No service is running on your computer's port 8182.</p>
-  <p class="panel-note">For automatic return to the NAS instead, register the exact <strong id="automatic-callback-url">https://YOUR_NAS_IP:PORT/schwab/callback</strong> in the Schwab Developer Portal and enter it above. Schwab may require reapproval.</p>
-  <h2 style="margin-top:22px">4. Choose modules</h2>
-  <label><input type="checkbox" id="setup-paper"> Run paper trading simulator</label>
-  <p class="panel-note">Paper trading uses simulated funds, never places a real brokerage order, and runs a background strategy. It requires suitable price data to evaluate opportunities; it is not the same as enabling real Schwab trading.</p>
-  <label for="setup-capital">Paper starting capital (USD)</label>
-  <input id="setup-capital" type="number" value="100" min="1" max="100000">
-  <label><input type="checkbox" id="setup-market"> Monitor Schwab prices (read-only)</label>
-  <p class="panel-note">Uses your connected Schwab account to check bid/ask quotes for forecasting and data freshness. It never places buy or sell orders. Requires Schwab OAuth sign-in; when not connected, this monitor stays idle.</p>
-  <p class="panel-note"><strong>Live trading is separate:</strong> the dashboard is always installed, but real-money orders only become possible when you select an authorized Schwab account and confirm Turn ON live trading in Integrations.</p>
-  <p class="login-disclaimer">Live broker orders remain disabled. You can change connections later from Profile → Integrations.</p>
+  <p class="panel-note">Forecasting works automatically with the built-in NAS research engine; specialized models are optional and can be selected later under AI & Forecast Settings.</p>
+  <p class="panel-note">To connect Charles Schwab or other trading accounts, open <strong>Broker Connections</strong> after creating this administrator account.</p>
+  <p class="login-disclaimer">Real-money orders are not enabled by installation.</p>
   <p id="setup-error" role="alert" class="form-error"></p>
-  <button class="btn primary full" id="setup-submit" type="submit">Save setup and create administrator account →</button>
+  <button class="btn primary full" id="setup-submit" type="submit">Create account and open Auto Trader →</button>
 </form></section></main></body></html>

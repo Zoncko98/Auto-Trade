@@ -1,3 +1,13 @@
+## Unreleased — Login, installation and broker navigation cleanup
+
+- Reduced the minimum length for NEW dashboard administrator passwords from 20 to 10 characters. New passwords require an uppercase A–Z letter, number and symbol (up to 256 characters). Both the server and browser enforce the rule. Existing passwords remain valid; PBKDF2 protection, login rate limiting and session invalidation are preserved.
+- Simplified first-run installation to account claim and AI model/provider selection. Forecasting uses the built-in NAS default. Schwab OAuth, background modules and trading permissions are no longer part of first-run.
+- Profile now links to AI & Forecast Settings only. The existing Schwab developer credentials, callback flow, read-only quote monitoring, account selection and real-money activation are on the new authenticated broker-specific page accessible from Broker Connections.
+- Page-specific settings updates preserve unrelated AI settings, broker secrets and live-trading configuration. Neither settings page can accidentally clear the other one's fields.
+- Added explicit Paper → Risk Settings control to enable/disable the separate background paper simulator without placing this option in installation or Schwab authorization.
+- Added end-to-end and browser payload isolation regression tests, with the new tests included in the GitHub Actions workflow.
+- Development only. No v1.0.12 tag, container image upgrade, new public release or live-order workflow change.
+
 ## Unreleased — Workspace account tiles (feature/workspace-account-tiles)
 
 - Replaced the sidebar Live/Paper dropdown with visually distinct selectable account tiles. Schwab Live opens the existing live overview and Paper opens the existing simulator, each preserving its dedicated navigation, risk controls and account history.

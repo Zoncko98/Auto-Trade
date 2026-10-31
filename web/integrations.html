@@ -1,16 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0b1220"><title>Auto Trader · Integration Settings</title>
+<meta name="theme-color" content="#0b1220"><title>Auto Trader · AI & Forecast Settings</title>
 <link rel="stylesheet" href="/app.css"><script defer src="/setup.js"></script></head>
 <body><main class="login-screen" style="padding:22px;display:flex;align-items:flex-start">
 <section class="login-card" style="width:min(860px,98vw);max-width:860px;margin:18px auto">
 <div class="brand-mark big">◈</div><p class="eyebrow">WELCOME TO AUTO TRADER</p>
-<h1>Manage integrations</h1>
-<p class="login-subtitle">Change AI and Schwab settings for this one Auto Trader installation. No brokerage trading is enabled by updating credentials.</p>
+<h1>AI models & forecasting</h1>
+<p class="login-subtitle">Choose your AI model and research configuration. Broker logins and live-order permissions are managed separately in Broker Connections.</p>
 <form id="first-run-form" autocomplete="off">
-  <h2>Installation progress</h2>
-  <p id="setup-checklist" class="panel-note">Loading saved connections…</p>
-  <p class="panel-note">Creating your Auto Trader account is step one. AI and Schwab connection steps are optional and independently tracked.</p>
+  <p class="panel-note">Choose a local or connected AI provider. Built-in forecasting works even without specialist forecast models. These settings never authorize broker trades.</p>
   <h2 style="margin-top:22px">AI provider</h2>
   <label for="setup-provider">AI provider</label>
   <select id="setup-provider">
@@ -63,49 +61,7 @@
       <p><a target="_blank" rel="noopener noreferrer" href="https://github.com/Zoncko98/Auto-Trade/blob/main/docs/guides/forecast-research.md">Full forecast installation guide, sources and model explanations</a></p>
     </details>
   </section>
-  <h2 style="margin-top:22px">Schwab developer connection</h2>
-  <p>Use your Schwab Developer app key and secret. After installation, click “Connect Schwab account” and sign in at Schwab's website. Never enter your brokerage password here.</p>
-  <label for="setup-schwab-key">Schwab developer app key</label>
-  <input id="setup-schwab-key" type="text" autocomplete="off" maxlength="256">
-  <label for="setup-schwab-secret">Schwab developer app secret</label>
-  <input id="setup-schwab-secret" type="password" autocomplete="new-password" maxlength="256">
-  <label for="setup-schwab-callback">Exact registered Schwab OAuth callback URL</label>
-  <input id="setup-schwab-callback" type="url" value="https://127.0.0.1:8182">
-  <p class="panel-note">127.0.0.1 points to your browser computer. If no local callback listener is running, your browser will say it cannot connect after Schwab login. <strong>This is expected.</strong> Copy the entire address bar URL (including code and state) and paste it below. Auto Trader accepts the browser's optional root / without treating it as a different address. Never share the full URL.</p>
-  <p class="panel-note">For an automatic NAS callback, register <strong id="automatic-callback-url">https://YOUR_NAS_IP:PORT/schwab/callback</strong> with Schwab and paste that exact address into the field above. Your developer app may require reapproval.</p>
-  <h2 style="margin-top:22px">Modules</h2>
-  <label><input type="checkbox" id="setup-paper"> Run paper simulator (fake money only)</label>
-  <p class="panel-note">Runs a simulated strategy using provided market data, with separate paper risk controls. No real Schwab orders. You can leave it off while setting up other connections.</p>
-  <label for="setup-capital">Paper starting capital (USD)</label>
-  <input id="setup-capital" type="number" value="100" min="1" max="100000">
-  <label><input type="checkbox" id="setup-market"> Monitor live Schwab quotes (read-only)</label>
-  <p class="panel-note">Checks broker bid/ask prices to support forecasts. Requires a connected Schwab account, but never buys or sells shares. This is independent from paper simulation and real-money trading.</p>
-  <p class="login-disclaimer">Live broker orders remain disabled. You can change connections later from Profile → Integrations.</p>
-  <section id="schwab-onboarding" style="margin:24px 0;padding:18px;border:1px solid #3f5367;border-radius:12px">
-    <h2>Connect your Schwab account</h2>
-    <p id="schwab-status">Checking Schwab OAuth status</p>
-    <p>Save your Schwab developer settings first. Then sign in on the official Schwab site. If using the loopback callback, a browser connection error is normal: copy the entire redirected URL from the browser address bar and paste it below. If you registered the NAS callback, Auto Trader finishes automatically.</p>
-    <p id="schwab-callback-help" class="panel-note"></p>
-    <button class="btn secondary" type="button" id="connect-schwab">Generate Schwab authorization link</button>
-    <a id="schwab-oauth-link" class="btn secondary hidden" target="_blank" rel="noopener noreferrer">Open Schwab sign-in</a>
-    <div id="schwab-redirect-form" class="hidden">
-      <label for="schwab-redirect-url">Entire redirected Schwab callback URL</label>
-      <input id="schwab-redirect-url" type="url" autocomplete="off" placeholder="https://127.0.0.1:8182/?code=...">
-      <button class="btn secondary" type="button" id="finish-schwab">Finish Schwab connection</button>
-    </div>
-  </section>
-  <section style="margin:24px 0;padding:18px;border:1px solid #834953;border-radius:12px">
-    <h2>Live broker worker (real money)</h2>
-    <p>Connect Schwab and select your verified account before enabling. Turning ON confirms real-money order permission and can allow the automated worker to place orders when its signal checks pass. Turning OFF pauses new orders. Already-submitted orders may still be pending at Schwab.</p>
-    <button class="btn secondary" type="button" id="fetch-accounts">List authorized Schwab accounts</button>
-    <label for="setup-live-account">Select brokerage account</label>
-    <select id="setup-live-account"><option value="">Connect Schwab first</option></select>
-    <p id="live-current-status" role="status">Live trading OFF. No new real orders are authorized.</p>
-    <button id="toggle-live" class="btn danger-outline" type="button">Turn ON live trading</button>
-    <p class="panel-note">Turning ON shows a confirmation popup. You must already have an authorized Schwab account. This action can allow real buy/sell orders; use OFF to stop new orders.</p>
-  </section>
   <p id="setup-error" role="alert" class="form-error"></p>
-  <button class="btn primary full" id="setup-submit" type="submit">Save connection settings</button>
+  <button class="btn primary full" id="setup-submit" type="submit">Save AI & forecast settings</button>
   <p><a href="/">← Back to Auto Trader</a></p>
-  <p id="onboarding-help" class="panel-note hidden">Your administrator account is ready. Next, save any remaining connections, then select Generate Schwab authorization link below to connect your broker using Schwab's website. You can also finish these optional steps later.</p>
 </form></section></main></body></html>

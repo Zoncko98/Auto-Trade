@@ -164,6 +164,7 @@ function bindEvents(){
   document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>showView(button.dataset.view)));
   document.querySelectorAll("[data-mode]").forEach(button=>button.addEventListener("click",()=>setMode(button.dataset.mode)));
   $("settings-form").addEventListener("submit",saveSettings);
+  $("paper-service-toggle").addEventListener("click",togglePaperService);
   $("settings-form").querySelectorAll("input").forEach(field=>field.addEventListener("input",updatePreview));
   for(const kind of ["trades","reviews"]){
     $(kind+"-prev").addEventListener("click",()=>loadPage(kind,Math.max(1,page[kind]-1)));
@@ -207,7 +208,10 @@ function showView(view) {
     brokers:"Broker connections"};
   $("breadcrumb").textContent=titles[view];
   if(view==="trades" || view==="reviews") loadPage(view,page[view]).catch(err=>toast(err.message,true));
-  if(view==="settings" && status) populateSettings(status.control.settings);
+  if(view==="settings"){
+    if(status) populateSettings(status.control.settings);
+    loadPaperService().catch(err=>toast(err.message,true));
+  }
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
@@ -352,6 +356,38 @@ function updatePreview(){
   $("preview-reinvest").textContent=pct(s.reinvest_pct);
   $("preview-growth").textContent=pct(s.daily_growth_target_pct);
 }
+let paperServiceEnabled=null;
+function paperServiceUI(enabled,message){
+  paperServiceEnabled=enabled;
+  $("paper-service-toggle").textContent=enabled===null?"Check status":
+    enabled?"Stop paper simulator":"Start paper simulator";
+  $("paper-service-status").textContent=message ||
+    (enabled===null?"Status unavailable":
+     enabled?"Background paper simulator is enabled":"Background paper simulator is disabled");
+}
+async function loadPaperService(){
+  const d=await request("/api/integrations");
+  paperServiceUI(d.paper_enabled===true);
+}
+async function togglePaperService(){
+  const button=$("paper-service-toggle");
+  button.disabled=true;
+  try{
+    if(paperServiceEnabled===null){
+      await loadPaperService();return;
+    }
+    const next=!paperServiceEnabled;
+    if(!window.confirm(next?
+      "Start the automated paper trading simulator using VIRTUAL FUNDS only?":
+      "Stop the automated paper simulator? Past paper trades and positions remain recorded."))return;
+    const result=await request("/api/integrations",{
+      method:"POST",body:JSON.stringify({paper_enabled:next})});
+    paperServiceUI(result.paper_enabled===true,
+      next?"Paper simulator enabled. The worker starts on its next runtime cycle.":
+           "Paper simulator disabled. Prior paper records are preserved.");
+  }catch(error){paperServiceUI(paperServiceEnabled,error.message);}
+  finally{button.disabled=false;}
+}
 async function saveSettings(ev){
   ev.preventDefault();
   if(!status)return;
@@ -439,7 +475,11 @@ async function changeDashboardPassword(ev){
   const feedback=$("profile-message");
   feedback.textContent="";
   if(next!==confirmation){feedback.textContent="New passwords do not match.";return;}
-  if(next.length<20){feedback.textContent="Use at least 20 characters.";return;}
+  if(next.length<10 || next.length>256 || !/[A-Z]/.test(next) ||
+     !/[0-9]/.test(next) || !/[^\p{L}\p{N}\s]/u.test(next) ||
+     /[\x00-\x1F\x7F]/.test(next)){
+    feedback.textContent="Use at least 10 characters, an uppercase letter, a number and a symbol.";return;
+  }
   const button=$("profile-save");
   button.disabled=true;
   try{

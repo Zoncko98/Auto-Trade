@@ -292,6 +292,7 @@ class Handler(BaseHTTPRequestHandler):
             "/setup.html": ("setup.html","text/html; charset=utf-8"),
             "/setup.js": ("setup.js","text/javascript; charset=utf-8"),
             "/integrations.html": ("integrations.html","text/html; charset=utf-8"),
+            "/broker-schwab.html": ("broker-schwab.html","text/html; charset=utf-8"),
             "/index.html": ("index.html", "text/html; charset=utf-8"),
             "/app.js": ("app.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
@@ -305,7 +306,7 @@ class Handler(BaseHTTPRequestHandler):
             name, content_type = assets[path]
             if UNIFIED_APP and not app_configured(STATE_DIR) and path in ("/","/index.html"):
                 name="setup.html"
-            if path=="/integrations.html" and not self._nonce():
+            if path in ("/integrations.html","/broker-schwab.html") and not self._nonce():
                 return self._json(401,{"error":"Sign in required"})
             if path=="/setup.html" and (not UNIFIED_APP or app_configured(STATE_DIR)):
                 return self._json(404,{"error":"Setup is unavailable"})

@@ -3,7 +3,7 @@ from __future__ import annotations
 import hmac, ipaddress, json, os, re, secrets, tempfile
 from pathlib import Path
 from urllib.parse import urlparse
-from profile_auth import rotate as set_initial_password, revision as profile_revision
+from profile_auth import rotate as set_initial_password, revision as profile_revision, validate_new_password
 
 PUBLIC_FIELDS=("ai_provider","ollama_url","ai_model","oauth_bridge_url",
                "oauth_model","schwab_app_key","schwab_callback_url",
@@ -201,8 +201,7 @@ def initialize(state,code,password,options,bootstrap_password,admin_username="Ad
     expected=pairing_code(state)
     if not isinstance(code,str) or not hmac.compare_digest(code,expected):
         raise SetupError("Incorrect one-time pairing code")
-    if not isinstance(password,str) or not 20<=len(password)<=256:
-        raise SetupError("Administrator password must contain 20–256 characters")
+    validate_new_password(password)
     if not isinstance(admin_username,str) or not re.fullmatch(r"[A-Za-z0-9._-]{3,32}",admin_username):
         raise SetupError("Username must be 3–32 letters, numbers, dots, underscores or hyphens")
     # Validate before writing the permanent first-user profile.

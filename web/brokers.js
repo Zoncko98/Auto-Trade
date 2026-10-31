@@ -54,7 +54,7 @@ function brokerCard(broker){
   actions.appendChild(brokerLink(broker.docs_url,"Official API requirements"));
   if(broker.id==="schwab"){
     const a=brokerEl("a","Configure Schwab OAuth");
-    a.href="/integrations.html#schwab-onboarding";
+    a.href="/broker-schwab.html#schwab-settings";
     actions.appendChild(a);
   }
   card.appendChild(actions);

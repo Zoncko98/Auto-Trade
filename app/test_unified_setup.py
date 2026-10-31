@@ -2,7 +2,7 @@
 import http.client,json,os,socket,ssl,subprocess,sys,tempfile,time,unittest
 from pathlib import Path
 APP=Path(__file__).resolve().parent
-PASSWORD="a-test-admin-password-that-is-long-enough-2026"
+PASSWORD="Valid-admin-2026!"
 FALLBACK="never-shared-generated-startup-password-123456789"
 
 class UnifiedWizardTests(unittest.TestCase):
@@ -52,7 +52,12 @@ class UnifiedWizardTests(unittest.TestCase):
    try:
     status,page,_=request("GET","/")
     self.assertEqual(status,200)
-    self.assertIn("Set up your trading workstation",page)
+    self.assertIn("Create your account and choose AI",page)
+    self.assertIn('id="setup-provider"',page)
+    self.assertNotIn('id="setup-schwab-key"',page)
+    self.assertNotIn('id="setup-market"',page)
+    self.assertNotIn('id="setup-paper"',page)
+    self.assertNotIn('id="setup-forecast"',page)
     self.assertEqual(request("GET","/api/setup/status")[1]["setup_needed"],True)
     self.assertEqual(request("POST","/api/login",{"username":"admin","password":PASSWORD})[0],409)
     from unified_config import pairing_code
@@ -62,15 +67,31 @@ class UnifiedWizardTests(unittest.TestCase):
       "ai_model":"qwen3.5:4b","paper_enabled":False,"market_enabled":False}
     bad=dict(data,setup_code="bad")
     self.assertEqual(request("POST","/api/setup/initialize",bad)[0],400)
+    for invalid in ("short1A!", "alllowercase2!", "NoSymbol123A"):
+      self.assertEqual(request("POST","/api/setup/initialize",
+         dict(data,admin_password=invalid))[0],400,invalid)
     status,out,_=request("POST","/api/setup/initialize",data)
     self.assertEqual(status,200,out)
     self.assertFalse((state/".setup_code").exists())
     self.assertEqual(request("POST","/api/setup/initialize",data)[0],400)
     self.assertEqual(request("GET","/api/setup/status")[1]["setup_needed"],False)
     self.assertEqual(request("GET","/api/integrations")[0],401)
+    self.assertEqual(request("GET","/integrations.html")[0],401)
+    self.assertEqual(request("GET","/broker-schwab.html")[0],401)
     status,session,raw_cookie=request("POST","/api/login",{"username":"admin","password":PASSWORD})
     self.assertEqual(status,200,session)
     cookie=raw_cookie.split(";",1)[0];token=session["csrf"]
+    status,setup_ai,_=request("GET","/integrations.html",cookie=cookie)
+    self.assertEqual(status,200)
+    self.assertIn("AI models & forecasting",setup_ai)
+    self.assertNotIn("schwab-secret",setup_ai)
+    self.assertNotIn("toggle-live",setup_ai)
+    status,setup_broker,_=request("GET","/broker-schwab.html",cookie=cookie)
+    self.assertEqual(status,200)
+    self.assertIn("Schwab developer app secret",setup_broker)
+    self.assertIn("schwab-onboarding",setup_broker)
+    self.assertIn("toggle-live",setup_broker)
+    self.assertNotIn('id="setup-provider"',setup_broker)
     status,public,_=request("GET","/api/integrations",cookie=cookie)
     self.assertEqual(status,200)
     self.assertEqual(public["ollama_url"],"http://192.168.1.21:11434")
@@ -86,6 +107,15 @@ class UnifiedWizardTests(unittest.TestCase):
     status,after,_=request("GET","/api/integrations",cookie=cookie)
     self.assertEqual(status,200)
     self.assertTrue(after["schwab_secret_set"])
+    # Saving AI model fields must preserve saved broker credentials.
+    status,_,_=request("POST","/api/integrations",{
+      "ai_provider":"ollama","ollama_url":"http://192.168.1.21:11434",
+      "ai_model":"qwen3.5:4b"},cookie=cookie,csrf=token)
+    self.assertEqual(status,200)
+    status,combined,_=request("GET","/api/integrations",cookie=cookie)
+    self.assertEqual(status,200)
+    self.assertTrue(combined["schwab_secret_set"])
+    self.assertEqual(combined["schwab_app_key"],"fake-user-dev-key")
     self.assertNotIn("schwab_app_secret",after)
     status,_,_=request("POST","/api/integrations",{
       "ai_provider":"ollama","ollama_url":"http://8.8.8.8:11434"

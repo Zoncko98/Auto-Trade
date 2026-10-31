@@ -153,20 +153,21 @@
             <span class="paper-label" id="profile-version">Checking version…</span></div>
           <p class="panel-note">Changing the password signs out all active sessions and survives a container restart.
           Your brokerage tokens and trading settings are not modified.</p>
-          <p><a class="btn secondary" href="/integrations.html">⚙ Configure AI, Ollama and Schwab connections</a></p>
+          <p><a class="btn secondary" href="/integrations.html">⚙ Configure AI models and forecasting</a></p>
+          <p class="panel-note">For Schwab authorization and real-money trading controls, open <strong>Broker Connections</strong> in the sidebar.</p>
         </section>
         <form id="profile-password-form" class="panel" style="max-width:660px;padding:24px" autocomplete="off">
           <h2>Change dashboard password</h2>
-          <p class="muted">Use a unique password of at least 20 characters. The current password is required.</p>
+          <p class="muted">Choose 10 or more characters with an uppercase letter, a number and a symbol. Longer passwords and password managers are recommended. Your current password is required.</p>
           <div class="setting-item"><div><label for="profile-current">Current password</label></div>
             <div class="setting-control"><input style="width:100%;min-width:200px" id="profile-current" type="password"
               autocomplete="current-password" required maxlength="256"></div></div>
           <div class="setting-item"><div><label for="profile-new">New password</label></div>
             <div class="setting-control"><input style="width:100%;min-width:200px" id="profile-new" type="password"
-              autocomplete="new-password" minlength="20" maxlength="256" required></div></div>
+              autocomplete="new-password" minlength="10" maxlength="256" required></div></div>
           <div class="setting-item"><div><label for="profile-confirm">Confirm new password</label></div>
             <div class="setting-control"><input style="width:100%;min-width:200px" id="profile-confirm" type="password"
-              autocomplete="new-password" minlength="20" maxlength="256" required></div></div>
+              autocomplete="new-password" minlength="10" maxlength="256" required></div></div>
           <div class="settings-submit"><p id="profile-message" role="status"></p>
             <button class="btn primary" type="submit" id="profile-save">Change password</button></div>
         </form>
@@ -418,6 +419,13 @@
       </section>
       <section class="view hidden" id="view-settings">
         <div class="page-header"><div><p class="eyebrow">CONFIGURATION</p><h1>Risk & capital settings</h1><p class="muted">Adjust virtual capital exposure and risk checks without restarting the monitor.</p></div><span class="paper-label">PAPER ACCOUNT ONLY</span></div>
+        <section class="panel" style="padding:18px;margin-bottom:20px" aria-label="Paper simulator service">
+          <div class="panel-heading">
+            <div><h2>Paper simulator service</h2><p id="paper-service-status" role="status">Checking background simulator status…</p></div>
+            <button class="btn secondary" type="button" id="paper-service-toggle">Check status</button>
+          </div>
+          <p class="panel-note">Starting this service runs the automated paper strategy with <strong>virtual funds only</strong>. No real brokerage orders are sent. Save risk settings separately below.</p>
+        </section>
         <form id="settings-form" class="settings-layout">
           <section class="panel settings-main">
             <div class="panel-heading"><div><h2>Capital deployment</h2><p>Controls how much of your available virtual cash may be spent</p></div></div>

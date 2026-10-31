@@ -14,13 +14,22 @@ from pathlib import Path
 import secrets
 import tempfile
 
-MIN_PASSWORD_LENGTH=20
+MIN_PASSWORD_LENGTH=10
 MAX_PASSWORD_LENGTH=256
 PBKDF2_ITERATIONS=600_000
 FILENAME="profile_auth.json"
 
 class ProfileError(ValueError):
     pass
+
+def validate_new_password(password):
+    """Password setup/change only. Existing stored verifiers are never rechecked against new policy."""
+    if (not isinstance(password,str) or not MIN_PASSWORD_LENGTH <= len(password) <= MAX_PASSWORD_LENGTH
+        or any(ord(ch)<32 or ord(ch)==127 for ch in password) or not password.strip()
+        or not any("A"<=ch<="Z" for ch in password)
+        or not any("0"<=ch<="9" for ch in password)
+        or not any(not ch.isalnum() and not ch.isspace() for ch in password)):
+        raise ProfileError("Use 10–256 characters with at least one uppercase letter, one number and one symbol")
 
 def _read(state_dir):
     path=Path(state_dir)/FILENAME
@@ -57,9 +66,7 @@ def verify(state_dir,password,bootstrap_password):
 def rotate(state_dir,current,new,bootstrap_password):
     if not isinstance(current,str) or not isinstance(new,str):
         raise ProfileError("Current and new password are required")
-    if (not MIN_PASSWORD_LENGTH <= len(new) <= MAX_PASSWORD_LENGTH or
-        any(ord(ch)<32 or ord(ch)==127 for ch in new) or not new.strip()):
-        raise ProfileError("Use a new password of 20–256 characters without control characters")
+    validate_new_password(new)
     root=Path(state_dir)
     root.mkdir(parents=True,exist_ok=True)
     lock=root/"profile_auth.lock"

@@ -13,7 +13,7 @@ import unittest
 
 APP=Path(__file__).resolve().parent
 ORIGINAL="bootstrap-application-pass-123456"
-CHANGED="correct-horse-battery-very-new-123456"
+CHANGED="Correct-horse-battery-very-new-123456!"
 
 class ProfileTests(unittest.TestCase):
     def test_password_rotation_revokes_all_sessions_and_survives_restart(self):
