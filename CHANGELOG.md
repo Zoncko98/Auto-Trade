@@ -1,3 +1,13 @@
+## v1.0.14  Advisory technical indicator research
+
+- Added deterministic 14-session RSI, 12/26 MACD and nine-session signal, a close-only 14-session volatility range proxy, and relative volume compared with the previous 20 sessions.
+- Added a clearly labeled symbol-only trending/ranging/volatile regime proxy; it is not a broad-market regime assessment.
+- Attached advisory indicator data to NAS-native read-only forecast research for candidates with sufficient validated history.
+- ATR is explicitly labeled a close-only proxy because the historical feeds currently use close/volume bars; it must not be confused with true OHLC-based ATR.
+- Added four regression tests covering indicator bounds, insufficient data, invalid close and flat prices.
+- Kept all live entry selection, AI veto policy, risk controls, order sizing and broker authorization unchanged. Indicators do not automatically trigger orders.
+- No production deployment or live-order tests performed.
+
 ## v1.0.13  Explainability update release validation
 
 - Updated the profile version regression test to compare against the application VERSION file instead of hard-coding v1.0.11; this keeps the test valid for subsequent releases.

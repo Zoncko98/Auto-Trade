@@ -14,6 +14,7 @@ from urllib.parse import quote
 from urllib.request import Request,urlopen
 from urllib.error import HTTPError,URLError
 from zoneinfo import ZoneInfo
+from technical_indicators import calculate as calculate_indicators
 
 SYMBOLS=("F","T","PFE","AAL","CCL","SOFI","SNAP","NU","WBD","NIO","NOK","VALE",
          "UAA","PLUG","RIG","LUMN","KGC","AG","CLF","BTG","BBD","HIMS","GOLD","ACHR")
@@ -119,7 +120,8 @@ def analyze(sym,rows,source,now=None):
           "sma20":round(sma20,4),"sma50":round(sma50,4),
           "return_5d_pct":round(ret5*100,2),"return_20d_pct":round(ret20*100,2),
           "volatility_20d_pct":round(vol20*100,2),
-          "relative_volume":round(relvolume,3)},
+          "relative_volume":round(relvolume,3),
+          "advisory_indicators":calculate_indicators(rows)},
        "historical_volatility_scenario":{"close_range":scenario,
           "method":"Latest historical close +/- one observed 20-session daily log-return standard deviation",
           "calibrated_probability":None},
