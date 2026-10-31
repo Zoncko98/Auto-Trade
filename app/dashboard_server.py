@@ -28,6 +28,8 @@ from live_dashboard import (installed_models, current_model, set_model,
     live_state, set_operator_mode)
 from live_extension import (read_live_risk,set_live_risk,validate_risk,read_decisions,
                             rows_from_live,excel_export)
+from profile_auth import verify as verify_profile_password, rotate as rotate_profile_password, revision as profile_revision, ProfileError
+from update_status import update_information, installed_version
 from dashboard_control import (
     MODES, checked_control, default_control, now_utc, read_control,
     validated_settings, write_atomic,
@@ -43,6 +45,7 @@ PORT = int(os.environ.get("DASHBOARD_PORT", "8765"))
 BIND_ADDRESS = os.environ.get("DASHBOARD_BIND", "0.0.0.0")
 _lock = threading.Lock()
 _login_attempts: dict[str, list[float]] = {}
+_change_attempts: dict[str, list[float]] = {}
 
 
 def _safe_load(path: Path, default):
@@ -143,7 +146,7 @@ def _page_of(items, params):
 def _session_value():
     expiry = int(time.time()) + 8 * 3600
     nonce = secrets.token_urlsafe(24)
-    message = f"{expiry}:{nonce}".encode()
+    message = f"{expiry}:{profile_revision(STATE_DIR)}:{nonce}".encode()
     raw = base64.urlsafe_b64encode(message).decode().rstrip("=")
     sig = hmac.new(SESSION_SECRET, raw.encode(), hashlib.sha256).hexdigest()
     return f"{raw}.{sig}", nonce
@@ -156,11 +159,11 @@ def _verify_session(value):
         if not hmac.compare_digest(expected, sig):
             return None
         message = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4))
-        expiry_s, nonce = message.decode().split(":", 1)
-        if int(expiry_s) < time.time():
+        expiry_s,rev_s,nonce = message.decode().split(":", 2)
+        if int(expiry_s) < time.time() or int(rev_s)!=profile_revision(STATE_DIR):
             return None
         return nonce if 16 <= len(nonce) <= 96 else None
-    except (ValueError, UnicodeError, OverflowError):
+    except (ValueError, UnicodeError, OverflowError, OSError, ProfileError):
         return None
 
 
@@ -272,6 +275,11 @@ class Handler(BaseHTTPRequestHandler):
         if not nonce:
             return self._json(401, {"error": "Sign in required"})
         try:
+            if path == "/api/profile":
+                return self._json(200, {"display_name":"Administrator",
+                    "password_change_enabled":True,"version":installed_version(APP_DIR)})
+            if path == "/api/update":
+                return self._json(200, update_information(STATE_DIR,APP_DIR))
             if path in ("/api/research/forecast","/api/research/models"):
                 target = "/api/forecast" if path.endswith("forecast") else "/api/models"
                 try:
@@ -393,7 +401,13 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = self._body()
                 password = data.get("password", "")
-                if not isinstance(password, str) or not hmac.compare_digest(password, PASSWORD):
+                if not isinstance(password, str) or len(password)>1024:
+                    return self._json(400, {"error": "Invalid login request"})
+                try:
+                    authorized=verify_profile_password(STATE_DIR,password,PASSWORD)
+                except (ProfileError,OSError):
+                    return self._json(503, {"error": "Protected authentication state unavailable"})
+                if not authorized:
                     with _lock:
                         _login_attempts[ip] = history + [time.monotonic()]
                     return self._json(401, {"error": "Invalid password"})
@@ -414,6 +428,29 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if path == "/api/profile/password":
+            ip=self.client_address[0]
+            with _lock:
+                now=time.monotonic()
+                tries=[t for t in _change_attempts.get(ip,[]) if now-t<900]
+                if len(tries)>=5:
+                    return self._json(429,{"error":"Too many password attempts; retry later"})
+            try:
+                data=self._body()
+                if set(data)!={"current_password","new_password"}:
+                    return self._json(400,{"error":"Current and new password required"})
+                with _lock:
+                    _change_attempts[ip]=tries+[time.monotonic()]
+                    rotate_profile_password(STATE_DIR,data["current_password"],
+                        data["new_password"],PASSWORD)
+                    _change_attempts.pop(ip,None)
+                # All sessions, across all devices, have been invalidated by revision change.
+                return self._json(200,{"ok":True,"message":"Password changed. Sign in again."},{
+                    "Set-Cookie":"session=; Secure; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"})
+            except ProfileError as exc:
+                return self._json(400,{"error":str(exc)})
+            except (ValueError,TypeError,OSError):
+                return self._json(503,{"error":"Password update could not be saved"})
         if path == "/api/live/risk":
             try:
                 payload=self._body()

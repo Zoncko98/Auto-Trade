@@ -54,8 +54,10 @@ async function init(){
     csrf=session.csrf;
     showApp();
     await refreshAll();
+    await checkForUpdate().catch(()=>{});
   } catch(_) { showLogin(); }
   setInterval(()=>{if(csrf) refreshAll().catch(err=>toast(err.message,true));},15000);
+  setInterval(()=>{if(csrf) checkForUpdate().catch(()=>{});},60000);
 }
 function bindEvents(){
   $("login-form").addEventListener("submit", async (ev)=>{
@@ -65,9 +67,12 @@ function bindEvents(){
     $("login-error").textContent="";
     try{
       const data=await request("/api/login",{method:"POST",body:JSON.stringify({password:$("password").value})});
-      csrf=data.csrf;showApp();await refreshAll();
+      csrf=data.csrf;showApp();await refreshAll();await checkForUpdate().catch(()=>{});
     }catch(err){$("login-error").textContent=err.message;}finally{btn.disabled=false;}
   });
+  $("profile-check-update").addEventListener("click",()=>checkForUpdate()
+      .catch(err=>toast(err.message,true)));
+  $("profile-password-form").addEventListener("submit",changeDashboardPassword);
   $("logout-btn").addEventListener("click",async()=>{
     try{await request("/api/logout",{method:"POST",body:"{}"});}catch(_){}
     csrf=null;showLogin();
@@ -104,9 +109,9 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["live","decisions","live-risk","local","forecast","overview","trades","reviews","settings"].includes(view))return;
+  if(!["live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile"].includes(view))return;
   activeView=view;
-  const workspace=["live","decisions","live-risk","local","forecast"].includes(view)?"live":"paper";
+  const workspace=view==="profile"?$("workspace-select").value:(["live","decisions","live-risk","local","forecast"].includes(view)?"live":"paper");
   $("workspace-select").value=workspace;
   $("workspace-description").textContent=workspace==="live"
     ?"Real Schwab account · cash only":"Simulated account · no real orders";
@@ -116,13 +121,16 @@ function showView(view) {
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   const titles={live:"Schwab live",decisions:"Live AI evidence","live-risk":"Live risk settings",
     local:"Local AI models",forecast:"Next session forecast",overview:"Paper simulator",trades:"Paper history",
-    reviews:"Paper AI audit",settings:"Paper risk settings"};
+    reviews:"Paper AI audit",settings:"Paper risk settings",profile:"User profile"};
   $("breadcrumb").textContent=titles[view];
   if(view==="trades" || view==="reviews") loadPage(view,page[view]).catch(err=>toast(err.message,true));
   if(view==="settings" && status) populateSettings(status.control.settings);
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
+  if(view==="profile") request("/api/profile").then(p=>{
+    $("profile-version").textContent="Installed v"+p.version;
+  }).catch(err=>toast(err.message,true));
 }
 async function refreshAll(){
   if(refreshing)return;
@@ -336,3 +344,46 @@ async function exportTrades(){
   await downloadWorkbook("/api/paper/export.xlsx","autotrader-paper-trades.xlsx",$("export-trades"));
 }
 document.addEventListener("DOMContentLoaded",init);
+
+
+async function changeDashboardPassword(ev){
+  ev.preventDefault();
+  const current=$("profile-current").value;
+  const next=$("profile-new").value;
+  const confirmation=$("profile-confirm").value;
+  const feedback=$("profile-message");
+  feedback.textContent="";
+  if(next!==confirmation){feedback.textContent="New passwords do not match.";return;}
+  if(next.length<20){feedback.textContent="Use at least 20 characters.";return;}
+  const button=$("profile-save");
+  button.disabled=true;
+  try{
+    await request("/api/profile/password",{method:"POST",
+      body:JSON.stringify({current_password:current,new_password:next})});
+    $("profile-password-form").reset();
+    csrf=null;
+    showLogin();
+    $("login-error").textContent="Password changed. Sign in with your new password.";
+  }catch(err){feedback.textContent=err.message;}
+  finally{button.disabled=false;}
+}
+async function checkForUpdate(){
+  const status=await request("/api/update");
+  const banner=$("update-banner");
+  const details=$("profile-update-status");
+  if(details){
+    details.textContent=status.status==="checked"
+      ? "Installed v"+status.installed+" · Latest v"+status.latest+
+        " · Last checked "+(status.checked_at||"unknown")
+      : "The TrueNAS host has not completed a GitHub release check yet.";
+  }
+  if(status.update_available && typeof status.release_url==="string" &&
+     status.release_url.startsWith("https://github.com/Zoncko98/Auto-Trade/tree/v")){
+    banner.textContent="Update v"+status.latest+" available";
+    banner.href=status.release_url;
+    banner.classList.remove("hidden");
+  }else{
+    banner.classList.add("hidden");
+    banner.removeAttribute("href");
+  }
+}
