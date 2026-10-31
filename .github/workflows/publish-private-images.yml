@@ -1,0 +1,96 @@
+name: Publish private TrueNAS images
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: private-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: dashboard
+            dockerfile: app/Dockerfile.dashboard
+          - component: paper
+            dockerfile: app/Dockerfile
+          - component: live
+            dockerfile: app/Dockerfile.live
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+      - name: Validate stable tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Only stable semantic-version tags may publish :stable"
+            exit 1
+          fi
+      - name: Setup Python
+        if: matrix.component == 'dashboard'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test dashboard authentication, version detection, and safeguards
+        if: matrix.component == 'dashboard'
+        run: |
+          python -m compileall -q app
+          python -m unittest discover -s app -p test_frontend_v2.py -v
+          python -m unittest discover -s app -p test_https.py -v
+          python -m unittest discover -s app -p test_profile_update.py -v
+          python -m unittest discover -s app -p test_update_checker.py -v
+      - name: Login to private GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Select versioned and stable image tags
+        id: tags
+        shell: bash
+        env:
+          COMPONENT: ${{ matrix.component }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          name="ghcr.io/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/auto-trade-${COMPONENT}"
+          {
+            echo "list<<EOF"
+            if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+              echo "${name}:${GITHUB_REF_NAME}"
+              # Keep the brokerage worker version-pinned, not on a moving stable tag.
+              if [[ "$COMPONENT" != "live" ]]; then
+                echo "${name}:stable"
+              fi
+            else
+              echo "${name}:candidate"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Build and publish private image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          file: ./${{ matrix.dockerfile }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.tags.outputs.list }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.description=Private Auto Trader ${{ matrix.component }} service
+          provenance: false

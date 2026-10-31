@@ -54,3 +54,8 @@ The installer brings up **only the dashboard**, not the live-trader container. A
 No source or guide makes the repository public. A public release requires a license decision, credential review, fresh-install verification, container-image distribution decision and additional compatibility testing. **Do not expose the dashboard, Ollama API, or forecasting API directly to the public internet.**
 
 Profile password changes and release notifications are also included in v1.1.0-dev.
+
+
+## TrueNAS Apps native update integration
+
+[Private GHCR images and TrueNAS UI migration](deploy/truenas-apps/README.md) (development/testing only; private registry credentials required).
