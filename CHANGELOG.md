@@ -1,3 +1,13 @@
+## v1.0.15  Read-only AI compatibility diagnostics (stage one)
+
+- Added authenticated GET /api/ai/readiness with non-secret model/provider compatibility status.
+- Local Ollama model-name parser flags claims below the proposed 4B minimum; name alone does NOT verify actual parameter count, readiness or capability.
+- Cloud selections are reported as needing runtime verification, not falsely marked healthy.
+- No credentials are exposed. No AI calls are made by the endpoint.
+- Added five targeted tests for 4B, subminimum, unknown size, cloud and missing provider.
+- No new trading gate or runtime enforcement: existing live orders, risk controls, authentication and settings remain unchanged.
+- Future stage: authoritative metadata and structured response probes, then separately validated live enforcement.
+
 ## v1.0.14  Advisory technical indicator research
 
 - Added deterministic 14-session RSI, 12/26 MACD and nine-session signal, a close-only 14-session volatility range proxy, and relative volume compared with the previous 20 sessions.
