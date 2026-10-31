@@ -296,6 +296,8 @@ class Handler(BaseHTTPRequestHandler):
             "/broker-schwab.html": ("broker-schwab.html","text/html; charset=utf-8"),
             "/index.html": ("index.html", "text/html; charset=utf-8"),
             "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+            "/paper-lab.html": ("paper-lab.html", "text/html; charset=utf-8"),
+            "/paper-lab.js": ("paper-lab.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
             "/forecast.js": ("forecast.js", "text/javascript; charset=utf-8"),
             "/brokers.js": ("brokers.js","text/javascript; charset=utf-8"),
@@ -308,6 +310,8 @@ class Handler(BaseHTTPRequestHandler):
             if UNIFIED_APP and not app_configured(STATE_DIR) and path in ("/","/index.html"):
                 name="setup.html"
             if path in ("/integrations.html","/broker-schwab.html") and not self._nonce():
+                return self._json(401,{"error":"Sign in required"})
+            if path=="/paper-lab.html" and not self._nonce():
                 return self._json(401,{"error":"Sign in required"})
             if path=="/setup.html" and (not UNIFIED_APP or app_configured(STATE_DIR)):
                 return self._json(404,{"error":"Setup is unavailable"})
@@ -328,6 +332,9 @@ class Handler(BaseHTTPRequestHandler):
         if not nonce:
             return self._json(401, {"error": "Sign in required"})
         try:
+            if path == "/api/paper-lab":
+                from unified_paper_lab import report
+                return self._json(200,report(STATE_DIR/"paper-research"/"records.json"))
             if UNIFIED_APP and path == "/api/ai/readiness":
                 cfg=integration_settings(STATE_DIR)
                 result=ai_readiness_summary(cfg)
@@ -516,6 +523,9 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if path == "/api/paper-lab/run":
+            from unified_paper_lab import cycle
+            return self._json(200,cycle(STATE_DIR/"paper-research"/"records.json"))
         if UNIFIED_APP and path == "/api/live/activation":
             try:
                 return self._json(200,toggle_live_access(STATE_DIR,self._body()))

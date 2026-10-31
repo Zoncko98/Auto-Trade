@@ -23,7 +23,7 @@ def _parse(content):
 
 def infer(pair,bars,provider=None):
     """Model sees only completed public candles; no account data or execution rights."""
-    if pair not in PAIRS or len(bars)<26:raise PredictionUnavailable("Insufficient public market data")
+    if pair not in (set(PAIRS) | {"SPY","QQQ","AAPL","MSFT"}) or len(bars)<26:raise PredictionUnavailable("Insufficient public market data")
     provider=(provider or os.getenv("AI_PROVIDER","local")).lower()
     payload={"asset":pair,"completed_hourly_closes":[{"at":x["timestamp"],"close":x["close"]} for x in bars[-48:]],
              "task":"Predict direction for one of 1, 4 or 24 hours; uncertainty is acceptable."}
