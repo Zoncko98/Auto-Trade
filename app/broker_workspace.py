@@ -73,6 +73,15 @@ def providers(state):
         description="Existing live worker, read-only quotes, order journal and brokerage positions; limited to conservative cash-only US equities and ETFs.",
         docs_url="https://developer.schwab.com/",
         phase="active")
+    paper=BrokerCapability(
+        id="paper",name="Paper Trading",integration_status="virtual_account",
+        auth_method="No brokerage authorization required",
+        assets=("US stocks","ETFs"),official_account_access=False,
+        official_market_data=False,official_order_execution=False,
+        app_account_connected=True,app_orders_supported=True,
+        setup_requirement="Virtual account uses a configured read-only market data source",
+        description="One strategy engine, simulated fills and isolated account balances; no real orders.",
+        docs_url="https://github.com/Zoncko98/Auto-Trade",phase="active")
     webull=BrokerCapability(
         id="webull",name="Webull",integration_status="approval_required",
         auth_method="Connect API OAuth 2.0 (third-party); individual OpenAPI uses approved app keys",
@@ -115,7 +124,7 @@ def providers(state):
         description="Professional multi-market broker with API options. Needs session, account-selection and entitlement handling before live orders.",
         docs_url="https://www.interactivebrokers.com/docs/",
         phase="planned")
-    return [asdict(p) for p in (schwab,webull,alpaca,robinhood,ibkr)]
+    return [asdict(p) for p in (schwab,paper,webull,alpaca,robinhood,ibkr)]
 
 def workspace_summary(state):
     items=providers(state)

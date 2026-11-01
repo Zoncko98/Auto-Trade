@@ -14,10 +14,15 @@ class BrokerWorkspaceTests(unittest.TestCase):
             ids=[b["id"] for b in doc["brokers"]]
             self.assertEqual(len(set(ids)),len(ids))
             self.assertEqual(set(ids),{
-                "schwab","webull","alpaca","robinhood_crypto","interactive_brokers"})
+                "schwab","paper","webull","alpaca","robinhood_crypto","interactive_brokers"})
             for broker in doc["brokers"]:
-                self.assertFalse(broker["app_account_connected"])
-                self.assertFalse(broker["app_orders_supported"])
+                if broker["id"]=="paper":
+                    self.assertTrue(broker["app_account_connected"])
+                    self.assertTrue(broker["app_orders_supported"])
+                    self.assertFalse(broker["official_order_execution"])
+                else:
+                    self.assertFalse(broker["app_account_connected"])
+                    self.assertFalse(broker["app_orders_supported"])
                 self.assertIn("https://",broker["docs_url"])
     def test_stored_token_does_not_enable_other_brokers(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -30,7 +35,7 @@ class BrokerWorkspaceTests(unittest.TestCase):
             self.assertIn("authorization file saved",schwab["setup_requirement"].lower())
             self.assertNotIn("NEVER_SHOW_TEST_TOKEN",str(doc))
             for provider in doc["brokers"]:
-                if provider["id"]!="schwab":
+                if provider["id"] not in ("schwab","paper"):
                     self.assertFalse(provider["app_orders_supported"])
                     self.assertFalse(provider["app_account_connected"])
     def test_unsupported_brokers_fail_closed(self):

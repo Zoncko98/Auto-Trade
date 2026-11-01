@@ -135,7 +135,7 @@ def main():
                 if enabled["live"]:enabled["market"]=False
                 runtime_env=build_env(cfg,sec)
                 for name,command in (
-                   ("paper",["/app/bot.py"]),
+                   ("paper",["/app/live_worker.py","--account","paper","--run"]),
                    ("market",["/app/broker_market_data.py"])):
                     child=CHILDREN.get(name)
                     if name=="paper":
@@ -160,7 +160,7 @@ def main():
                     if live_started_signature is None:
                         live_env=dict(runtime_env,LIVE_TRADING="true",LIVE_MODE="AUTONOMOUS",
                                       LIVE_ACCOUNT_HASH=cfg["live_account_hash"])
-                        spawn("live",["/app/live_worker.py","--run"],live_env)
+                        spawn("live",["/app/live_worker.py","--account","schwab","--run"],live_env)
                         live_started_signature=str(cfg["live_account_hash"])
                     elif CHILDREN.get("live") and CHILDREN["live"].poll() is not None:
                         # Never auto-restart a dead broker worker after an exception.

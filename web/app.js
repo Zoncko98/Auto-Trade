@@ -216,10 +216,10 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","paper-research","settings","profile","brokers"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers"].includes(view))return;
   activeView=view;
   const liveViews=["live","decisions","live-risk","local","forecast"];
-  const paperViews=["overview","trades","reviews","paper-research","settings"];
+  const paperViews=["overview","trades","reviews","settings"];
   if(liveViews.includes(view))selectWorkspace("live");
   if(paperViews.includes(view))selectWorkspace("paper");
   const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":null;
@@ -232,7 +232,7 @@ function showView(view) {
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
     "live-risk":"Live risk settings",local:"Local AI models",forecast:"Next session forecast",
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
-    "paper-research":"AI market research",settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections"};
+settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
   $("live-mode-banner").classList.toggle("hidden",!liveViews.includes(view));
@@ -242,7 +242,6 @@ function showView(view) {
     loadPaperService().catch(err=>toast(err.message,true));
   }
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
-  if(view==="paper-research") refreshPaperResearch().catch(err=>toast(err.message,true));
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
@@ -319,6 +318,12 @@ function renderOverview(data,points,recent){
   if(!r.online)message=["Monitor not reporting","The Docker trading worker may be stopped or unable to write its heartbeat."];
   else if(!r.ai_model_configured)message=["Paper AI reviewer not configured",
     "Market observations can be collected, but simulated buys remain blocked until a compatible model is configured."];
+  else if(r.market_source==="schwab_read_only" && !r.last_error)
+    message=["Shared brokerage market data available",
+      "Paper decisions use the same market scanner and AI approval as Schwab; fills remain entirely simulated."];
+  else if(r.market_source==="schwab_read_only")
+    message=["Paper market data temporarily unavailable",
+      "Shared scanner could not obtain a usable read-only brokerage quote. No simulated order was placed."];
   else if(r.public_market_feed && r.paper_quotes_available>0)
     message=["Paper price feed reporting",
       r.paper_quotes_available+" public timestamped observations received. Simulated entries still require strategy and AI approval."];

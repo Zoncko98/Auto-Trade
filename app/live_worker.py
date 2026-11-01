@@ -23,7 +23,8 @@ from zoneinfo import ZoneInfo
 from live_order_safety import (CAPITAL, DAILY_LOSS, LiveBlocked, OrderLedger,
     OPEN_STATUSES, TERMINAL, buy_quantity, cross_signal, equity_value,
     money, position_snapshot, quote_levels, sell_limit, verified_cash)
-from autonomous_selector import UNIVERSE, ranked_candidates, choose_entry
+from autonomous_selector import UNIVERSE
+from shared_strategy import select_entry
 from trade_explanations import comparisons, explanation
 from ai_research import approve_entry, research_evidence
 from live_position_ai import review_held
@@ -336,16 +337,9 @@ def recent_candles(client, symbol):
 def scan_entries(client, now, excluded=()):
     """Rank live market opportunities, excluding symbols already held."""
     quotes=result(client.get_quotes(list(UNIVERSE)), "automated quote batch")
-    blocked=set(excluded)
-    ranked=[row for row in ranked_candidates(quotes,now)
-            if row[1] not in blocked]
-    print(f"Market scanner: {len(ranked)} liquid and affordable candidates, "
-          f"scanning up to {len(ranked)} trend histories.")
-    if not ranked:
-        scan_entries.last_comparison=[]
-        return None
-    selected=choose_entry(ranked,lambda sym:recent_candles(client,sym),now,
-                           can_buy=True)
+    selected,ranked=select_entry(quotes,lambda sym:recent_candles(client,sym),
+                                 now,excluded=excluded)
+    print(f"Market scanner: {len(ranked)} liquid and affordable candidates, scanning up to {len(ranked)} trend histories.")
     scan_entries.last_comparison=comparisons(ranked,selected.symbol if selected else None)
     return selected
 
@@ -582,12 +576,22 @@ def attempt(client, account_hash, ledger, now, submit):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--account",choices=("schwab","paper"),default="schwab",
+                        help="Account execution adapter")
     parser.add_argument("--check",action="store_true",help="Read-only account check")
     parser.add_argument("--once",action="store_true",help="One scan (can submit if armed)")
     parser.add_argument("--run",action="store_true",help="Continuous live worker")
     args=parser.parse_args()
     if sum((args.check,args.once,args.run))!=1:
         parser.error("Choose exactly one mode")
+    if args.account=="paper":
+        if args.check:
+            from paper_broker_adapter import PaperBrokerAdapter
+            account=PaperBrokerAdapter(os.getenv("STATE_DIR","/state"))
+            print("Paper account only:",account.balances(account.account_ref))
+            return
+        from paper_account_runtime import paper_main
+        return paper_main(run=args.run)
     account_hash=os.getenv("LIVE_ACCOUNT_HASH","").strip()
     mode=os.getenv("LIVE_MODE","").strip()
     activated=os.getenv("LIVE_TRADING","false").lower()=="true"
