@@ -167,7 +167,8 @@ def robinhood_status(state):
             worker={"execution_status":"NOT_ARMED","worker":"not_started"}
         return {"worker":{k:worker.get(k) for k in
                     ("updated_at","worker","quotes_checked","pairs_checked",
-                     "execution_status","live_orders_allowed","last_order_confirmed","reason")},
+                     "pending_order_intents","execution_status","live_orders_allowed",
+                     "last_order_confirmed","reason")},
                 "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
                 "order_execution_enabled":False,
                 "execution_status":"NOT_INTEGRATED",

@@ -35,7 +35,18 @@ def snapshot(client):
 
 def run_once(state,client):
     result=snapshot(client)
-    result.update({"updated_at":datetime.now(timezone.utc).isoformat(),
+    from robinhood_order_journal import OrderJournal
+    journal=OrderJournal(state)
+    pending=journal.pending()
+    account_rows=client.list_accounts()
+    if pending:
+        matched=[a for a in account_rows if isinstance(a,dict) and
+                 a.get("account_number")==pending[0].get("account")]
+        if matched:
+            journal.reconcile(pending[0]["account"],client.orders(pending[0]["account"]))
+    pending=journal.pending()
+    result.update({"pending_order_intents":len(pending),
+       "updated_at":datetime.now(timezone.utc).isoformat(),
        "worker":"monitoring","execution_status":"NOT_ARMED",
        "live_orders_allowed":False,"last_order_confirmed":False,
        "reason":"Robinhood strategy, approvals, and reconciliation are not enabled for live execution"})
