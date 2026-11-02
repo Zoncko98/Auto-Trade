@@ -19,9 +19,9 @@ UNIVERSE = (
 )
 MAX_SCAN = 8
 MIN_VOLUME = 200_000
-MIN_PRICE = Decimal("5")
-MAX_PRICE = Decimal("25")
-MAX_SPREAD_PCT = Decimal("0.02")
+MIN_PRICE = Decimal("3")
+MAX_PRICE = Decimal("30")
+MAX_SPREAD_PCT = Decimal("0.01")
 
 
 @dataclass(frozen=True)
@@ -89,9 +89,28 @@ def choose_entry(ranked, candle_lookup, now: datetime, can_buy):
             signal, candle = cross_signal(candle_lookup(sym), now)
         except (LiveBlocked, KeyError, TypeError, ValueError):
             continue
+        reason = None
         if signal == "BUY":
-            reason = (f"automatic live liquidity rank={score:.3f}; "
-                      "confirmed 3/5-bar upward crossover; "
-                      f"bid={bid}, ask={ask}")
-            return Candidate(sym, bid, ask, score, candle, reason)
+            reason = "confirmed 3/5-bar upward crossover"
+        elif signal == "HOLD":
+            # Permit a moderate continuing trend, not just the instant of
+            # crossing. cross_signal has already checked bar freshness.
+            try:
+                rows = sorted(candle_lookup(sym), key=lambda x: x["datetime"])
+                cutoff = int(now.timestamp() * 1000) - 60000
+                completed = [(int(b["datetime"]), money(b["close"], "close"))
+                             for b in rows if int(b["datetime"]) + 300000 <= cutoff]
+                tail = completed[-4:]
+                if (len(tail)==4 and tail[-1][0]==candle and
+                    len({t for t,_ in tail})==4 and
+                    all(tail[i][1] > tail[i-1][1] for i in range(1,4))
+                    and tail[0][1]>0):
+                    momentum = (tail[-1][1]/tail[0][1]-1)*100
+                    if Decimal("0.4") <= momentum <= Decimal("2"):
+                        reason = f"continuing momentum {momentum:.2f}% over three completed bars"
+            except (LiveBlocked,KeyError,ValueError,TypeError,ArithmeticError):
+                pass
+        if reason:
+            return Candidate(sym,bid,ask,score,candle,
+                f"shared stock strategy rank={score:.3f}; {reason}; bid={bid}, ask={ask}")
     return None

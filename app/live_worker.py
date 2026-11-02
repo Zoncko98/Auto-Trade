@@ -515,7 +515,9 @@ def attempt(client, account_hash, ledger, now, submit):
         candidate=scan_entries(client,now,excluded=positions.keys())
         if candidate is None:
             if submit:_audit(now,"-","NO_SIGNAL","No eligible completed 3/5-bar upward crossover; stay in cash",
-                              signals={"candidate_universe":len(UNIVERSE)})
+                              signals={"candidate_universe":len(UNIVERSE),
+                                       "ranked_candidates":len(getattr(scan_entries,"last_comparison",[])),
+                                       "candidate_comparison":getattr(scan_entries,"last_comparison",[])[:8]})
             print("No qualifying automatic entry signal; remain in available cash.")
             return
         allowed,ai_reason=approve_entry(candidate.symbol,now)
