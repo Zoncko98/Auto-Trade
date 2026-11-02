@@ -1,3 +1,12 @@
+## v1.1.9 - Shared brokerage worker / virtual paper account
+
+- Reuse live_worker.py for account-specific Schwab and Paper Trading execution.
+- Share candidate selection and AI decision logic; paper orders use a virtual brokerage adapter, never live submission.
+- Keep one authoritative paper_account.json ledger with isolated virtual fills, account discovery, and independent controls.
+- Remove duplicated Paper Lab frontend controls and its scheduler.
+- Retain existing Schwab order safety gates; Robinhood and Webull remain unavailable adapters pending supported integration.
+- Production verification must confirm read-only Schwab market-data access and an independently running paper account.
+
 ## v1.1.8 - Correct paper market-feed telemetry
 
 - Paper worker reports source observation count, last check, feed enablement and unavailable symbols in runtime heartbeat.
