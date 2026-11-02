@@ -241,7 +241,10 @@
             <div class="setting-control"><input type="checkbox" id="robinhood-risk-activate"></div></div>
           <div class="setting-item"><div><label>Live submission permission</label><p>Read-only until broker minimum and execution safeguards pass.</p></div>
             <div class="setting-control"><strong id="robinhood-risk-enabled">OFF</strong></div></div>
-          <div class="form-actions"><button class="btn primary" type="submit">Save Robinhood risk settings</button>
+          <div class="form-actions">
+            <button class="btn primary" id="robinhood-live-start" type="button">▶ Start live crypto trading</button>
+            <button class="btn danger-outline" id="robinhood-live-stop" type="button">Ⅱ Pause live crypto trading</button>
+            <button class="btn secondary" type="submit">Save risk settings</button>
             <span id="robinhood-risk-feedback" role="status"></span></div>
         </section>
       </form>

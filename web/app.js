@@ -790,6 +790,15 @@ async function exportTrades(){
 }
 document.addEventListener("DOMContentLoaded",()=>{
   $("robinhood-risk-form")?.addEventListener("submit",saveRobinhoodRisk);
+  $("robinhood-live-start")?.addEventListener("click",()=>{
+    if(!$("robinhood-risk-form").reportValidity())return;
+    $("robinhood-risk-activate").checked=true;
+    $("robinhood-risk-form").requestSubmit();
+  });
+  $("robinhood-live-stop")?.addEventListener("click",()=>{
+    $("robinhood-risk-activate").checked=false;
+    $("robinhood-risk-form").requestSubmit();
+  });
 });
 document.addEventListener("DOMContentLoaded",init);
 
