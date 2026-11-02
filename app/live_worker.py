@@ -412,14 +412,14 @@ def _orders_today(ledger, now, action=None):
 
 def _live_risk():
     try:
-        return read_live_risk(STATE_DIR)['settings']
+        return read_live_risk(STATE_DIR.parent)['settings']
     except (OSError,TypeError,KeyError,ValueError) as exc:
         raise LiveBlocked("Cannot validate current live risk settings: "+str(exc)) from None
 
 
 def _audit(now, symbol, decision, summary, candle=None, signals=None, details=None):
     details=details if isinstance(details,dict) else {}
-    log_decision(STATE_DIR,{
+    log_decision(STATE_DIR.parent,{
         "at":now.isoformat(),"symbol":symbol,"decision":decision,
         "summary":str(summary)[:500],"candle":candle,
         "signals":signals or {},
