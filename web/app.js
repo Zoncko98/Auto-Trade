@@ -13,14 +13,17 @@ const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto"]);
 // Do not format missing numbers as $0.00, and never render stale broker
 // snapshots as current. Values are only read from authenticated APIs.
 function finiteUsd(value){
-  // Schwab's live worker serializes Decimal as a string for lossless JSON.
+  if(typeof value!=="number" || !Number.isFinite(value) || Math.abs(value)>1e15)
+    return null;
+  return money(value);
+}
+function schwabEquityUsd(value){
+  // Only Schwab's live worker emits Decimal equity as string.
   if(typeof value==="string"){
     if(!/^-?(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(value))return null;
     value=Number(value);
   }
-  if(typeof value!=="number" || !Number.isFinite(value) || Math.abs(value)>1e15)
-    return null;
-  return money(value);
+  return finiteUsd(value);
 }
 function updateWorkspaceBalances(paper,live){
   const paperLabel=$("workspace-paper-balance");
@@ -39,8 +42,8 @@ function updateWorkspaceBalances(paper,live){
     const age=Date.now()-timestamp;
     const fresh=live?.worker_online===true && Number.isFinite(timestamp) &&
       age>=-60000 && age<=300000;
-    const equity=fresh?finiteUsd(account?.equity):null;
-    const lastReported=finiteUsd(account?.equity);
+    const equity=fresh?schwabEquityUsd(account?.equity):null;
+    const lastReported=schwabEquityUsd(account?.equity);
     schwabLabel.textContent=equity!==null?"Equity "+equity:
       lastReported!==null && Number.isFinite(timestamp)?
       "Last reported "+lastReported:"Balance unavailable";
