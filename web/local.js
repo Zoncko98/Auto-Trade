@@ -88,6 +88,16 @@ function renderLiveView(data) {
     title="Live worker is armed for autonomous cash-only trades";
     text="It trades only during its permitted U.S. regular-market session. A positive AI classification does not guarantee returns.";
   }
+  if(active && decisions.length){
+    const latest=decisions[0];
+    const reason=String(latest.summary||"No explanation recorded").slice(0,400);
+    title="Latest evaluation: "+String(latest.decision||"UNKNOWN").replaceAll("_"," ");
+    text=(latest.symbol&&latest.symbol!=="-"?latest.symbol+": ":"")+reason+
+      " · "+formatBrokerDate(latest.at);
+  } else if(active){
+    title="Awaiting the next Schwab strategy evaluation";
+    text="The worker is active, but no decision audit has been recorded yet.";
+  }
   $("live-warning-title").textContent=title;
   $("live-warning-text").textContent=text;
 }

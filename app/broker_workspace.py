@@ -163,6 +163,8 @@ def robinhood_status(state):
         accounts = _robinhood_client(state).list_accounts()
         return {"provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
                 "order_execution_enabled":False,
+                "execution_status":"NOT_INTEGRATED",
+                "execution_reason":"Robinhood Crypto account connectivity is read-only; autonomous strategy, order reconciliation, and account-specific risk controls are not connected.",
                 "accounts":[{"account_number":str(a.get("account_number","")),
                              "status":str(a.get("status","unknown")),
                              "buying_power":str(a.get("buying_power","")),

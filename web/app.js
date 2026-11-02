@@ -145,6 +145,7 @@ async function loadRobinhoodWorkspace(){
     if(!result.connected||!accounts.length){
       const message=result.connected?"No crypto trading accounts returned":(result.reason||"Authentication unavailable");
       statusNode.textContent="Robinhood not ready: "+message;
+      statusNode.title="No automated Robinhood strategy is connected. Credentials alone cannot execute trades.";
 
       const action=document.createElement("button");
       action.type="button";
@@ -184,6 +185,7 @@ async function loadRobinhoodWorkspace(){
       }).catch(()=>{positionState.textContent="Robinhood portfolio lookup unavailable";});
     }
     const eligible=accounts.some(a=>a.is_api_tradable===true);
+    statusNode.title="Robinhood Crypto is read-only in Auto Trader: no strategy worker, order ledger, or live execution authorization is connected.";
     statusNode.textContent=eligible?
       "Robinhood account verified · live order execution pending separate activation":
       "Robinhood account connected · API trading eligibility not confirmed";
@@ -476,6 +478,15 @@ function renderOverview(data,points,recent){
       "No recent public quotes are available. Markets may be closed, data delayed, or the provider unreachable."];
   else message=["No paper market feed configured",
     "The strategy requires timestamped public market prices; paper trades are not broker orders."];
+  if(r.last_paper_decision==="AI_VETO"){
+    message=["Paper entry rejected by AI", (r.last_paper_symbol||"Candidate")+
+      ": "+(r.last_paper_reason||"AI review did not approve this entry")];
+  } else if(r.last_paper_decision==="NO_SIGNAL"){
+    message=["No qualified paper entry", "Strategy scan found no qualifying completed-bar crossover. "+
+      "No order was simulated."];
+  } else if(r.last_paper_decision==="INSUFFICIENT_CASH"){
+    message=["Paper order budget insufficient", "A candidate was found but its affordable whole-share quantity was zero."];
+  }
   warning.querySelector("strong").textContent=message[0];
   warning.querySelector("p").textContent=message[1];
   if(activeView==="settings" && document.activeElement && !document.activeElement.closest("form"))populateSettings(s);
