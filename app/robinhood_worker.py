@@ -59,6 +59,18 @@ def run_once(state,client):
                           if signal_candidates else
                           "NO_SIGNAL" if observations else "QUOTE_UNAVAILABLE")
     result["observations"]=len(observations)
+    result["ai_review_status"]="NO_TECHNICAL_CANDIDATE"
+    if signal_candidates:
+        # The same configured AI_PROVIDER, LOCAL_AI_URL and LOCAL_AI_MODEL
+        # are used by Schwab and paper. Only public timestamped news is sent.
+        from ai_research import approve_entry,research_evidence
+        target=signal_candidates[0]
+        approved,reason=approve_entry(target["symbol"],datetime.now(timezone.utc))
+        evidence=research_evidence(target["symbol"],datetime.now(timezone.utc))
+        result["ai_review_status"]="PASS" if approved else "VETO_OR_UNAVAILABLE"
+        result["ai_model"]=evidence.get("model","unavailable")
+        result["ai_reason"]=reason[:500]
+        result["last_signal"]=target["symbol"]+": "+result["ai_review_status"]
     from robinhood_order_journal import OrderJournal
     journal=OrderJournal(state)
     pending=journal.pending()

@@ -25,6 +25,8 @@ COMPANIES = {
     'CLF':'Cleveland Cliffs', 'BTG':'B2Gold', 'BBD':'Banco Bradesco',
     'HIMS':'Hims & Hers Health', 'GOLD':'Barrick Mining',
     'ACHR':'Archer Aviation',
+    'BTC-USD':'Bitcoin cryptocurrency', 'ETH-USD':'Ethereum cryptocurrency',
+    'SOL-USD':'Solana cryptocurrency', 'DOGE-USD':'Dogecoin cryptocurrency',
 }
 MAX_HEADLINES = 6
 MAX_BYTES = 131072
