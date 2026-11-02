@@ -52,9 +52,57 @@ function selectWorkspace(workspace){
   activeWorkspace=workspace;
   return true;
 }
+function positionRobinhoodTile(configured){
+  const tile=document.querySelector('[data-workspace="robinhood_crypto"]');
+  const active=document.querySelector('.workspace-tile-grid');
+  const upcoming=document.querySelector('.workspace-upcoming-grid');
+  if(!tile||!active||!upcoming)return;
+  const target=configured?active:upcoming;
+  if(tile.parentElement!==target)target.appendChild(tile);
+  tile.classList.toggle("workspace-tile-featured",configured);
+  tile.classList.toggle("workspace-tile-compact",!configured);
+  const label=tile.querySelector(".workspace-tile-equity-label");
+  if(label)label.hidden=!configured;
+}
+function robinhoodBuyingPower(accounts){
+  const values=[];
+  for(const account of accounts){
+    const currency=account.buying_power_currency;
+    const raw=account.buying_power;
+    if(currency!=="USD" || typeof raw!=="string" ||
+       !/^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(raw))return null;
+    const value=Number(raw);
+    if(!Number.isFinite(value)||value>1e12)return null;
+    values.push(value);
+  }
+  return values.length?values.reduce((a,b)=>a+b,0):null;
+}
+function updateRobinhoodTile(result){
+  const accounts=Array.isArray(result.accounts)?result.accounts:[];
+  const configured=result.credentials_saved===true||result.connected===true;
+  positionRobinhoodTile(configured);
+  const statusNode=$("workspace-robinhood-status");
+  const amountNode=$("workspace-robinhood-balance");
+  if(!statusNode||!amountNode)return;
+  const verified=result.connected===true && accounts.length>0;
+  statusNode.textContent=verified?
+    (accounts.some(a=>a.is_api_tradable===true)?"ACCOUNT VERIFIED":"CONNECTED · RESTRICTED"):
+    (configured?"CREDENTIALS SAVED · CHECK CONNECTION":"SET UP ROBINHOOD");
+  const buyingPower=verified?robinhoodBuyingPower(accounts):null;
+  amountNode.textContent=buyingPower===null?"Buying power unavailable":money(buyingPower);
+  amountNode.title=buyingPower===null?
+    "No verified USD buying power was returned by the Robinhood Crypto API":
+    "Verified Robinhood Crypto USD buying power; this is not total portfolio equity";
+}
+async function refreshRobinhoodTile(){
+  try{
+    updateRobinhoodTile(await request("/api/robinhood/status"));
+  }catch(_){
+    const statusNode=$("workspace-robinhood-status");
+    if(statusNode)statusNode.textContent="CONNECTION CHECK FAILED";
+  }
+}
 async function loadWorkspaceAvailability() {
-  // Broker API exposes only public capability metadata and saved token presence;
-  // it must not imply a valid active OAuth session or trading authorization.
   try {
     const result=await request("/api/brokers");
     const schwab=Array.isArray(result.brokers)?
@@ -63,10 +111,11 @@ async function loadWorkspaceAvailability() {
     if(label)label.textContent=schwab?.integration_status==="authorization_saved"?
       "AUTH SAVED":"NEEDS CONNECTION";
   } catch (_) {
-    // The Schwab workspace remains navigable for users to complete setup.
     const label=$("workspace-schwab-status");
     if(label)label.textContent="STATUS UNAVAILABLE";
+    // Schwab workspace remains navigable after a failed capability lookup.
   }
+  await refreshRobinhoodTile();
 }
 async function loadRobinhoodWorkspace(){
   const statusNode=$("robinhood-workspace-status");
@@ -79,11 +128,11 @@ async function loadRobinhoodWorkspace(){
     const result=await request("/api/robinhood/status");
     accountsNode.replaceChildren();
     const accounts=Array.isArray(result.accounts)?result.accounts:[];
+    updateRobinhoodTile(result);
     if(!result.connected||!accounts.length){
       const message=result.connected?"No crypto trading accounts returned":(result.reason||"Authentication unavailable");
       statusNode.textContent="Robinhood not ready: "+message;
-      if(tileStatus)tileStatus.textContent="NEEDS CONNECTION";
-      if(balance)balance.textContent="Balance unavailable";
+
       const action=document.createElement("button");
       action.type="button";
       action.textContent="Open Robinhood connection settings";
@@ -95,8 +144,7 @@ async function loadRobinhoodWorkspace(){
     statusNode.textContent=eligible?
       "Robinhood account verified · live order execution pending separate activation":
       "Robinhood account connected · API trading eligibility not confirmed";
-    if(tileStatus)tileStatus.textContent=eligible?"ACCOUNT VERIFIED":"CONNECTED · RESTRICTED";
-    if(balance)balance.textContent="View crypto account details";
+
     for(const a of accounts){
       const block=document.createElement("article");
       block.className="broker-card";
@@ -295,6 +343,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
+  if(view==="workspaces") refreshRobinhoodTile().catch(()=>{});
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
   if(view==="profile") request("/api/profile").then(p=>{
     $("profile-version").textContent="Installed v"+p.version;

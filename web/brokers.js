@@ -86,6 +86,7 @@ function brokerCard(broker){
     async function refreshStatus(){
       const data=await request("/api/robinhood/status");
       showStatus(data);
+      if(typeof updateRobinhoodTile==="function")updateRobinhoodTile(data);
     }
     setup.addEventListener("submit",async(event)=>{
       event.preventDefault();

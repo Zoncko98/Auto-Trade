@@ -156,9 +156,12 @@ def _robinhood_client(state):
 def robinhood_status(state):
     """Verify broker account access, never sending a secret to the browser."""
     from robinhood_crypto_gateway import RobinhoodUnavailable
+    state=Path(state)
+    credential_saved=((state/"config"/"robinhood_crypto.json").is_file() or
+                      bool(os.getenv("ROBINHOOD_CRYPTO_API_KEY") and os.getenv("ROBINHOOD_CRYPTO_PRIVATE_KEY_B64")))
     try:
         accounts = _robinhood_client(state).list_accounts()
-        return {"provider":"robinhood_crypto","connected":True,
+        return {"provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
                 "order_execution_enabled":False,
                 "accounts":[{"account_number":str(a.get("account_number","")),
                              "status":str(a.get("status","unknown")),
@@ -167,7 +170,7 @@ def robinhood_status(state):
                              "is_api_tradable":a.get("is_api_tradable") is True}
                             for a in accounts if isinstance(a,dict)]}
     except (OSError,ValueError,KeyError,RobinhoodUnavailable,TypeError):
-        return {"provider":"robinhood_crypto","connected":False,"order_execution_enabled":False,
+        return {"provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":False,"order_execution_enabled":False,
                 "reason":"Robinhood credentials missing or account authorization unsuccessful"}
 
 
