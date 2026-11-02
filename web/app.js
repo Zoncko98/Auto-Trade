@@ -790,6 +790,8 @@ async function exportTrades(){
 }
 document.addEventListener("DOMContentLoaded",()=>{
   $("robinhood-risk-form")?.addEventListener("submit",saveRobinhoodRisk);
+  $("robinhood-overview-start")?.addEventListener("click",()=>showView("robinhood-risk"));
+  $("robinhood-overview-pause")?.addEventListener("click",()=>showView("robinhood-risk"));
   $("robinhood-live-start")?.addEventListener("click",()=>{
     if(!$("robinhood-risk-form").reportValidity())return;
     $("robinhood-risk-activate").checked=true;
