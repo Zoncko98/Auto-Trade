@@ -109,9 +109,10 @@ def classify_local_news(symbol,headlines,opener=urlopen):
     payload={
         "model":model,
         "stream":False,
+        "think":False,
         "format":OUTPUT_SCHEMA,
         "keep_alive":0,
-        "options":{"temperature":0,"num_predict":160,"num_ctx":2048,
+        "options":{"temperature":0,"num_predict":512,"num_ctx":2048,
                    "num_thread":2,"seed":42},
         "messages":[
             {"role":"system","content":
