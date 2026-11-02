@@ -115,7 +115,7 @@ function renderLiveDecisions(items){
   $("live-decisions-count").textContent=items.length+" recorded evaluations";
   $("live-decisions-table").innerHTML=items.length?items.map(e=>{
     const details=e.signals&&typeof e.signals==="object"
-      ? Object.entries(e.signals).map(([k,v])=>esc(k)+": "+esc(v)).join(" · "):"—";
+      ? Object.entries(e.signals).map(([k,v])=>esc(k)+": "+esc(v!==null&&typeof v==="object"?JSON.stringify(v):v)).join(" · "):"—";
     const news=Array.isArray(e.headlines)?e.headlines:[];
     const sources=news.map(n=>{
       const url=safeNewsUrl(n.url);

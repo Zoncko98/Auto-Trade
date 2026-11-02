@@ -67,7 +67,7 @@ def build_env(config,secret):
     env["LIVE_STATE_DIR"]=str(STATE/"live")
     env["BROKER_MARKET_STATE_DIR"]=str(STATE/"live")
     env["FORECAST_API_URL"]=config.get("forecast_url","")
-    env["AI_PROVIDER"]=config["ai_provider"]
+    env["AI_PROVIDER"]="local" if config["ai_provider"]=="ollama" else config["ai_provider"]
     env["AI_OLLAMA_URL"]=config.get("ollama_url","")
     env["AI_MODEL"]=config["ai_model"]
     env["LOCAL_AI_URL"]=config.get("ollama_url","")
