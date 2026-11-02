@@ -237,6 +237,8 @@
             <div class="setting-control"><span>$</span><input type="number" id="robinhood-risk-max" min="1" max="25" step=".01" required></div></div>
           <div class="setting-item"><div><label>Verified exchange order minimum</label><p>Must come from Robinhood trading-pair metadata; cannot be bypassed in this form.</p></div>
             <div class="setting-control"><strong id="robinhood-risk-minimum">Not verified</strong></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-activate">Authorize autonomous live crypto orders</label><p>Real-money orders may execute without further confirmation when technical, AI and broker risk checks pass.</p></div>
+            <div class="setting-control"><input type="checkbox" id="robinhood-risk-activate"></div></div>
           <div class="setting-item"><div><label>Live submission permission</label><p>Read-only until broker minimum and execution safeguards pass.</p></div>
             <div class="setting-control"><strong id="robinhood-risk-enabled">OFF</strong></div></div>
           <div class="form-actions"><button class="btn primary" type="submit">Save Robinhood risk settings</button>

@@ -179,6 +179,7 @@ async function loadRobinhoodRisk(){
     Number(policy.verified_broker_minimum_usd)>0?
     money(Number(policy.verified_broker_minimum_usd)):"Not verified";
   $("robinhood-risk-enabled").textContent=policy.enabled===true?"ON":"OFF";
+  $("robinhood-risk-activate").checked=policy.enabled===true;
   $("robinhood-risk-feedback").textContent=policy.configured?
     "Saved settings loaded. Live execution authorization is separate.":"No Robinhood risk policy saved.";
 }
@@ -189,10 +190,11 @@ async function saveRobinhoodRisk(event){
   try{
     const payload={account:$("robinhood-risk-account").value,
       max_order_usd:$("robinhood-risk-max").value,
-      verified_broker_minimum_usd:"0",enabled:false};
+      verified_broker_minimum_usd:"0",enabled:$("robinhood-risk-activate").checked};
+    if(payload.enabled&&!window.confirm("Enable REAL-MONEY autonomous Robinhood crypto orders under these limits?"))return;
     await request("/api/robinhood/risk",{method:"POST",body:JSON.stringify(payload)});
     await loadRobinhoodRisk();
-    toast("Robinhood risk policy saved. Real-money execution remains separately gated.");
+    toast("Robinhood risk policy saved. Check the execution status for verified live readiness.");
   }catch(error){$("robinhood-risk-feedback").textContent=error.message;toast(error.message,true);}
   finally{button.disabled=false;}
 }
@@ -218,10 +220,11 @@ async function loadRobinhoodWorkspace(){
     const executionMode=$("robinhood-execution-mode");
     const orderPermission=$("robinhood-order-permission");
     const executionPill=$("robinhood-execution-pill");
-    const permitted=result.order_execution_enabled===true&&worker.live_orders_allowed===true;
-    if(executionMode)executionMode.textContent=permitted?"Running":"Not armed";
-    if(orderPermission)orderPermission.textContent=permitted?"Running":"Disabled";
-    if(executionPill)executionPill.textContent=permitted?"LIVE · AUTOMATED":"NOT ARMED";
+    const permitted=result.order_execution_enabled===true;
+    const executing=permitted&&worker.live_orders_allowed===true;
+    if(executionMode)executionMode.textContent=permitted?"Armed":"Not armed";
+    if(orderPermission)orderPermission.textContent=permitted?"Armed · risk checks required":"Disabled";
+    if(executionPill)executionPill.textContent=permitted?"LIVE · ARMED":"NOT ARMED";
     const scanEl=$("robinhood-scanner-state");
     const orderEl=$("robinhood-order-state");
     const executionEl=$("robinhood-execution-state");

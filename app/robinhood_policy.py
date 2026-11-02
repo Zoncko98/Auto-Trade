@@ -22,20 +22,35 @@ def read_policy(root):
             "max_order_usd":str(doc.get("max_order_usd","5")),
             "verified_broker_minimum_usd":str(doc.get("verified_broker_minimum_usd","0")),
             "account":doc.get("account")}
-def save_policy(root,payload,accounts):
+def save_policy(root,payload,accounts,pairs):
     if not isinstance(payload,dict):raise PolicyError("Malformed policy")
     account=payload.get("account")
     available=[a for a in accounts if isinstance(a,dict) and a.get("account_number")==account
-               and a.get("status")=="active" and a.get("is_api_tradable") is True]
-    if len(available)!=1:raise PolicyError("Select one verified API-tradable account")
+               and a.get("status")=="active" and a.get("is_api_tradable") is True
+               and a.get("buying_power_currency")=="USD"]
+    if len(available)!=1:raise PolicyError("Select one verified API-tradable USD account")
     maximum=_amount(payload.get("max_order_usd"),Decimal("1"),Decimal("25"))
-    minimum=_amount(payload.get("verified_broker_minimum_usd"),Decimal("0"),Decimal("25"))
-    # The operator cannot simply assert a verified broker minimum through UI.
-    # It remains zero until verified by the broker-metadata workflow.
-    if minimum!=0:raise PolicyError("Broker minimum must be independently verified")
-    if payload.get("enabled") not in (False,None):raise PolicyError("Live authorization is a separate verified step")
-    doc={"account":account,"enabled":False,"max_order_usd":str(maximum),
-         "verified_broker_minimum_usd":"0"}
+    enabled=payload.get("enabled")
+    if type(enabled) is not bool:raise PolicyError("Explicit trading permission required")
+    if not isinstance(pairs,list):raise PolicyError("Broker trading pairs unavailable")
+    from robinhood_crypto_signals import PAIRS
+    minimums=[]
+    for row in pairs:
+        if (isinstance(row,dict) and row.get("symbol") in PAIRS
+            and row.get("is_api_tradable") is True):
+            try:
+                v=_amount(row.get("min_order_amount"),Decimal("0.00000001"),Decimal("25"))
+                inc=_amount(row.get("asset_increment"),Decimal("0.00000001"),Decimal("100"))
+                maximum_asset=_amount(row.get("max_order_size"),Decimal("0.00000001"),Decimal("1000000000"))
+                minimums.append(v)
+            except PolicyError:continue
+    if enabled and not minimums:raise PolicyError("No verified broker-tradable crypto pair")
+    broker_min=min(minimums) if minimums else Decimal("0")
+    cash=_amount(available[0].get("buying_power"),Decimal("0"),Decimal("1000000000"))
+    if enabled and min(maximum,cash*Decimal("0.25"))<broker_min:
+        raise PolicyError("Buying power below verified Robinhood minimum at 25% cash allocation")
+    doc={"account":account,"enabled":enabled,"max_order_usd":str(maximum),
+         "verified_broker_minimum_usd":str(broker_min)}
     path=Path(root)/"robinhood"/"risk_policy.json"
     path.parent.mkdir(parents=True,exist_ok=True)
     fd,tmp=tempfile.mkstemp(dir=path.parent,prefix=".risk-")

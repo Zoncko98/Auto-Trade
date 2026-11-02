@@ -165,14 +165,18 @@ def robinhood_status(state):
             worker=json.loads((state/"robinhood"/"worker_status.json").read_text())
         except (OSError,ValueError,TypeError):
             worker={"execution_status":"NOT_ARMED","worker":"not_started"}
+        from robinhood_policy import read_policy
+        try:policy=read_policy(state)
+        except (ValueError,OSError):policy={"enabled":False}
+        armed=policy.get("enabled") is True
         return {"worker":{k:worker.get(k) for k in
                     ("updated_at","worker","quotes_checked","pairs_checked",
                      "pending_order_intents","risk_check","last_signal","observations","ai_review_status","ai_model","ai_reason","execution_status","live_orders_allowed",
                      "last_order_confirmed","reason")},
                 "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
-                "order_execution_enabled":False,
-                "execution_status":"NOT_INTEGRATED",
-                "execution_reason":"Robinhood Crypto account connectivity is read-only; autonomous strategy, order reconciliation, and account-specific risk controls are not connected.",
+                "order_execution_enabled":armed,
+                "execution_status":worker.get("execution_status","NOT_ARMED"),
+                "execution_reason":"Account policy armed, subject to strategy and real-time broker preflight" if armed else "Robinhood trading permission disabled or not configured",
                 "accounts":[{"account_number":str(a.get("account_number","")),
                              "status":str(a.get("status","unknown")),
                              "buying_power":str(a.get("buying_power","")),

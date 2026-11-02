@@ -534,8 +534,10 @@ class Handler(BaseHTTPRequestHandler):
             from robinhood_policy import save_policy,PolicyError
             from robinhood_crypto_gateway import RobinhoodCryptoAdapter,RobinhoodUnavailable
             try:
-                accounts=RobinhoodCryptoAdapter.from_state(STATE_DIR).list_accounts()
-                return self._json(200,save_policy(STATE_DIR,self._body(),accounts))
+                broker=RobinhoodCryptoAdapter.from_state(STATE_DIR)
+                accounts=broker.list_accounts()
+                pairs=broker.trading_pairs()
+                return self._json(200,save_policy(STATE_DIR,self._body(),accounts,pairs))
             except (PolicyError,ValueError,TypeError) as exc:
                 return self._json(400,{"error":str(exc)[:160]})
             except (RobinhoodUnavailable,OSError):
