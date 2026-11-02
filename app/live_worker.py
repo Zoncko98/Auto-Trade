@@ -438,15 +438,18 @@ def attempt(client, account_hash, ledger, now, submit):
     acct,positions,exposure,cash,equity=get_snapshot(client,account_hash)
     adopt_existing_account_position(ledger,positions)
     if not reconcile(client,account_hash,ledger):
+        if submit:_audit(now,"-","ORDER_PENDING","Existing Schwab order is pending; no duplicate submission")
         print("Existing Schwab order is pending; no duplicate submission.")
         return
     acct,positions,exposure,cash,equity=get_snapshot(client,account_hash)
     _,loss_hit=risk_preflight(ledger,positions,equity,cash,exposure,
                              next(iter(positions),""),limits)
     if not market_is_normal(client,now):
+        if submit:_audit(now,"-","MARKET_CLOSED","Outside allowed trading session")
         print("Market closed / outside allowed session; no order.")
         return
     if _orders_today(ledger,now)>=min(MAX_DAILY_ACTIONS,limits['max_orders_per_day']):
+        if submit:_audit(now,"-","DAILY_ORDER_LIMIT","Daily brokerage order cap reached")
         print("Daily brokerage order cap reached; monitoring existing positions.")
         return
 
@@ -500,11 +503,13 @@ def attempt(client, account_hash, ledger, now, submit):
             return
         if trading_settlement_pending(ledger,now) and not (
                 can_reinvest_confirmed_sale(ledger,now,acct,cash)):
+            if submit:_audit(now,"-","SETTLEMENT_PENDING","Sale proceeds not verified available for cash-only reinvestment")
             print("No new buy: sale proceeds have not been verified as "
                   "available for non-borrowed trading.")
             return
         buys_today=_orders_today(ledger,now,action="BUY")
         if loss_hit or buys_today>=min(MAX_DAILY_BUYS,limits['max_buys_per_day']) or cash<Decimal("5"):
+            if submit:_audit(now,"-","ENTRY_RISK_LIMIT","Drawdown, daily entry cap, or verified cash below $5",signals={"daily_loss_hit":bool(loss_hit),"daily_buy_cap_hit":buys_today>=min(MAX_DAILY_BUYS,limits["max_buys_per_day"]),"cash_below_minimum":cash<Decimal("5")})
             print("No new entries: drawdown, daily-entry cap or insufficient cash.")
             return
         candidate=scan_entries(client,now,excluded=positions.keys())

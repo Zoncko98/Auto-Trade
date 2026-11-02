@@ -113,7 +113,7 @@ def paper_main(run=True):
                 from live_worker import broker
                 client=broker()
                 last_result=paper_tick(client,state)
-                logging.info("Shared strategy paper decision: %s",last_result.get("decision"))
+                logging.info("Shared strategy paper decision: %s; symbol=%s; reason=%s",last_result.get("decision"),last_result.get("symbol","-"),str(last_result.get("reason",""))[:160])
         except Exception as exc:
             error=type(exc).__name__
             logging.warning("Paper account scan unavailable: %s",error)
