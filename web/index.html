@@ -49,6 +49,10 @@
         <button class="nav-item" data-view="local"><span class="nav-icon">▣</span> AI workstation models</button>
         <button class="nav-item" data-view="forecast"><span class="nav-icon">◷</span> Next session forecast</button>
       </div>
+      <div id="robinhood-nav-group" class="workspace-menu hidden">
+        <button class="nav-item" data-view="robinhood"><span class="nav-icon">◈</span> Live crypto overview</button>
+        <button class="nav-item" data-view="robinhood-risk"><span class="nav-icon">⚙</span> Live crypto risk settings</button>
+      </div>
       <div id="paper-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper overview</button>
         <button class="nav-item" data-view="trades"><span class="nav-icon">⇄</span> Paper trades <span id="trade-count-nav" class="nav-counter">0</span></button>
@@ -215,6 +219,31 @@
           <div id="robinhood-positions-list" class="table-wrap"></div>
         </section>
       </section>
+    <section class="view hidden" id="view-robinhood-risk">
+      <div class="page-header"><div><p class="eyebrow">ROBINHOOD · REAL-MONEY CRYPTO</p>
+        <h1>Live crypto risk settings</h1>
+        <p class="muted">Configure the eligible account and maximum order size. Saving does not enable trading.</p>
+      </div><span class="paper-label">LIVE · CRYPTO</span></div>
+      <div class="notice neutral"><span class="notice-icon">ⓘ</span><div>
+        <strong>Order permission is separately controlled</strong>
+        <p>Robinhood must independently verify its minimum order amount and account eligibility before live orders can be armed.</p>
+      </div></div>
+      <form id="robinhood-risk-form" class="settings-layout">
+        <section class="panel settings-main">
+          <div class="panel-heading"><div><h2>Account-specific allocation</h2><p>Cash-funded buys only; no borrowing or leverage.</p></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-account">Robinhood trading account</label><p>Select a broker-verified eligible account.</p></div>
+            <div class="setting-control"><select id="robinhood-risk-account" required></select></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-max">Maximum per-order USD</label><p>Hard cap $25; only up to 25% of current buying power is usable.</p></div>
+            <div class="setting-control"><span>$</span><input type="number" id="robinhood-risk-max" min="1" max="25" step=".01" required></div></div>
+          <div class="setting-item"><div><label>Verified exchange order minimum</label><p>Must come from Robinhood trading-pair metadata; cannot be bypassed in this form.</p></div>
+            <div class="setting-control"><strong id="robinhood-risk-minimum">Not verified</strong></div></div>
+          <div class="setting-item"><div><label>Live submission permission</label><p>Read-only until broker minimum and execution safeguards pass.</p></div>
+            <div class="setting-control"><strong id="robinhood-risk-enabled">OFF</strong></div></div>
+          <div class="form-actions"><button class="btn primary" type="submit">Save Robinhood risk settings</button>
+            <span id="robinhood-risk-feedback" role="status"></span></div>
+        </section>
+      </form>
+    </section>
     <section class="view hidden" id="view-brokers">
         <div class="page-header"><div><p class="eyebrow">BROKERAGE CONNECTIONS</p>
           <h1>Connect your trading platforms</h1>

@@ -161,6 +161,41 @@ async function loadWorkspaceAvailability() {
   }
   await refreshRobinhoodTile();
 }
+async function loadRobinhoodRisk(){
+  const [policy,broker]=await Promise.all([
+    request("/api/robinhood/risk"),request("/api/robinhood/status")]);
+  const select=$("robinhood-risk-account");
+  select.replaceChildren();
+  const accounts=Array.isArray(broker.accounts)?broker.accounts:[];
+  for(const a of accounts.filter(x=>x.is_api_tradable===true&&x.status==="active")){
+    const option=document.createElement("option");
+    option.value=a.account_number;
+    option.textContent="Robinhood Crypto · "+a.account_number;
+    select.append(option);
+  }
+  if(policy.account)select.value=policy.account;
+  $("robinhood-risk-max").value=policy.max_order_usd||"5";
+  $("robinhood-risk-minimum").textContent=
+    Number(policy.verified_broker_minimum_usd)>0?
+    money(Number(policy.verified_broker_minimum_usd)):"Not verified";
+  $("robinhood-risk-enabled").textContent=policy.enabled===true?"ON":"OFF";
+  $("robinhood-risk-feedback").textContent=policy.configured?
+    "Saved settings loaded. Live execution authorization is separate.":"No Robinhood risk policy saved.";
+}
+async function saveRobinhoodRisk(event){
+  event.preventDefault();
+  const button=event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled=true;
+  try{
+    const payload={account:$("robinhood-risk-account").value,
+      max_order_usd:$("robinhood-risk-max").value,
+      verified_broker_minimum_usd:"0",enabled:false};
+    await request("/api/robinhood/risk",{method:"POST",body:JSON.stringify(payload)});
+    await loadRobinhoodRisk();
+    toast("Robinhood risk policy saved. Real-money execution remains separately gated.");
+  }catch(error){$("robinhood-risk-feedback").textContent=error.message;toast(error.message,true);}
+  finally{button.disabled=false;}
+}
 async function loadRobinhoodWorkspace(){
   const statusNode=$("robinhood-workspace-status");
   const accountsNode=$("robinhood-workspace-accounts");
@@ -443,24 +478,25 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk"].includes(view))return;
   activeView=view;
   const liveViews=["live","decisions","live-risk","local","forecast"];
   const paperViews=["overview","trades","reviews","settings"];
   if(liveViews.includes(view))selectWorkspace("live");
   if(paperViews.includes(view))selectWorkspace("paper");
-  if(view==="robinhood")selectWorkspace("robinhood_crypto");
-  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":view==="robinhood"?"robinhood_crypto":null;
+  if(view==="robinhood"||view==="robinhood-risk")selectWorkspace("robinhood_crypto");
+  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":(view==="robinhood"||view==="robinhood-risk")?"robinhood_crypto":null;
   $("sidebar-account-context").classList.toggle("hidden",context===null);
   if(context)$("sidebar-current-account").textContent=context==="live"?"Schwab live":context==="paper"?"Paper Trading":"Robinhood Crypto";
   $("live-nav-group").classList.toggle("hidden",context!=="live");
   $("paper-nav-group").classList.toggle("hidden",context!=="paper");
+  $("robinhood-nav-group").classList.toggle("hidden",context!=="robinhood_crypto");
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!=="view-"+view));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
     "live-risk":"Live risk settings",local:"Local AI models",forecast:"Next session forecast",
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
-settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",robinhood:"Robinhood Crypto"};
+settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",robinhood:"Robinhood Crypto","robinhood-risk":"Robinhood risk settings"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
   $("live-mode-banner").classList.toggle("hidden",!liveViews.includes(view));
@@ -473,6 +509,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
+  if(view==="robinhood-risk") loadRobinhoodRisk().catch(err=>toast(err.message,true));
   if(view==="workspaces") refreshRobinhoodTile().catch(()=>{});
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
   if(view==="profile") request("/api/profile").then(p=>{
@@ -748,6 +785,9 @@ async function downloadWorkbook(url,filename,button){
 async function exportTrades(){
   await downloadWorkbook("/api/paper/export.xlsx","autotrader-paper-trades.xlsx",$("export-trades"));
 }
+document.addEventListener("DOMContentLoaded",()=>{
+  $("robinhood-risk-form")?.addEventListener("submit",saveRobinhoodRisk);
+});
 document.addEventListener("DOMContentLoaded",init);
 
 

@@ -337,6 +337,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200,result)
             if UNIFIED_APP and path == "/api/robinhood/status":
                 return self._json(200,robinhood_status(STATE_DIR))
+            if UNIFIED_APP and path == "/api/robinhood/risk":
+                from robinhood_policy import read_policy,PolicyError
+                try:return self._json(200,read_policy(STATE_DIR))
+                except PolicyError as exc:return self._json(503,{"error":str(exc)})
             if UNIFIED_APP and path == "/api/robinhood/portfolio":
                 return self._json(200,robinhood_portfolio(STATE_DIR))
             if UNIFIED_APP and path == "/api/brokers":
@@ -526,6 +530,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200,install_robinhood_credentials(STATE_DIR,self._body()))
             except (ValueError,TypeError,OSError) as exc:
                 return self._json(400,{"error":"Invalid Robinhood credentials or storage unavailable"})
+        if UNIFIED_APP and path == "/api/robinhood/risk":
+            from robinhood_policy import save_policy,PolicyError
+            from robinhood_crypto_gateway import RobinhoodCryptoAdapter,RobinhoodUnavailable
+            try:
+                accounts=RobinhoodCryptoAdapter.from_state(STATE_DIR).list_accounts()
+                return self._json(200,save_policy(STATE_DIR,self._body(),accounts))
+            except (PolicyError,ValueError,TypeError) as exc:
+                return self._json(400,{"error":str(exc)[:160]})
+            except (RobinhoodUnavailable,OSError):
+                return self._json(503,{"error":"Robinhood account verification unavailable"})
         if UNIFIED_APP and path == "/api/robinhood/status":
             return self._json(405,{"error":"Use GET for status"})
         if UNIFIED_APP and path == "/api/live/activation":
