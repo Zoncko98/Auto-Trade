@@ -65,7 +65,10 @@ function updateAccountActivity(paper,live){
        (paper?.runtime?.last_paper_symbol?" · "+paper.runtime.last_paper_symbol:"")+
        (paper?.runtime?.last_paper_reason?" · "+paper.runtime.last_paper_reason:"")+
        (paper?.runtime?.paper_feed_checked_at?" · "+new Date(paper.runtime.paper_feed_checked_at).toLocaleTimeString():"")+
-       (Number.isFinite(paper?.runtime?.paper_quotes_available)?" · "+paper.runtime.paper_quotes_available+" ranked candidates":"")]
+       (Number.isFinite(paper?.runtime?.paper_quotes_available)?" · "+paper.runtime.paper_quotes_available+" ranked candidates":"")+
+       (paper?.runtime?.shadow_momentum?.candidate?" · SHADOW: "+paper.runtime.shadow_momentum.candidate.symbol+" "+
+         paper.runtime.shadow_momentum.candidate.momentum_pct+"% momentum (no order)":
+         " · SHADOW: no qualifying momentum trade")]
   ];
   rows.push(["robinhood_crypto","Scanning: DISABLED · Robinhood strategy worker not connected"]);
   rows.forEach(([key,value])=>{

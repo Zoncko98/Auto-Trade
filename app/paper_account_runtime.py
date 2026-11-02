@@ -67,15 +67,20 @@ def paper_tick(client,state_dir,now=None,approve=approve_entry):
     if len(positions)>=int(options["max_open_positions"]):
         return {"decision":"POSITION_LIMIT"}
     quotes=_checked_json(client.get_quotes(list(UNIVERSE)))
+    candle_cache={}
     def candles_for(symbol):
-        return _checked_json(client.get_price_history_every_five_minutes(
-            symbol,need_extended_hours_data=False))["candles"]
+        if symbol not in candle_cache:
+            candle_cache[symbol]=_checked_json(client.get_price_history_every_five_minutes(
+                symbol,need_extended_hours_data=False))["candles"]
+        return candle_cache[symbol]
     candidate,ranked=select_entry(quotes,candles_for,now,excluded=positions)
-    if candidate is None:return {"decision":"NO_SIGNAL","considered":len(ranked)}
+    from shadow_momentum import shadow_scan
+    shadow=shadow_scan(quotes,candles_for,now,excluded=positions)
+    if candidate is None:return {"decision":"NO_SIGNAL","considered":len(ranked),"shadow":shadow}
     accepted,reason=approve(candidate.symbol,now)
     if not accepted:
         adapter.record_review(candidate.symbol,now,"VETO",reason)
-        return {"decision":"AI_VETO","symbol":candidate.symbol,"reason":reason}
+        return {"decision":"AI_VETO","symbol":candidate.symbol,"reason":reason,"shadow":shadow}
     cash=Decimal(adapter.balances(ref)["cash"])
     budget=min(cash*Decimal(str(options["allocation_pct"]))/100,
                Decimal(str(options["max_order_usd"])) if options["max_order_usd"]>0 else cash,
@@ -133,6 +138,7 @@ def paper_main(run=True):
                 "public_market_feed":False,
                 "market_source":"schwab_read_only",
                 "paper_quotes_available":last_result.get("considered",0),
+                "shadow_momentum":last_result.get("shadow",{}),
                 "last_paper_decision":last_result.get("decision","NOT_SCANNED"),
                 "last_paper_symbol":last_result.get("symbol",""),
                 "last_paper_reason":str(last_result.get("reason",""))[:240],
