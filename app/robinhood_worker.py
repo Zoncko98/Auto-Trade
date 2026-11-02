@@ -45,7 +45,25 @@ def run_once(state,client):
         if matched:
             journal.reconcile(pending[0]["account"],client.orders(pending[0]["account"]))
     pending=journal.pending()
-    result.update({"pending_order_intents":len(pending),
+    from robinhood_risk import preflight,RiskDenied
+    risk_check="NOT_CONFIGURED"
+    # Never infer live authorization from the existence of API credentials.
+    policy_path=Path(state)/"robinhood"/"risk_policy.json"
+    try:
+        policy=json.loads(policy_path.read_text())
+        rows=client.list_accounts()
+        selected=next((a for a in rows if isinstance(a,dict)
+                       and a.get("account_number")==policy.get("account")),None)
+        if selected is None:raise RiskDenied("Configured account not available")
+        # Signal and quote qualification is not yet implemented: this is a
+        # readiness diagnostic, not authorization to submit an order.
+        preflight(selected,policy,"BTC-USD","1","0",len(pending))
+        risk_check="ACCOUNT_PREFLIGHT_PASSED_SIGNAL_NOT_CHECKED"
+    except FileNotFoundError:
+        pass
+    except (RiskDenied,ValueError,TypeError,KeyError,StopIteration) as exc:
+        risk_check="BLOCKED_"+type(exc).__name__
+    result.update({"risk_check":risk_check,"pending_order_intents":len(pending),
        "updated_at":datetime.now(timezone.utc).isoformat(),
        "worker":"monitoring","execution_status":"NOT_ARMED",
        "live_orders_allowed":False,"last_order_confirmed":False,
