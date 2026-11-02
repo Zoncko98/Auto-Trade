@@ -26,13 +26,13 @@ assert.equal(paper.textContent,"Sim. equity $15,234.50");
 assert.equal(live.textContent,"Equity $23,500.25");
 updateWorkspaceBalances({account:{equity:0}},{worker_online:false,account:{at:now,equity:23500.25}});
 assert.equal(paper.textContent,"Sim. equity $0.00"); // explicit real simulator zero, not guessed
-assert.equal(live.textContent,"Balance unavailable");
+assert.equal(live.textContent,"Last reported $23,500.25");
 updateWorkspaceBalances({account:{}},{worker_online:true,account:{at:new Date(Date.now()-3600000).toISOString(),equity:23500.25}});
 assert.equal(paper.textContent,"Balance unavailable");
-assert.equal(live.textContent,"Balance unavailable");
+assert.equal(live.textContent,"Last reported $23,500.25");
 updateWorkspaceBalances({account:{equity:"500000.00"}},{worker_online:true,account:{at:now,equity:"25000.00"}});
 assert.equal(paper.textContent,"Balance unavailable");
-assert.equal(live.textContent,"Balance unavailable");
+assert.equal(live.textContent,"Equity $25,000.00");
 updateWorkspaceBalances({account:{equity:-130.25}},{worker_online:true,account:{at:now,equity:-650.11}});
 assert.equal(paper.textContent,"Sim. equity -$130.25");
 assert.equal(live.textContent,"Equity -$650.11");
