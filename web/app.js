@@ -13,7 +13,12 @@ const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto"]);
 // Do not format missing numbers as $0.00, and never render stale broker
 // snapshots as current. Values are only read from authenticated APIs.
 function finiteUsd(value){
-  if (typeof value!=="number" || !Number.isFinite(value) || Math.abs(value)>1e15)
+  // Schwab's live worker serializes Decimal as a string for lossless JSON.
+  if(typeof value==="string"){
+    if(!/^-?(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(value))return null;
+    value=Number(value);
+  }
+  if(typeof value!=="number" || !Number.isFinite(value) || Math.abs(value)>1e15)
     return null;
   return money(value);
 }
@@ -35,10 +40,15 @@ function updateWorkspaceBalances(paper,live){
     const fresh=live?.worker_online===true && Number.isFinite(timestamp) &&
       age>=-60000 && age<=300000;
     const equity=fresh?finiteUsd(account?.equity):null;
-    schwabLabel.textContent=equity===null?"Balance unavailable":"Equity "+equity;
-    schwabLabel.title=equity===null?
-      "No fresh broker equity available; open Schwab dashboard for account status":
-      "Broker-reported total account equity, updated from fresh snapshot";
+    const lastReported=finiteUsd(account?.equity);
+    schwabLabel.textContent=equity!==null?"Equity "+equity:
+      lastReported!==null && Number.isFinite(timestamp)?
+      "Last reported "+lastReported:"Balance unavailable";
+    schwabLabel.title=equity!==null?
+      "Current Schwab worker-reported equity, verified within the last five minutes":
+      lastReported!==null?
+      "Historical Schwab worker snapshot only; not current account equity. Refresh connection/worker.":
+      "No verified Schwab equity snapshot available. Check Schwab authorization and live worker status.";
   }
 }
 function clearWorkspaceBalances(){
@@ -139,6 +149,36 @@ async function loadRobinhoodWorkspace(){
       action.addEventListener("click",()=>showView("brokers"));
       accountsNode.append(action);
       return;
+    }
+    const ai=$("robinhood-ai-readiness");
+    if(ai){
+      request("/api/ai/readiness").then(d=>{
+        ai.textContent="Shared AI provider: "+(d.provider||"not configured")+
+          " · Model verification: "+(d.status||"unknown")+
+          ". Robinhood-specific strategy execution is not yet connected.";
+      }).catch(()=>{ai.textContent="Shared AI model status unavailable";});
+    }
+    const positionState=$("robinhood-positions-status");
+    if(positionState){
+      positionState.textContent="Fetching Robinhood holdings and order history…";
+      request("/api/robinhood/portfolio").then(portfolio=>{
+        const box=$("robinhood-positions-list");
+        if(box)box.replaceChildren();
+        if(!portfolio.available){
+          positionState.textContent=portfolio.reason||"Robinhood holdings unavailable";
+          return;
+        }
+        const holdings=Number.isInteger(portfolio.position_count)?portfolio.position_count:0;
+        const orders=Number.isInteger(portfolio.order_count)?portfolio.order_count:0;
+        positionState.textContent=holdings+" holdings · "+orders+" orders reported by Robinhood";
+        if(box){
+          const detail=document.createElement("p");
+          detail.textContent="Robinhood API holdings: "+holdings+
+            " · historical/pending orders: "+orders+
+            ". Individual order records are visible in the broker's account history.";
+          box.append(detail);
+        }
+      }).catch(()=>{positionState.textContent="Robinhood portfolio lookup unavailable";});
     }
     const eligible=accounts.some(a=>a.is_api_tradable===true);
     statusNode.textContent=eligible?
@@ -292,6 +332,7 @@ function bindEvents(){
     "/api/live/export.xlsx","autotrader-live-evidence.xlsx",$("export-live-evidence")));
   $("robinhood-refresh")?.addEventListener("click",()=>loadRobinhoodWorkspace().catch(err=>toast(err.message,true)));
   $("robinhood-configure")?.addEventListener("click",()=>showView("brokers"));
+  $("robinhood-ai-models")?.addEventListener("click",()=>showView("local"));
   document.querySelectorAll(".workspace-tile:not(:disabled)").forEach(tile=>
     tile.addEventListener("click",()=>{
       if(!AVAILABLE_WORKSPACES.includes(tile.dataset.workspace))return;

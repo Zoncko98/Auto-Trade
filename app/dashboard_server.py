@@ -32,7 +32,7 @@ from profile_auth import verify as verify_profile_password, rotate as rotate_pro
 from update_status import update_information, public_update_information, installed_version
 from broker_market_data import read_snapshot as broker_market_snapshot
 from broker_workspace import (workspace_summary as broker_workspace_summary,
-                              robinhood_status, install_robinhood_credentials)
+                              robinhood_status, robinhood_portfolio, install_robinhood_credentials)
 from ai_readiness import summary as ai_readiness_summary, verify_ollama_model
 from forecast_engine import (forecast as selected_forecast,
     connection as selected_forecast_connection, models as selected_forecast_models)
@@ -337,6 +337,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200,result)
             if UNIFIED_APP and path == "/api/robinhood/status":
                 return self._json(200,robinhood_status(STATE_DIR))
+            if UNIFIED_APP and path == "/api/robinhood/portfolio":
+                return self._json(200,robinhood_portfolio(STATE_DIR))
             if UNIFIED_APP and path == "/api/brokers":
                 return self._json(200,broker_workspace_summary(STATE_DIR))
             if UNIFIED_APP and path == "/api/integrations":

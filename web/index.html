@@ -172,6 +172,28 @@
         <button type="button" id="robinhood-refresh">Refresh Robinhood account</button>
         <button type="button" id="robinhood-configure">Broker connection settings</button>
         <div id="robinhood-workspace-accounts" aria-live="polite"></div>
+        <div class="broker-grid" id="robinhood-tool-grid">
+          <section class="broker-card">
+            <h3>AI model and research</h3>
+            <p id="robinhood-ai-readiness">Checking the shared AI model…</p>
+            <button type="button" id="robinhood-ai-models">Manage AI models</button>
+          </section>
+          <section class="broker-card">
+            <h3>AI decisions and explanations</h3>
+            <p id="robinhood-ai-decisions">No Robinhood-specific AI decisions have been verified.</p>
+            <p>Existing Schwab and paper decision logs are kept separate from Robinhood.</p>
+          </section>
+          <section class="broker-card">
+            <h3>Risk and trade controls</h3>
+            <p>Robinhood live order execution remains disabled until account-specific risk and order reconciliation are validated.</p>
+            <p id="robinhood-risk-status">No Robinhood live risk profile is active.</p>
+          </section>
+          <section class="broker-card">
+            <h3>Positions and orders</h3>
+            <p id="robinhood-positions-status">Connect an eligible crypto account to view holdings and orders.</p>
+            <div id="robinhood-positions-list"></div>
+          </section>
+        </div>
       </div>
     </section>
     <section class="view hidden" id="view-brokers">

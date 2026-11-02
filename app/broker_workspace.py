@@ -208,3 +208,27 @@ def install_robinhood_credentials(state,payload):
         except FileNotFoundError: pass
     return {"saved":True,"connected":False,
             "message":"Credentials saved on the TrueNAS server. Verify the connection to activate account data."}
+
+
+def robinhood_portfolio(state):
+    """Read-only portfolio overview; no credentials or order submission exposed."""
+    from robinhood_crypto_gateway import RobinhoodUnavailable
+    try:
+        client=_robinhood_client(state)
+        accounts=client.list_accounts()
+        holdings=[]
+        orders=[]
+        for account in accounts[:6]:
+            if not isinstance(account,dict): continue
+            account_ref=account.get("account_number")
+            if not isinstance(account_ref,str):continue
+            for item in client.positions(account_ref):
+                if isinstance(item,dict): holdings.append(item)
+            for item in client.orders(account_ref):
+                if isinstance(item,dict): orders.append(item)
+        # Only counts are returned until an account-scoped holdings schema
+        # and privacy filters have been validated.
+        return {"available":True,"position_count":len(holdings),
+                "order_count":len(orders)}
+    except (OSError,ValueError,KeyError,TypeError,RobinhoodUnavailable):
+        return {"available":False,"reason":"Robinhood account portfolio request failed"}
