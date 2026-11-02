@@ -51,13 +51,16 @@ def review_order(state,client,policy,signal,now=None):
     if len(matched_pairs)!=1 or matched_pairs[0].get("is_api_tradable") is not True:
         raise OrderPassBlocked("Tradable pair not verified")
     metadata=matched_pairs[0]
-    min_qty=money(metadata.get("min_order_size",metadata.get("min_order_quantity",0)))
-    increment=money(metadata.get("quantity_increment",metadata.get("asset_increment",0)))
-    if min_qty<=0 or increment<=0:raise OrderPassBlocked("Asset size increments unverified")
+    increment=money(metadata.get("asset_increment",0))
+    minimum_usd=money(metadata.get("min_order_amount",0))
+    max_qty=money(metadata.get("max_order_size",0))
+    if minimum_usd<=0 or increment<=0 or max_qty<=0:
+        raise OrderPassBlocked("Broker increments and minimum amount unverified")
     price=ask
     budget=money(risk["budget_usd"])
     qty=(budget/price/increment).to_integral_value(rounding=ROUND_DOWN)*increment
-    if qty<min_qty or qty*price>budget:raise OrderPassBlocked("Order does not meet verified size limits")
+    if qty<=0 or qty>max_qty or qty*price<minimum_usd or qty*price>budget:
+        raise OrderPassBlocked("Order does not meet verified size limits")
     return {"account":account["account_number"],"symbol":symbol,
       "quantity":str(qty),"limit_price":str(price),
       "notional":str(qty*price),"risk":risk}

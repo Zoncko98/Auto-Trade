@@ -12,7 +12,7 @@ class Fake:
   return {"results":[{"symbol":symbol,"bid":"9.99","ask":"10.00"}]}
  def trading_pairs(self):
   return [{"symbol":"BTC-USD","is_api_tradable":True,
-           "min_order_size":"0.01","quantity_increment":"0.001"}]
+           "min_order_amount":"1","max_order_size":"100","asset_increment":"0.001"}]
  def submit_order(self,account,intent):
   self.writes.append(intent)
   return {"id":"broker-ack"}

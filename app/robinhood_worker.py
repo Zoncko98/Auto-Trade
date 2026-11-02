@@ -35,6 +35,30 @@ def snapshot(client):
 
 def run_once(state,client):
     result=snapshot(client)
+    # One shared worker records observed crypto momentum and keeps the AI
+    # approval boundary closed until a validated crypto research path exists.
+    from robinhood_crypto_signals import observe
+    from dashboard_control import write_atomic
+    history_path=Path(state)/"robinhood"/"quote_history.json"
+    try:
+        history=json.loads(history_path.read_text())
+        if not isinstance(history,list):history=[]
+    except (OSError,ValueError,TypeError):
+        history=[]
+    observations=[]
+    for symbol in PAIRS:
+        try:
+            observations.append(observe(history,symbol,client.quote(symbol)))
+        except (RobinhoodUnavailable,ValueError,TypeError,KeyError):
+            continue
+    history=(history+[{"symbol":r["symbol"],"mid":r["mid"],"at":r["at"]}
+                       for r in observations])[-96:]
+    write_atomic(history_path,history)
+    signal_candidates=[r for r in observations if r["technical_approved"]]
+    result["last_signal"]=(signal_candidates[0]["symbol"]+": MOMENTUM_CANDIDATE"
+                          if signal_candidates else
+                          "NO_SIGNAL" if observations else "QUOTE_UNAVAILABLE")
+    result["observations"]=len(observations)
     from robinhood_order_journal import OrderJournal
     journal=OrderJournal(state)
     pending=journal.pending()
@@ -65,7 +89,7 @@ def run_once(state,client):
         risk_check="BLOCKED_"+type(exc).__name__
     result.update({"risk_check":risk_check,"pending_order_intents":len(pending),
        "updated_at":datetime.now(timezone.utc).isoformat(),
-       "worker":"monitoring","last_signal":"NOT_VERIFIED",
+       "worker":"monitoring",
        "execution_status":"NOT_ARMED",
        "live_orders_allowed":False,"last_order_confirmed":False,
        "reason":"Robinhood strategy, approvals, and reconciliation are not enabled for live execution"})
