@@ -490,7 +490,7 @@ function showView(view) {
   if(context)$("sidebar-current-account").textContent=context==="live"?"Schwab live":context==="paper"?"Paper Trading":"Robinhood Crypto";
   $("live-nav-group").classList.toggle("hidden",context!=="live");
   $("paper-nav-group").classList.toggle("hidden",context!=="paper");
-  $("robinhood-nav-group").classList.toggle("hidden",context!=="robinhood_crypto");
+  $("robinhood-nav-group")?.classList.toggle("hidden",context!=="robinhood_crypto");
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!=="view-"+view));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
