@@ -104,8 +104,9 @@ def providers(state):
         docs_url="https://docs.alpaca.markets/us/docs/about-connect-api",
         phase="planned")
     # Connection presence is not proof of a successful authentication.
-    rh_credential_ready=bool(os.getenv("ROBINHOOD_CRYPTO_API_KEY") and
-                             os.getenv("ROBINHOOD_CRYPTO_PRIVATE_KEY_B64"))
+    rh_credential_ready=((state/"config"/"robinhood_crypto.json").is_file() or
+                         bool(os.getenv("ROBINHOOD_CRYPTO_API_KEY") and
+                              os.getenv("ROBINHOOD_CRYPTO_PRIVATE_KEY_B64")))
     robinhood=BrokerCapability(
         id="robinhood_crypto",name="Robinhood Crypto",
         integration_status="configuration_saved" if rh_credential_ready else "credentials_required",
@@ -143,20 +144,64 @@ def workspace_summary(state):
         "brokers":items,
     }
 
-def robinhood_status():
-    """Return sanitized connectivity status without returning any credentials."""
-    from robinhood_crypto_gateway import RobinhoodCryptoAdapter, RobinhoodUnavailable
-    import os
-    if not (os.getenv("ROBINHOOD_CRYPTO_API_KEY") and os.getenv("ROBINHOOD_CRYPTO_PRIVATE_KEY_B64")):
-        return {"provider":"robinhood_crypto","connected":False,"order_execution_enabled":False,
-                "reason":"Credentials not configured on the application server"}
+def _robinhood_client(state):
+    """Choose server-side installed credentials, otherwise optional environment secrets."""
+    from robinhood_crypto_gateway import RobinhoodCryptoAdapter
     try:
-        accounts=RobinhoodCryptoAdapter.from_environment().list_accounts()
-        return {"provider":"robinhood_crypto","connected":True,"order_execution_enabled":False,
+        return RobinhoodCryptoAdapter.from_state(state)
+    except FileNotFoundError:
+        return RobinhoodCryptoAdapter.from_environment()
+
+
+def robinhood_status(state):
+    """Verify broker account access, never sending a secret to the browser."""
+    from robinhood_crypto_gateway import RobinhoodUnavailable
+    try:
+        accounts = _robinhood_client(state).list_accounts()
+        return {"provider":"robinhood_crypto","connected":True,
+                "order_execution_enabled":False,
                 "accounts":[{"account_number":str(a.get("account_number","")),
                              "status":str(a.get("status","unknown")),
+                             "buying_power":str(a.get("buying_power","")),
+                             "buying_power_currency":str(a.get("buying_power_currency","")),
                              "is_api_tradable":a.get("is_api_tradable") is True}
                             for a in accounts if isinstance(a,dict)]}
-    except (ValueError,RobinhoodUnavailable,TypeError):
+    except (OSError,ValueError,KeyError,RobinhoodUnavailable,TypeError):
         return {"provider":"robinhood_crypto","connected":False,"order_execution_enabled":False,
-                "reason":"Authenticated Robinhood account request failed"}
+                "reason":"Robinhood credentials missing or account authorization unsuccessful"}
+
+
+def install_robinhood_credentials(state,payload):
+    """CSRF-protected dashboard caller only. Install encrypted-in-transit credentials on disk."""
+    import base64
+    import json
+    import os
+    import secrets
+    from pathlib import Path
+    from robinhood_crypto_gateway import RobinhoodCryptoAdapter
+    if not isinstance(payload,dict) or set(payload)!={"api_key","private_key_b64"}:
+        raise ValueError("Robinhood key identifier and signing key required")
+    api_key = payload["api_key"]
+    private_key = payload["private_key_b64"]
+    if not isinstance(api_key,str) or not api_key.startswith("rh-api-") or len(api_key)>200:
+        raise ValueError("Invalid Robinhood API key identifier")
+    if not isinstance(private_key,str) or len(private_key)>400:
+        raise ValueError("Invalid signing key")
+    private_key = private_key.strip()
+    RobinhoodCryptoAdapter(api_key,private_key)
+    target_dir=Path(state)/"config"
+    target_dir.mkdir(mode=0o700,exist_ok=True)
+    target=target_dir/"robinhood_crypto.json"
+    temp=target_dir/(".robinhood-"+secrets.token_hex(12))
+    fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    try:
+        with os.fdopen(fd,"w") as writer:
+            json.dump({"api_key":api_key,"private_key_b64":private_key},writer)
+            writer.flush()
+            os.fsync(writer.fileno())
+        os.replace(temp,target)
+    finally:
+        try: temp.unlink()
+        except FileNotFoundError: pass
+    return {"saved":True,"connected":False,
+            "message":"Credentials saved on the TrueNAS server. Verify the connection to activate account data."}

@@ -42,6 +42,21 @@ class RobinhoodCryptoAdapter:
         return cls(os.getenv("ROBINHOOD_CRYPTO_API_KEY", ""),
                    os.getenv("ROBINHOOD_CRYPTO_PRIVATE_KEY_B64", ""))
 
+    @classmethod
+    def from_state(cls, state):
+        """Load operator-installed credentials from protected application state."""
+        import stat
+        from pathlib import Path
+        credential_path = Path(state) / "config" / "robinhood_crypto.json"
+        metadata = credential_path.stat()
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
+            raise RobinhoodUnavailable("Unsafe Robinhood credential file permissions")
+        raw = credential_path.read_bytes()
+        if len(raw) > 4096:
+            raise RobinhoodUnavailable("Credential file unexpectedly large")
+        config = json.loads(raw)
+        return cls(config["api_key"], config["private_key_b64"])
+
     def _headers(self, path):
         stamp = str(int(self._clock()))
         signature = self._signer.sign((self._api_key + stamp + path + "GET").encode())

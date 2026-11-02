@@ -54,12 +54,52 @@ function brokerCard(broker){
   card.appendChild(brokerEl("p",broker.setup_requirement,"broker-note"));
   if(broker.id==="robinhood_crypto"){
     const health=brokerEl("p","Robinhood connection: checking…","broker-note");
-    card.appendChild(health);
-    request("/api/robinhood/status").then(data=>{
-      health.textContent=data.connected?
-        "Robinhood API connected · "+(data.accounts||[]).length+" account(s) · live trading awaiting authorization":
-        "Robinhood not connected · "+(data.reason||"Check credentials");
-    }).catch(()=>{health.textContent="Robinhood connection check unavailable";});
+    const accountDetails=brokerEl("div",null,"broker-capabilities");
+    const setup=brokerEl("form",null,"broker-actions");
+    setup.autocomplete="off";
+    const keyLabel=brokerEl("label","Robinhood API key identifier");
+    const keyInput=document.createElement("input");
+    keyInput.type="text";keyInput.name="robinhood-key";keyInput.required=true;
+    keyInput.autocomplete="off";keyInput.placeholder="rh-api-...";
+    const signingLabel=brokerEl("label","Ed25519 private signing key (Base64)");
+    const signingInput=document.createElement("input");
+    signingInput.type="password";signingInput.name="robinhood-signing-key";
+    signingInput.required=true;signingInput.autocomplete="new-password";
+    const submit=brokerEl("button","Save Robinhood connection");
+    submit.type="submit";
+    setup.append(keyLabel,keyInput,signingLabel,signingInput,submit);
+    function showStatus(data){
+      accountDetails.replaceChildren();
+      if(data.connected){
+        health.textContent="Robinhood API connected · authenticated account access · live order execution not yet enabled";
+        setup.hidden=true;
+        for(const a of (data.accounts||[])){
+          brokerRow(accountDetails,"Account "+a.account_number,
+            "Status: "+a.status+" · Buying power: "+
+            (a.buying_power||"unavailable")+" "+(a.buying_power_currency||"")+" · API tradable: "+(a.is_api_tradable?"yes":"no"));
+        }
+      } else {
+        health.textContent="Robinhood not connected · "+(data.reason||"Check credentials");
+        setup.hidden=false;
+      }
+    }
+    async function refreshStatus(){
+      const data=await request("/api/robinhood/status");
+      showStatus(data);
+    }
+    setup.addEventListener("submit",async(event)=>{
+      event.preventDefault();
+      submit.disabled=true;
+      try{
+        await request("/api/robinhood/connect",{method:"POST",
+          body:JSON.stringify({api_key:keyInput.value.trim(),private_key_b64:signingInput.value.trim()})});
+        keyInput.value="";signingInput.value="";
+        await refreshStatus();
+      }catch(error){health.textContent="Robinhood connection error: "+error.message;}
+      finally{keyInput.value="";signingInput.value="";submit.disabled=false;}
+    });
+    card.append(health,accountDetails,setup);
+    refreshStatus().catch(()=>{health.textContent="Robinhood connection check unavailable";});
   }
   const actions=brokerEl("div",null,"broker-actions");
   actions.appendChild(brokerLink(broker.docs_url,"Official API requirements"));
