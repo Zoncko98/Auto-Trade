@@ -121,8 +121,8 @@
         <span class="workspace-tile-open" aria-hidden="true">Open paper dashboard ↗</span>
       </button>
     </div>
-    <div class="workspace-section-bar coming"><h2>Coming soon</h2>
-      <p>More brokerage connections are planned.</p></div>
+    <div class="workspace-section-bar coming"><h2>Broker integrations</h2>
+      <p>Robinhood Crypto account access is available; additional brokers are planned.</p></div>
     <div class="workspace-upcoming-grid">
       <button class="workspace-tile is-coming-soon" type="button" data-workspace="webull"
         disabled aria-label="Webull, coming soon" title="Webull account integration coming soon">
@@ -132,13 +132,15 @@
         <span class="workspace-tile-title">Webull</span>
         <span class="workspace-tile-status">COMING SOON</span>
       </button>
-      <button class="workspace-tile is-coming-soon" type="button" data-workspace="robinhood_crypto"
-        disabled aria-label="Robinhood, coming soon" title="Robinhood Crypto integration coming soon">
+      <button class="workspace-tile" type="button" data-workspace="robinhood_crypto"
+        aria-label="Open Robinhood Crypto workspace" title="Open Robinhood Crypto account workspace">
         <span class="workspace-tile-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
         </span>
         <span class="workspace-tile-title">Robinhood</span>
-        <span class="workspace-tile-status">COMING SOON</span>
+        <span class="workspace-tile-balance" id="workspace-robinhood-balance">Balance unavailable</span>
+        <span class="workspace-tile-status" id="workspace-robinhood-status">CHECKING CONNECTION</span>
+        <span class="workspace-tile-open" aria-hidden="true">Open Robinhood workspace ↗</span>
       </button>
       <button class="workspace-tile is-coming-soon" type="button" data-workspace="alpaca"
         disabled aria-label="Alpaca, coming soon" title="Alpaca account integration coming soon">
@@ -160,7 +162,17 @@
           Opening a workspace never changes trading permissions or initiates orders.</p>
         </div>
       </section>
-      <section class="view hidden" id="view-brokers">
+      <section class="view hidden" id="view-robinhood" aria-label="Robinhood Crypto workspace">
+      <div class="panel">
+        <h2>Robinhood Crypto</h2>
+        <p id="robinhood-workspace-status" role="status">Checking API connection…</p>
+        <p>Crypto account monitoring and order preparation. Live execution is separately controlled; saved credentials do not authorize trades.</p>
+        <button type="button" id="robinhood-refresh">Refresh Robinhood account</button>
+        <button type="button" id="robinhood-configure">Broker connection settings</button>
+        <div id="robinhood-workspace-accounts" aria-live="polite"></div>
+      </div>
+    </section>
+    <section class="view hidden" id="view-brokers">
         <div class="page-header"><div><p class="eyebrow">BROKERAGE CONNECTIONS</p>
           <h1>Connect your trading platforms</h1>
           <p class="muted">One Auto Trader workspace for multiple accounts. Account connections, quotes and permission to submit orders are separate capabilities.</p>
@@ -175,7 +187,7 @@
         <section class="panel broker-notes" style="margin-top:20px;padding:20px">
           <h2>How multi-broker trading will work</h2>
           <p>Market research and AI trade explanations can be shared. Cash, positions, order history, pending-order checks, rate limits and maximum-loss rules will be isolated by <strong>broker and account</strong>. Choosing another broker will never redirect a Schwab order to that broker automatically.</p>
-          <p>Webull and Alpaca require their respective developer authorization and approval. Robinhood's publicly documented API is for crypto trading, not general stock trading. Until a provider's connection is implemented, this page shows its official developer requirements rather than accepting passwords or pretending it is connected.</p>
+          <p>Webull and Alpaca require their respective developer authorization and approval. Robinhood's publicly documented API is for crypto trading, not general stock trading. Robinhood Crypto account access is implemented. A successful API connection does not enable live-order automation.</p>
         </section>
       </section>
       <section class="view hidden" id="view-profile">

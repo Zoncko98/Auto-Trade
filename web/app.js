@@ -9,7 +9,7 @@ let csrf = null;
 let status = null;
 let activeView = "workspaces";
 let activeWorkspace = "live";
-const AVAILABLE_WORKSPACES = Object.freeze(["live","paper"]);
+const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto"]);
 // Do not format missing numbers as $0.00, and never render stale broker
 // snapshots as current. Values are only read from authenticated APIs.
 function finiteUsd(value){
@@ -66,6 +66,52 @@ async function loadWorkspaceAvailability() {
     // The Schwab workspace remains navigable for users to complete setup.
     const label=$("workspace-schwab-status");
     if(label)label.textContent="STATUS UNAVAILABLE";
+  }
+}
+async function loadRobinhoodWorkspace(){
+  const statusNode=$("robinhood-workspace-status");
+  const accountsNode=$("robinhood-workspace-accounts");
+  const tileStatus=$("workspace-robinhood-status");
+  const balance=$("workspace-robinhood-balance");
+  if(!statusNode||!accountsNode)return;
+  statusNode.textContent="Checking Robinhood authentication…";
+  try{
+    const result=await request("/api/robinhood/status");
+    accountsNode.replaceChildren();
+    const accounts=Array.isArray(result.accounts)?result.accounts:[];
+    if(!result.connected||!accounts.length){
+      const message=result.connected?"No crypto trading accounts returned":(result.reason||"Authentication unavailable");
+      statusNode.textContent="Robinhood not ready: "+message;
+      if(tileStatus)tileStatus.textContent="NEEDS CONNECTION";
+      if(balance)balance.textContent="Balance unavailable";
+      const action=document.createElement("button");
+      action.type="button";
+      action.textContent="Open Robinhood connection settings";
+      action.addEventListener("click",()=>showView("brokers"));
+      accountsNode.append(action);
+      return;
+    }
+    const eligible=accounts.some(a=>a.is_api_tradable===true);
+    statusNode.textContent=eligible?
+      "Robinhood account verified · live order execution pending separate activation":
+      "Robinhood account connected · API trading eligibility not confirmed";
+    if(tileStatus)tileStatus.textContent=eligible?"ACCOUNT VERIFIED":"CONNECTED · RESTRICTED";
+    if(balance)balance.textContent="View crypto account details";
+    for(const a of accounts){
+      const block=document.createElement("article");
+      block.className="broker-card";
+      const title=document.createElement("h3");
+      title.textContent="Robinhood Crypto account "+a.account_number;
+      const details=document.createElement("p");
+      details.textContent="Account: "+a.status+" · Buying power: "+
+        (a.buying_power||"unavailable")+" "+(a.buying_power_currency||"")+
+        " · API tradable: "+(a.is_api_tradable?"yes":"not confirmed");
+      block.append(title,details);
+      accountsNode.append(block);
+    }
+  }catch(err){
+    statusNode.textContent="Robinhood status unavailable: "+err.message;
+    if(tileStatus)tileStatus.textContent="STATUS UNAVAILABLE";
   }
 }
 let page = {trades:1,reviews:1};
@@ -196,10 +242,13 @@ function bindEvents(){
     "/api/live/export.xlsx","autotrader-live-trades.xlsx",$("export-live-trades")));
   $("export-live-evidence").addEventListener("click",()=>downloadWorkbook(
     "/api/live/export.xlsx","autotrader-live-evidence.xlsx",$("export-live-evidence")));
+  $("robinhood-refresh")?.addEventListener("click",()=>loadRobinhoodWorkspace().catch(err=>toast(err.message,true)));
+  $("robinhood-configure")?.addEventListener("click",()=>showView("brokers"));
   document.querySelectorAll(".workspace-tile:not(:disabled)").forEach(tile=>
     tile.addEventListener("click",()=>{
       if(!AVAILABLE_WORKSPACES.includes(tile.dataset.workspace))return;
-      showView(tile.dataset.workspace==="paper"?"overview":"live");
+      showView(tile.dataset.workspace==="paper"?"overview":
+        tile.dataset.workspace==="robinhood_crypto"?"robinhood":"live");
     }));
   document.addEventListener("click",event=>{
     const live=event.target.closest("[data-export-live-index]");
@@ -216,15 +265,16 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood"].includes(view))return;
   activeView=view;
   const liveViews=["live","decisions","live-risk","local","forecast"];
   const paperViews=["overview","trades","reviews","settings"];
   if(liveViews.includes(view))selectWorkspace("live");
   if(paperViews.includes(view))selectWorkspace("paper");
-  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":null;
+  if(view==="robinhood")selectWorkspace("robinhood_crypto");
+  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":view==="robinhood"?"robinhood_crypto":null;
   $("sidebar-account-context").classList.toggle("hidden",context===null);
-  if(context)$("sidebar-current-account").textContent=context==="live"?"Schwab live":"Paper Trading";
+  if(context)$("sidebar-current-account").textContent=context==="live"?"Schwab live":context==="paper"?"Paper Trading":"Robinhood Crypto";
   $("live-nav-group").classList.toggle("hidden",context!=="live");
   $("paper-nav-group").classList.toggle("hidden",context!=="paper");
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!=="view-"+view));
@@ -232,7 +282,7 @@ function showView(view) {
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
     "live-risk":"Live risk settings",local:"Local AI models",forecast:"Next session forecast",
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
-settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections"};
+settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",robinhood:"Robinhood Crypto"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
   $("live-mode-banner").classList.toggle("hidden",!liveViews.includes(view));
@@ -244,6 +294,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
+  if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
   if(view==="profile") request("/api/profile").then(p=>{
     $("profile-version").textContent="Installed v"+p.version;

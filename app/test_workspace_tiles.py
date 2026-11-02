@@ -49,7 +49,7 @@ class WorkspaceTileTests(unittest.TestCase):
         self.assertNotIn('aria-pressed="true"',self.html)
 
     def test_unimplemented_providers_are_grey_disabled_coming_soon(self):
-        for name in ("webull","robinhood_crypto","alpaca","interactive_brokers"):
+        for name in ("webull","alpaca","interactive_brokers"):
             with self.subTest(name=name):
                 tile=self.parsed.tiles[name]
                 self.assertIn("disabled",tile["attrs"])
@@ -65,12 +65,22 @@ class WorkspaceTileTests(unittest.TestCase):
         self.assertIn('showView("workspaces");',self.js)
         self.assertIn('id="live-nav-group" class="workspace-menu hidden"',self.html)
         self.assertIn('id="paper-nav-group" class="workspace-menu hidden"',self.html)
-        self.assertIn('showView(tile.dataset.workspace==="paper"?"overview":"live")',self.js)
+        self.assertIn('tile.dataset.workspace==="robinhood_crypto"?"robinhood":"live"',self.js)
         self.assertIn('if(!AVAILABLE_WORKSPACES.includes(workspace))return false;',self.js)
-        self.assertIn('const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":null;',self.js)
+        self.assertIn('view==="robinhood"?"robinhood_crypto":null;',self.js)
         self.assertIn('view==="workspaces"',self.js)
         self.assertIn('id="view-live"',self.html)
         self.assertIn('id="view-overview"',self.html)
+
+    def test_robinhood_workspace_enabled_and_safe(self):
+        tile=self.parsed.tiles["robinhood_crypto"]
+        self.assertNotIn("disabled",tile["attrs"])
+        self.assertNotIn("is-coming-soon",tile["attrs"]["class"])
+        self.assertIn('id="view-robinhood"',self.html)
+        self.assertIn('loadRobinhoodWorkspace()',self.js)
+        self.assertIn('request("/api/robinhood/status")',self.js)
+        self.assertIn('live order execution pending separate activation',self.js)
+        self.assertNotIn('submit_order(',self.js)
 
     def test_read_only_connected_status_does_not_authorize_trading(self):
         self.assertIn('request("/api/brokers")',self.js)
