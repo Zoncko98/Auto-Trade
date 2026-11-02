@@ -88,6 +88,12 @@ def paper_environment(runtime_env):
         env["AI_OLLAMA_URL"]=""
         env["AI_MODEL"]=""
     env["AI_REVIEW_TIMEOUT_SECONDS"]="18"
+    # The shared AI news classifier expects "local" for Ollama.
+    # The unified setup stores "ollama"; map only the paper child's runtime.
+    if runtime_env.get("AI_PROVIDER")=="ollama" and runtime_env.get("AI_OLLAMA_URL"):
+        env["AI_PROVIDER"]="local"
+        env["LOCAL_AI_URL"]=runtime_env["AI_OLLAMA_URL"].rstrip("/")
+        env["LOCAL_AI_MODEL"]=runtime_env.get("AI_MODEL","")
     env["PAPER_PUBLIC_MARKET_DATA"]="true"
     env["PAPER_SYMBOLS"]="SPY,QQQ,AAPL,MSFT,BTCUSD,ETHUSD"
     return env

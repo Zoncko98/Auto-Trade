@@ -1,3 +1,9 @@
+## v1.1.10 - Correct shared paper AI routing and historical audit labeling
+
+- Map saved Ollama provider to the shared local news-classifier AI route for the paper account only.
+- Label inherited legacy paper reviews as historical within the existing account audit.
+- Preserve fail-closed AI and never submit live orders during tests.
+
 ## v1.1.9 - Shared brokerage worker / virtual paper account
 
 - Reuse live_worker.py for account-specific Schwab and Paper Trading execution.
