@@ -192,6 +192,19 @@ async function loadRobinhoodWorkspace(){
       " · Risk check: "+(worker.risk_check||"not reported")+
       " · Execution: "+(worker.execution_status||result.execution_status||"unknown")+
       ". "+(worker.reason||result.execution_reason||"");
+    const activityEl=$("robinhood-trade-activity");
+    if(activityEl)activityEl.textContent=worker.last_order_confirmed?
+      "Broker-confirmed bot fill recorded; inspect broker order history for details.":
+      "No autonomous Robinhood fill verified. Broker historical orders do not prove bot execution.";
+    const strategyEl=$("robinhood-strategy-status");
+    if(strategyEl)strategyEl.textContent=
+      "Scan: "+(worker.worker||"unavailable")+
+      " · Signal: "+(worker.last_signal||"NOT_VERIFIED")+
+      " · Automated order execution: "+(worker.live_orders_allowed?"enabled":"disabled");
+    const riskEl=$("robinhood-risk-status");
+    if(riskEl)riskEl.textContent="Account preflight: "+(worker.risk_check||"not reported")+
+      " · Unreconciled intents: "+(Number.isInteger(worker.pending_order_intents)?worker.pending_order_intents:"unavailable")+
+      ". Order-size and buying-power limits are enforced before authorization.";
     if(!result.connected||!accounts.length){
       const message=result.connected?"No crypto trading accounts returned":(result.reason||"Authentication unavailable");
       statusNode.textContent="Robinhood not ready: "+message;

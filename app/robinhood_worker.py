@@ -65,7 +65,8 @@ def run_once(state,client):
         risk_check="BLOCKED_"+type(exc).__name__
     result.update({"risk_check":risk_check,"pending_order_intents":len(pending),
        "updated_at":datetime.now(timezone.utc).isoformat(),
-       "worker":"monitoring","execution_status":"NOT_ARMED",
+       "worker":"monitoring","last_signal":"NOT_VERIFIED",
+       "execution_status":"NOT_ARMED",
        "live_orders_allowed":False,"last_order_confirmed":False,
        "reason":"Robinhood strategy, approvals, and reconciliation are not enabled for live execution"})
     write_atomic(Path(state)/"robinhood"/"worker_status.json",result)
