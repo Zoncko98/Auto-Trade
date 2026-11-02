@@ -10,5 +10,5 @@ class JournalTests(unittest.TestCase):
    with self.assertRaises(UnreconciledOrder):
     j.record_intent("account1","uuid2","BTC-USD","0.001","50000")
    self.assertFalse(j.reconcile("account1",[]))
-   self.assertTrue(j.reconcile("account1",[{"client_order_id":"uuid1","state":"filled"}]))
+   self.assertTrue(j.reconcile("account1",[{"client_order_id":"uuid1","state":"filled","filled_asset_quantity":"0.001"}]))
    self.assertFalse(j.pending())

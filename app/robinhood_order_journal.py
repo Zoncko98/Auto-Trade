@@ -2,7 +2,7 @@
 import json,os,tempfile
 from pathlib import Path
 
-FINAL={"filled","cancelled","rejected","expired"}
+FINAL={"filled","canceled","cancelled","failed","rejected","expired"}
 
 class UnreconciledOrder(RuntimeError):pass
 
@@ -47,6 +47,8 @@ class OrderJournal:
             match=by_id.get(row["client_order_id"])
             if match is None:continue
             status=str(match.get("state",match.get("status",""))).lower()
+            if status=="filled" and not match.get("executions") and not match.get("filled_asset_quantity"):
+                continue
             if status in FINAL:row["status"]=status
         self._save(doc)
         return len(self.pending())==0

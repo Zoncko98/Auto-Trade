@@ -135,6 +135,10 @@ class RobinhoodCryptoAdapter:
         self.balances(account_ref)
         return self._pages("/api/v2/crypto/trading/holdings/", {"account_number": account_ref})
 
+    def trading_pairs(self):
+        """Authoritative per-pair increments, minimums and tradability."""
+        return self._pages("/api/v2/crypto/trading/trading_pairs/")
+
     def quote(self, symbol):
         if not isinstance(symbol, str) or not PAIR.fullmatch(symbol):
             raise ValueError("Invalid symbol")
