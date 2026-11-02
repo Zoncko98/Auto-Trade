@@ -161,7 +161,14 @@ def robinhood_status(state):
                       bool(os.getenv("ROBINHOOD_CRYPTO_API_KEY") and os.getenv("ROBINHOOD_CRYPTO_PRIVATE_KEY_B64")))
     try:
         accounts = _robinhood_client(state).list_accounts()
-        return {"provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
+        try:
+            worker=json.loads((state/"robinhood"/"worker_status.json").read_text())
+        except (OSError,ValueError,TypeError):
+            worker={"execution_status":"NOT_ARMED","worker":"not_started"}
+        return {"worker":{k:worker.get(k) for k in
+                    ("updated_at","worker","quotes_checked","pairs_checked",
+                     "execution_status","live_orders_allowed","last_order_confirmed","reason")},
+                "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
                 "order_execution_enabled":False,
                 "execution_status":"NOT_INTEGRATED",
                 "execution_reason":"Robinhood Crypto account connectivity is read-only; autonomous strategy, order reconciliation, and account-specific risk controls are not connected.",

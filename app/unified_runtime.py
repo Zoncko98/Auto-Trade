@@ -140,6 +140,11 @@ def main():
                   cfg.get("live_account_hash"))
                 if enabled["live"]:enabled["market"]=False
                 runtime_env=build_env(cfg,sec)
+                rh_ready=(STATE/"config"/"robinhood_crypto.json").is_file()
+                rh=CHILDREN.get("robinhood")
+                if rh_ready and (rh is None or rh.poll() is not None):
+                    spawn("robinhood",["/app/robinhood_worker.py"],runtime_env)
+                if not rh_ready:stop_process("robinhood")
                 for name,command in (
                    ("paper",["/app/live_worker.py","--account","paper","--run"]),
                    ("market",["/app/broker_market_data.py"])):
@@ -179,7 +184,7 @@ def main():
         else:
             for name in ("paper","market","live"):stop_process(name)
         time.sleep(4)
-    for name in ("live","market","paper","dashboard"):stop_process(name)
+    for name in ("robinhood","live","market","paper","dashboard"):stop_process(name)
     return 0
 
 if __name__=="__main__":sys.exit(main())

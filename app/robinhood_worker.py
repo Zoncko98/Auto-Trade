@@ -1,0 +1,59 @@
+"""Account-scoped Robinhood monitoring and fail-closed execution readiness.
+
+No order writes occur until a separately authorized live execution mode exists.
+"""
+import json,os,time
+from datetime import datetime,timezone
+from decimal import Decimal,InvalidOperation
+from pathlib import Path
+from robinhood_crypto_gateway import RobinhoodCryptoAdapter,RobinhoodUnavailable
+from dashboard_control import write_atomic
+
+PAIRS=("BTC-USD","ETH-USD","SOL-USD","DOGE-USD")
+def snapshot(client):
+    accounts=client.list_accounts()
+    out=[]
+    for a in accounts:
+        if not isinstance(a,dict):continue
+        try:
+            buying=Decimal(str(a.get("buying_power","0")))
+            if not buying.is_finite() or buying<0:raise ValueError
+        except (InvalidOperation,ValueError,TypeError):
+            buying=None
+        out.append({"account_status":str(a.get("status","unknown"))[:32],
+           "api_tradable":a.get("is_api_tradable") is True,
+           "currency":str(a.get("buying_power_currency",""))[:8],
+           "buying_power_usd":str(buying) if buying is not None and a.get("buying_power_currency")=="USD" else None})
+    quotes_checked=0
+    for pair in PAIRS:
+        try:
+            q=client.quote(pair)
+            if isinstance(q,dict):quotes_checked+=1
+        except (RobinhoodUnavailable,ValueError,TypeError,KeyError):
+            continue
+    return {"accounts":out,"quotes_checked":quotes_checked,"pairs_checked":len(PAIRS)}
+
+def run_once(state,client):
+    result=snapshot(client)
+    result.update({"updated_at":datetime.now(timezone.utc).isoformat(),
+       "worker":"monitoring","execution_status":"NOT_ARMED",
+       "live_orders_allowed":False,"last_order_confirmed":False,
+       "reason":"Robinhood strategy, approvals, and reconciliation are not enabled for live execution"})
+    write_atomic(Path(state)/"robinhood"/"worker_status.json",result)
+    return result
+
+def main():
+    state=Path(os.getenv("STATE_DIR","/state"))
+    while True:
+        try:
+            client=RobinhoodCryptoAdapter.from_state(state)
+            report=run_once(state,client)
+            print("Robinhood monitoring:",report["quotes_checked"],"quote responses",flush=True)
+        except (OSError,ValueError,KeyError,TypeError,RobinhoodUnavailable) as exc:
+            write_atomic(state/"robinhood"/"worker_status.json",{
+                "updated_at":datetime.now(timezone.utc).isoformat(),"worker":"blocked",
+                "execution_status":"NOT_ARMED","live_orders_allowed":False,
+                "last_order_confirmed":False,"reason":"Broker monitoring unavailable: "+type(exc).__name__})
+        time.sleep(180)
+
+if __name__=="__main__":main()
