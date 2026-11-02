@@ -173,6 +173,25 @@ async function loadRobinhoodWorkspace(){
     accountsNode.replaceChildren();
     const accounts=Array.isArray(result.accounts)?result.accounts:[];
     updateRobinhoodTile(result);
+    const worker=result.worker||{};
+    const scanEl=$("robinhood-scanner-state");
+    const orderEl=$("robinhood-order-state");
+    const executionEl=$("robinhood-execution-state");
+    const when=worker.updated_at?new Date(worker.updated_at):null;
+    const lastSeen=when&&!Number.isNaN(when.getTime())?when.toLocaleString():"not reported";
+    if(scanEl)scanEl.textContent="Worker: "+(worker.worker||"not started")+
+      " · Quotes checked: "+(Number.isInteger(worker.quotes_checked)?worker.quotes_checked:"unavailable")+
+      " / "+(Number.isInteger(worker.pairs_checked)?worker.pairs_checked:"?")+
+      " · Last checked: "+lastSeen+
+      ". Quote checks are not trading signals.";
+    if(orderEl)orderEl.textContent="Unreconciled Auto Trader intents: "+
+      (Number.isInteger(worker.pending_order_intents)?worker.pending_order_intents:"unavailable")+
+      ". Broker historical orders are separate from bot-confirmed fills.";
+    if(executionEl)executionEl.textContent="Live trading: "+
+      (result.order_execution_enabled&&worker.live_orders_allowed?"enabled":"disabled")+
+      " · Risk check: "+(worker.risk_check||"not reported")+
+      " · Execution: "+(worker.execution_status||result.execution_status||"unknown")+
+      ". "+(worker.reason||result.execution_reason||"");
     if(!result.connected||!accounts.length){
       const message=result.connected?"No crypto trading accounts returned":(result.reason||"Authentication unavailable");
       statusNode.textContent="Robinhood not ready: "+message;
@@ -216,9 +235,9 @@ async function loadRobinhoodWorkspace(){
       }).catch(()=>{positionState.textContent="Robinhood portfolio lookup unavailable";});
     }
     const eligible=accounts.some(a=>a.is_api_tradable===true);
-    statusNode.title="Robinhood Crypto is read-only in Auto Trader: no strategy worker, order ledger, or live execution authorization is connected.";
+    statusNode.title="Robinhood market monitoring and order-intent reconciliation are available. Live order submission remains disabled.";
     const decisionNode=$("robinhood-ai-decisions");
-    if(decisionNode)decisionNode.textContent="Autonomous orders disabled: no Robinhood strategy worker, journal, or broker-specific risk approvals. API connectivity alone cannot place orders.";
+    if(decisionNode)decisionNode.textContent="Market monitor and durable order journal installed. Crypto trading signals, live approvals, and broker-confirmed autonomous fills are not yet available.";
     statusNode.textContent=eligible?
       "Robinhood account verified · live order execution pending separate activation":
       "Robinhood account connected · API trading eligibility not confirmed";
