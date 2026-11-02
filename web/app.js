@@ -60,11 +60,14 @@ function updateAccountActivity(paper,live){
   const rows=[
     ["live", latest?
        "Latest: "+latest.decision.replaceAll("_"," ")+(latest.summary?" — "+latest.summary:""):
-       live?.worker_online?"Worker online · no recorded strategy decision yet":"Worker offline or no heartbeat"],
+       live?.worker_online?"Worker online · last scan NOT VERIFIED; no decisions recorded":"Worker offline or no heartbeat"],
     ["paper", "Last scan: "+paperDecision.replaceAll("_"," ")+
        (paper?.runtime?.last_paper_symbol?" · "+paper.runtime.last_paper_symbol:"")+
-       (paper?.runtime?.last_paper_reason?" · "+paper.runtime.last_paper_reason:"")]
+       (paper?.runtime?.last_paper_reason?" · "+paper.runtime.last_paper_reason:"")+
+       (paper?.runtime?.paper_feed_checked_at?" · "+new Date(paper.runtime.paper_feed_checked_at).toLocaleTimeString():"")+
+       (Number.isFinite(paper?.runtime?.paper_quotes_available)?" · "+paper.runtime.paper_quotes_available+" ranked candidates":"")]
   ];
+  rows.push(["robinhood_crypto","Scanning: DISABLED · Robinhood strategy worker not connected"]);
   rows.forEach(([key,value])=>{
     const tile=document.querySelector('[data-workspace="'+key+'"]');
     if(!tile)return;
@@ -75,7 +78,8 @@ function updateAccountActivity(paper,live){
       el.style.cssText="font-size:12px;line-height:1.5;margin:12px 0;color:#aecce7;overflow-wrap:anywhere";
       tile.append(el);
     }
-    el.textContent=value.slice(0,260);
+    el.textContent=value.slice(0,300);
+    el.setAttribute("role","status");
   });
 }
 function clearWorkspaceBalances(){
