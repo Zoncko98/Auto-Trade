@@ -54,6 +54,30 @@ function updateWorkspaceBalances(paper,live){
       "No verified Schwab equity snapshot available. Check Schwab authorization and live worker status.";
   }
 }
+function updateAccountActivity(paper,live){
+  const latest=Array.isArray(live?.decisions)?live.decisions[0]:null;
+  const paperDecision=paper?.runtime?.last_paper_decision||"NOT_SCANNED";
+  const rows=[
+    ["live", latest?
+       "Latest: "+latest.decision.replaceAll("_"," ")+(latest.summary?" — "+latest.summary:""):
+       live?.worker_online?"Worker online · no recorded strategy decision yet":"Worker offline or no heartbeat"],
+    ["paper", "Last scan: "+paperDecision.replaceAll("_"," ")+
+       (paper?.runtime?.last_paper_symbol?" · "+paper.runtime.last_paper_symbol:"")+
+       (paper?.runtime?.last_paper_reason?" · "+paper.runtime.last_paper_reason:"")]
+  ];
+  rows.forEach(([key,value])=>{
+    const tile=document.querySelector('[data-workspace="'+key+'"]');
+    if(!tile)return;
+    let el=tile.querySelector(".agent-activity-summary");
+    if(!el){
+      el=document.createElement("p");
+      el.className="agent-activity-summary";
+      el.style.cssText="font-size:12px;line-height:1.5;margin:12px 0;color:#aecce7;overflow-wrap:anywhere";
+      tile.append(el);
+    }
+    el.textContent=value.slice(0,260);
+  });
+}
 function clearWorkspaceBalances(){
   for(const name of ["paper","schwab"]){
     const el=$("workspace-"+name+"-balance");
@@ -186,6 +210,8 @@ async function loadRobinhoodWorkspace(){
     }
     const eligible=accounts.some(a=>a.is_api_tradable===true);
     statusNode.title="Robinhood Crypto is read-only in Auto Trader: no strategy worker, order ledger, or live execution authorization is connected.";
+    const decisionNode=$("robinhood-ai-decisions");
+    if(decisionNode)decisionNode.textContent="Autonomous orders disabled: no Robinhood strategy worker, journal, or broker-specific risk approvals. API connectivity alone cannot place orders.";
     statusNode.textContent=eligible?
       "Robinhood account verified · live order execution pending separate activation":
       "Robinhood account connected · API trading eligibility not confirmed";
@@ -405,6 +431,8 @@ async function refreshAll(){
     ]);
     status=response;
     updateWorkspaceBalances(response,live);
+    updateAccountActivity(response,live);
+
     renderOverview(response,performance.points||[],trades.items||[]);
     renderLiveView(live);
     if(activeView==="live-risk"&&document.activeElement&&!document.activeElement.closest("form"))

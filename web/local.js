@@ -98,6 +98,9 @@ function renderLiveView(data) {
     title="Awaiting the next Schwab strategy evaluation";
     text="The worker is active, but no decision audit has been recorded yet.";
   }
+  if(data.worker_online && !decisions.length){
+    text+=" Strategy decision journal is empty; the heartbeat alone does not prove successful scans.";
+  }
   $("live-warning-title").textContent=title;
   $("live-warning-text").textContent=text;
 }
