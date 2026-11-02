@@ -66,7 +66,7 @@ def main() -> int:
         reviewer = OllamaReviewer(
             url=os.getenv("AI_OLLAMA_URL", ""),
             model=os.getenv("AI_MODEL", ""),
-            timeout_seconds=float(os.getenv("AI_REVIEW_TIMEOUT_SECONDS", "5")),
+            timeout_seconds=float(os.getenv("AI_REVIEW_TIMEOUT_SECONDS", "18")),
             token=os.getenv("AI_OLLAMA_TOKEN", ""),
         )
         engine = PaperEngine(
@@ -101,6 +101,9 @@ def main() -> int:
     last_market_poll = 0.0
     last_feed = None
     last_mode = None
+    last_decision = None
+    last_decision_at = None
+    last_ai_veto_reason = None
     once = "--once" in sys.argv
     while not stopping:
         mode = "stopped"
@@ -126,12 +129,15 @@ def main() -> int:
                                  ",".join(sorted(feed["unavailable"])) or "none")
             results = engine.ingest_csv(price_path) if mode == "running" else []
             for result in results:
+                last_decision = result
+                last_decision_at = now_utc()
                 if result.startswith("PAPER_"):
                     logging.info("%s (simulated only)", result)
                 elif result == "AI_REJECTED":
                     decision = engine.state.get("reviews", [])[-1]
+                    last_ai_veto_reason = str(decision.get("reason", ""))[:160]
                     logging.info("AI vetoed paper entry: %s: %s",
-                                 decision.get("symbol"), decision.get("reason"))
+                                 decision.get("symbol"), last_ai_veto_reason)
             now = time.monotonic()
             if now - last_heartbeat >= 300 or once:
                 logging.info("Heartbeat. Mode=%s paper equity $%.2f, cash $%.2f, trades %d, halted %s",
@@ -157,6 +163,10 @@ def main() -> int:
                 "paper_quotes_available": last_feed["market_count"] if last_feed else 0,
                 "paper_feed_checked_at": last_feed["checked_at"] if last_feed else None,
                 "paper_feed_unavailable": sorted(last_feed["unavailable"]) if last_feed else [],
+                "paper_feed_errors": last_feed["unavailable"] if last_feed else {},
+                "last_paper_decision": last_decision,
+                "last_paper_decision_at": last_decision_at,
+                "last_ai_veto_reason": last_ai_veto_reason,
                 "ai_model_configured": bool(reviewer.url and reviewer.model),
                 "equity": round(engine.equity(), 2),
                 "cash": round(engine.state["cash"], 2),
