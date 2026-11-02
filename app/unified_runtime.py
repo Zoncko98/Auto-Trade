@@ -82,8 +82,14 @@ def paper_environment(runtime_env):
     """Paper and live use identical news AI configuration and stock signals."""
     env=dict(runtime_env)
     env["AI_REVIEW_TIMEOUT_SECONDS"]="18"
-    # build_env already normalizes Ollama to the shared classifier's 'local'
-    # provider and supplies LOCAL_AI_URL / LOCAL_AI_MODEL to both workers.
+    # Shared news classifier takes LOCAL_AI_URL and LOCAL_AI_MODEL, matching
+    # Schwab. Legacy paper monitoring also expects an Ollama generate route.
+    base=env.get("LOCAL_AI_URL") or env.get("AI_OLLAMA_URL","")
+    if env.get("AI_PROVIDER") in ("local","ollama") and base:
+        env["AI_OLLAMA_URL"]=base.rstrip("/")+"/api/generate"
+    else:
+        env["AI_OLLAMA_URL"]=""
+        env["AI_MODEL"]=""
     env["PAPER_PUBLIC_MARKET_DATA"]="true"
     env["PAPER_SYMBOLS"]="SPY,QQQ,AAPL,MSFT,BTCUSD,ETHUSD"
     return env
