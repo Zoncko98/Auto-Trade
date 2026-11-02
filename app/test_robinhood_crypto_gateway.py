@@ -31,6 +31,13 @@ class RobinhoodTests(unittest.TestCase):
         with self.assertRaises(RobinhoodUnavailable):
             self.adapter.cancel_order("12345", "order")
 
+    def test_account_scoped_requests(self):
+        self.adapter.positions("12345")
+        self.adapter.orders("12345")
+        scoped = [p for p, _ in self.paths if "holdings" in p or "orders" in p]
+        self.assertEqual(len(scoped), 2)
+        self.assertTrue(all("account_number=12345" in p for p in scoped))
+
     def test_invalid_symbol(self):
         with self.assertRaises(ValueError):
             self.adapter.quote("../secret")

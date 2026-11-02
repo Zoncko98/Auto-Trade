@@ -81,8 +81,32 @@ class RobinhoodCryptoAdapter:
             raise RobinhoodUnavailable("Results missing")
         return value
 
+    def _pages(self, path, params=None):
+        items = []
+        cursor = None
+        seen = set()
+        for _ in range(50):
+            query = dict(params or {})
+            if cursor:
+                query["cursor"] = cursor
+            data = self._get(path, query)
+            items.extend(self._results(data))
+            next_url = data.get("next")
+            if not next_url:
+                return items
+            from urllib.parse import urlsplit, parse_qs
+            parsed = urlsplit(next_url)
+            if parsed.scheme != "https" or parsed.netloc != "trading.robinhood.com" or parsed.path != path:
+                raise RobinhoodUnavailable("Invalid pagination destination")
+            values = parse_qs(parsed.query).get("cursor", [])
+            if len(values) != 1 or not values[0] or values[0] in seen:
+                raise RobinhoodUnavailable("Invalid pagination cursor")
+            cursor = values[0]
+            seen.add(cursor)
+        raise RobinhoodUnavailable("Pagination limit exceeded")
+
     def list_accounts(self):
-        return self._results(self._get("/api/v2/crypto/trading/accounts/"))
+        return self._pages("/api/v2/crypto/trading/accounts/")
 
     def balances(self, account_ref):
         if not isinstance(account_ref, str) or not ACCOUNT.fullmatch(account_ref):
@@ -94,7 +118,7 @@ class RobinhoodCryptoAdapter:
 
     def positions(self, account_ref):
         self.balances(account_ref)
-        return self._results(self._get("/api/v2/crypto/trading/holdings/"))
+        return self._pages("/api/v2/crypto/trading/holdings/", {"account_number": account_ref})
 
     def quote(self, symbol):
         if not isinstance(symbol, str) or not PAIR.fullmatch(symbol):
@@ -103,7 +127,7 @@ class RobinhoodCryptoAdapter:
 
     def orders(self, account_ref):
         self.balances(account_ref)
-        return self._results(self._get("/api/v2/crypto/trading/orders/"))
+        return self._pages("/api/v2/crypto/trading/orders/", {"account_number": account_ref})
 
     def submit_order(self, account_ref, intent):
         raise RobinhoodUnavailable("Robinhood live orders disabled")
