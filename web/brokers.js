@@ -36,6 +36,8 @@ function brokerCard(broker){
   const label=brokerEl("span",
     live?"Authorization file saved":
     broker.integration_status==="approval_required"?"Developer approval":
+    broker.integration_status==="configuration_saved"?"Credentials loaded":
+    broker.integration_status==="credentials_required"?"Setup required":
     broker.integration_status==="crypto_only"?"Crypto API only":
     broker.integration_status==="not_connected"?"Not connected":"Not yet integrated",
     "broker-status"+(live?" connected":""));
@@ -50,6 +52,15 @@ function brokerCard(broker){
     "Existing Schwab worker only; live permission is a separate step":
     "Not implemented / disabled");
   card.appendChild(brokerEl("p",broker.setup_requirement,"broker-note"));
+  if(broker.id==="robinhood_crypto"){
+    const health=brokerEl("p","Robinhood connection: checking…","broker-note");
+    card.appendChild(health);
+    request("/api/robinhood/status").then(data=>{
+      health.textContent=data.connected?
+        "Robinhood API connected · "+(data.accounts||[]).length+" account(s) · live trading awaiting authorization":
+        "Robinhood not connected · "+(data.reason||"Check credentials");
+    }).catch(()=>{health.textContent="Robinhood connection check unavailable";});
+  }
   const actions=brokerEl("div",null,"broker-actions");
   actions.appendChild(brokerLink(broker.docs_url,"Official API requirements"));
   if(broker.id==="schwab"){
@@ -71,7 +82,7 @@ async function loadBrokerWorkspace(){
       throw Error("Broker capability service returned unexpected data");
     grid.replaceChildren(...doc.brokers.map(brokerCard));
     status.textContent=doc.brokers.length+" broker integrations listed · "+
-      "Schwab remains the only enabled live-order adapter. Other brokers are not connected.";
+      "Robinhood Crypto connection is checked separately. Live orders require explicit approval.";
   }catch(err){
     status.textContent="Broker status unavailable: "+err.message;
     grid.replaceChildren();

@@ -9,6 +9,7 @@ from dataclasses import dataclass,asdict
 from pathlib import Path
 from typing import Protocol,Mapping,Any
 import json
+import os
 
 @dataclass(frozen=True)
 class BrokerCapability:
@@ -102,17 +103,22 @@ def providers(state):
         description="Good candidate for integrated paper brokerage and equities trading after account authorization and order reconciliation tests.",
         docs_url="https://docs.alpaca.markets/us/docs/about-connect-api",
         phase="planned")
+    # Connection presence is not proof of a successful authentication.
+    rh_credential_ready=bool(os.getenv("ROBINHOOD_CRYPTO_API_KEY") and
+                             os.getenv("ROBINHOOD_CRYPTO_PRIVATE_KEY_B64"))
     robinhood=BrokerCapability(
         id="robinhood_crypto",name="Robinhood Crypto",
-        integration_status="crypto_only",
+        integration_status="configuration_saved" if rh_credential_ready else "credentials_required",
         auth_method="Official Robinhood Crypto API key authentication",
         assets=("crypto",),
         official_account_access=True,official_market_data=True,official_order_execution=True,
         app_account_connected=False,app_orders_supported=False,
-        setup_requirement="Official published API covers crypto, not general Robinhood stock-order automation; crypto adapter must be implemented separately.",
+        setup_requirement=("Credentials loaded; test authenticated account access before enabling trading."
+                           if rh_credential_ready else
+                           "Install Robinhood Crypto API key and private signing key in the TrueNAS app secrets; no credentials belong in Git."),
         description="Robinhood's published developer trading API supports crypto account data and crypto orders in eligible US accounts. Stock brokerage automation is not offered here.",
         docs_url="https://docs.robinhood.com/",
-        phase="research")
+        phase="integration")
     ibkr=BrokerCapability(
         id="interactive_brokers",name="Interactive Brokers",
         integration_status="integration_required",
@@ -136,3 +142,21 @@ def workspace_summary(state):
         "broker_account_aggregation":"not_enabled",
         "brokers":items,
     }
+
+def robinhood_status():
+    """Return sanitized connectivity status without returning any credentials."""
+    from robinhood_crypto_gateway import RobinhoodCryptoAdapter, RobinhoodUnavailable
+    import os
+    if not (os.getenv("ROBINHOOD_CRYPTO_API_KEY") and os.getenv("ROBINHOOD_CRYPTO_PRIVATE_KEY_B64")):
+        return {"provider":"robinhood_crypto","connected":False,"order_execution_enabled":False,
+                "reason":"Credentials not configured on the application server"}
+    try:
+        accounts=RobinhoodCryptoAdapter.from_environment().list_accounts()
+        return {"provider":"robinhood_crypto","connected":True,"order_execution_enabled":False,
+                "accounts":[{"account_number":str(a.get("account_number","")),
+                             "status":str(a.get("status","unknown")),
+                             "is_api_tradable":a.get("is_api_tradable") is True}
+                            for a in accounts if isinstance(a,dict)]}
+    except (ValueError,RobinhoodUnavailable,TypeError):
+        return {"provider":"robinhood_crypto","connected":False,"order_execution_enabled":False,
+                "reason":"Authenticated Robinhood account request failed"}

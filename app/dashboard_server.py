@@ -31,7 +31,7 @@ from live_extension import (read_live_risk,set_live_risk,validate_risk,read_deci
 from profile_auth import verify as verify_profile_password, rotate as rotate_profile_password, revision as profile_revision, ProfileError
 from update_status import update_information, public_update_information, installed_version
 from broker_market_data import read_snapshot as broker_market_snapshot
-from broker_workspace import workspace_summary as broker_workspace_summary
+from broker_workspace import workspace_summary as broker_workspace_summary, robinhood_status
 from ai_readiness import summary as ai_readiness_summary, verify_ollama_model
 from forecast_engine import (forecast as selected_forecast,
     connection as selected_forecast_connection, models as selected_forecast_models)
@@ -334,6 +334,8 @@ class Handler(BaseHTTPRequestHandler):
                 if cfg.get("ai_provider")=="ollama" and cfg.get("ollama_url"):
                     result.update(verify_ollama_model(cfg["ollama_url"],cfg.get("ai_model","")))
                 return self._json(200,result)
+            if UNIFIED_APP and path == "/api/robinhood/status":
+                return self._json(200,robinhood_status())
             if UNIFIED_APP and path == "/api/brokers":
                 return self._json(200,broker_workspace_summary(STATE_DIR))
             if UNIFIED_APP and path == "/api/integrations":
