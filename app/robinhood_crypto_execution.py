@@ -31,6 +31,25 @@ class RobinhoodCryptoTradingAdapter(RobinhoodCryptoAdapter):
         self.max_order_usd = self._positive(max_order_usd)
         self._write_transport = write_transport or self._post_http
 
+    @classmethod
+    def from_state_authorized(cls,state,policy):
+        """Load protected existing credentials with explicit per-account limits."""
+        import stat
+        from pathlib import Path
+        credential_path=Path(state)/"config"/"robinhood_crypto.json"
+        meta=credential_path.stat()
+        if not stat.S_ISREG(meta.st_mode) or meta.st_mode & 0o077:
+            raise RobinhoodUnavailable("Unsafe Robinhood credential permissions")
+        raw=credential_path.read_bytes()
+        if len(raw)>4096:
+            raise RobinhoodUnavailable("Robinhood credentials unexpectedly large")
+        doc=json.loads(raw)
+        if policy.get("enabled") is not True or not policy.get("account"):
+            raise RobinhoodUnavailable("Explicit account policy not enabled")
+        return cls(doc["api_key"],doc["private_key_b64"],
+                   live_enabled=True,allowed_accounts=(policy["account"],),
+                   max_order_usd=policy["max_order_usd"])
+
     @staticmethod
     def _positive(value):
         if not isinstance(value, (str, int, Decimal)) or isinstance(value, bool):

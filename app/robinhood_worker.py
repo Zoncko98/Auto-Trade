@@ -60,6 +60,7 @@ def run_once(state,client):
                           "NO_SIGNAL" if observations else "QUOTE_UNAVAILABLE")
     result["observations"]=len(observations)
     result["ai_review_status"]="NO_TECHNICAL_CANDIDATE"
+    approved_signal=None
     if signal_candidates:
         # The same configured AI_PROVIDER, LOCAL_AI_URL and LOCAL_AI_MODEL
         # are used by Schwab and paper. Only public timestamped news is sent.
@@ -71,7 +72,9 @@ def run_once(state,client):
         result["ai_model"]=evidence.get("model","unavailable")
         result["ai_reason"]=reason[:500]
         result["last_signal"]=target["symbol"]+": "+result["ai_review_status"]
-    from robinhood_order_journal import OrderJournal
+        if approved:
+            approved_signal=dict(target,ai_approved=True)
+    from robinhood_order_journal import OrderJournal,UnreconciledOrder
     journal=OrderJournal(state)
     pending=journal.pending()
     account_rows=client.list_accounts()
@@ -99,12 +102,39 @@ def run_once(state,client):
         pass
     except (RiskDenied,ValueError,TypeError,KeyError,StopIteration) as exc:
         risk_check="BLOCKED_"+type(exc).__name__
-    result.update({"risk_check":risk_check,"pending_order_intents":len(pending),
+    # Only a fresh independently approved signal may reach the signed order
+    # adapter. Account risk policy must already exist and be enabled.
+    execution="NOT_ARMED"
+    order_confirmed=False
+    if approved_signal is not None:
+        try:
+            from robinhood_order_pass import submit_approved,OrderPassBlocked
+            from robinhood_crypto_execution import RobinhoodCryptoTradingAdapter
+            policy=json.loads(policy_path.read_text())
+            if policy.get("enabled") is not True:
+                raise OrderPassBlocked("Account live trading policy not enabled")
+            trader=RobinhoodCryptoTradingAdapter.from_state_authorized(state,policy)
+            receipt=submit_approved(state,trader,policy,approved_signal)
+            execution="ORDER_ACCEPTED" if receipt["broker_acknowledged"] else "SUBMITTED_UNCONFIRMED"
+            # Even accepted orders do not become fills until broker reports
+            # executed quantity and the journal reconciles them.
+            if receipt["broker_acknowledged"]:
+                journal.reconcile(policy["account"],trader.orders(policy["account"]))
+                order_confirmed=any(
+                    row.get("client_order_id")==receipt["client_order_id"]
+                    and row.get("status")=="filled"
+                    for row in journal.load()["orders"])
+        except (OSError,ValueError,KeyError,TypeError,
+                RobinhoodUnavailable,OrderPassBlocked,RiskDenied,
+                UnreconciledOrder) as exc:
+            execution="BLOCKED_"+type(exc).__name__
+    result.update({"risk_check":risk_check,"pending_order_intents":len(journal.pending()),
        "updated_at":datetime.now(timezone.utc).isoformat(),
        "worker":"monitoring",
-       "execution_status":"NOT_ARMED",
-       "live_orders_allowed":False,"last_order_confirmed":False,
-       "reason":"Robinhood strategy, approvals, and reconciliation are not enabled for live execution"})
+       "execution_status":execution,
+       "live_orders_allowed":execution in ("ORDER_ACCEPTED","SUBMITTED_UNCONFIRMED"),
+       "last_order_confirmed":order_confirmed,
+       "reason":"Order submission requires explicit account risk approval and broker-confirmed reconciliation"})
     write_atomic(Path(state)/"robinhood"/"worker_status.json",result)
     return result
 
