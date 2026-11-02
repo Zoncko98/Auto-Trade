@@ -165,50 +165,56 @@
         </div>
       </section>
       <section class="view hidden" id="view-robinhood" aria-label="Robinhood Crypto workspace">
-      <div class="panel">
-        <h2>Robinhood Crypto</h2>
-        <p id="robinhood-workspace-status" role="status">Checking API connection…</p><div class="notice" role="status" style="margin:12px 0"><span class="notice-icon">ⓘ</span><div><strong>Automated Robinhood trading is not enabled</strong><p>Account balance, holdings and order history are read-only. Robinhood market monitoring and order reconciliation are present; autonomous live order submission is not enabled.</p></div></div>
-        <p>Crypto account monitoring and order preparation. Live execution is separately controlled; saved credentials do not authorize trades.</p>
-        <button type="button" id="robinhood-refresh">Refresh Robinhood account</button>
-        <button type="button" id="robinhood-configure">Broker connection settings</button>
-        <div class="broker-grid" aria-label="Robinhood execution diagnostics" style="margin:16px 0">
-          <section class="broker-card"><h3>Market scanner</h3><p id="robinhood-scanner-state" role="status">Checking scanner activity…</p></section>
-          <section class="broker-card"><h3>Order reconciliation</h3><p id="robinhood-order-state" role="status">Checking recorded order intents…</p></section>
-          <section class="broker-card"><h3>Execution readiness</h3><p id="robinhood-execution-state" role="status">Checking account permissions…</p></section>
+        <div class="hero-head">
+          <div><p class="eyebrow">ROBINHOOD CRYPTO · AUTONOMOUS TRADING</p>
+            <h1>Live crypto account</h1>
+            <p class="muted">Connected crypto broker, AI decisions, risk status and reconciled order evidence.</p></div>
+          <div class="control-panel">
+            <div class="control-caption">LIVE ORDER PERMISSION <span class="mode-tag stopped" id="robinhood-execution-mode">Not armed</span></div>
+            <div class="control-buttons"><button class="btn secondary" type="button" id="robinhood-refresh">↻ Refresh account</button>
+              <button class="btn secondary" type="button" id="robinhood-configure">Manage broker connection</button></div>
+            <p class="panel-note">Broker credentials alone do not enable orders. Trading depends on verified risk policy and execution status.</p>
+          </div>
         </div>
-        <div id="robinhood-workspace-accounts" aria-live="polite"></div>
-        <div class="broker-grid" id="robinhood-tool-grid">
-          <section class="broker-card">
-            <h3>Trade activity and performance</h3>
-            <p id="robinhood-trade-activity">No broker-confirmed Auto Trader crypto fills verified.</p>
+        <div class="notice neutral"><span class="notice-icon">ⓘ</span><div>
+          <strong id="robinhood-workspace-status">Checking Robinhood execution state…</strong>
+          <p id="robinhood-execution-state">Retrieving account-specific broker and risk permissions…</p>
+        </div></div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-top">CRYPTO BUYING POWER <span class="stat-icon">◈</span></div><strong id="robinhood-cash-stat">—</strong><small>Broker-reported USD, not simulated equity</small></div>
+          <div class="stat-card"><div class="stat-top">ACTIVE ACCOUNT <span class="stat-icon">◉</span></div><strong id="robinhood-account-stat">—</strong><small>Verified Robinhood API status</small></div>
+          <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="robinhood-holdings-stat">—</strong><small>Broker-reported crypto holdings</small></div>
+          <div class="stat-card"><div class="stat-top">BROKER ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="robinhood-orders-stat">—</strong><small>Broker history, not necessarily bot fills</small></div>
+        </div>
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-heading"><div><h2>Execution status</h2><p>Real Robinhood API worker, separate from paper simulation</p></div>
+              <span class="time-label" id="robinhood-execution-pill">NOT ARMED</span></div>
+            <div class="readiness-item"><span>Shared AI model</span><strong id="robinhood-ai-readiness">Checking…</strong></div>
+            <div class="readiness-item"><span>Latest model decision</span><strong id="robinhood-ai-decisions">Awaiting evaluation</strong></div>
+            <div class="readiness-item"><span>Live order permission</span><strong id="robinhood-order-permission">Not armed</strong></div>
+            <div class="readiness-item"><span>Last scanner activity</span><strong id="robinhood-scanner-state">Checking…</strong></div>
+            <div class="readiness-item"><span>Markets</span><strong>BTC, ETH, SOL, DOGE · USD</strong></div>
+            <div class="readiness-item"><span>Duplicate and reconciliation safeguards</span><strong id="robinhood-order-state">Checking…</strong></div>
+            <p class="panel-note">An AI approval is not a verified broker fill or a prediction of profit.</p>
           </section>
-          <section class="broker-card">
-            <h3>Strategy and scan decisions</h3>
-            <p id="robinhood-strategy-status">Waiting for verified crypto signals.</p>
-          </section>
-          <section class="broker-card">
-            <h3>AI model and research</h3>
-            <p id="robinhood-ai-readiness">Checking the shared AI model…</p>
-            <button type="button" id="robinhood-ai-models">Manage AI models</button>
-          </section>
-          <section class="broker-card">
-            <h3>AI decisions and explanations</h3>
-            <p id="robinhood-ai-decisions">No Robinhood-specific AI decisions have been verified.</p>
-            <p>Existing Schwab and paper decision logs are kept separate from Robinhood.</p>
-          </section>
-          <section class="broker-card">
-            <h3>Risk and trade controls</h3>
-            <p>Robinhood live order execution remains disabled until account-specific risk and order reconciliation are validated.</p>
-            <p id="robinhood-risk-status">No Robinhood live risk profile is active.</p>
-          </section>
-          <section class="broker-card">
-            <h3>Positions and orders</h3>
-            <p id="robinhood-positions-status">Connect an eligible crypto account to view holdings and orders.</p>
-            <div id="robinhood-positions-list"></div>
+          <section class="panel">
+            <div class="panel-heading"><div><h2>Investment operation</h2><p>Your connected Robinhood Crypto account</p></div></div>
+            <div class="readiness-item"><span>Strategy status</span><strong id="robinhood-strategy-status">Checking…</strong></div>
+            <div class="readiness-item"><span>Risk policy</span><strong id="robinhood-risk-status">Checking…</strong></div>
+            <div class="readiness-item"><span>Trade performance</span><strong id="robinhood-trade-activity">No bot-confirmed fills verified</strong></div>
+            <div class="readiness-item"><span>Current positions</span><strong id="robinhood-positions-status">Checking…</strong></div>
+            <div class="readiness-item"><span>AI model controls</span><button class="btn secondary tiny" id="robinhood-ai-models">Manage AI models</button></div>
+            <div class="readiness-item"><span>Account connectivity</span><strong>Robinhood signed API</strong></div>
           </section>
         </div>
-      </div>
-    </section>
+        <section class="panel list-panel">
+          <div class="panel-heading"><div><h2>Robinhood account and order journal</h2>
+            <p>Broker-reported holdings and orders; bot order confirmation is tracked separately</p></div></div>
+          <div id="robinhood-workspace-accounts" aria-live="polite" class="broker-grid"></div>
+          <div id="robinhood-positions-list" class="table-wrap"></div>
+        </section>
+      </section>
     <section class="view hidden" id="view-brokers">
         <div class="page-header"><div><p class="eyebrow">BROKERAGE CONNECTIONS</p>
           <h1>Connect your trading platforms</h1>

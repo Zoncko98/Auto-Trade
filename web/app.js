@@ -70,7 +70,7 @@ function updateAccountActivity(paper,live){
          paper.runtime.shadow_momentum.candidate.momentum_pct+"% momentum (no order)":
          " · SHADOW: no qualifying momentum trade")]
   ];
-  rows.push(["robinhood_crypto","Scanning: DISABLED · Robinhood strategy worker not connected"]);
+  rows.push(["robinhood_crypto","Robinhood scanner operates independently; open account for verified signals and execution status"]);
   rows.forEach(([key,value])=>{
     const tile=document.querySelector('[data-workspace="'+key+'"]');
     if(!tile)return;
@@ -174,6 +174,19 @@ async function loadRobinhoodWorkspace(){
     const accounts=Array.isArray(result.accounts)?result.accounts:[];
     updateRobinhoodTile(result);
     const worker=result.worker||{};
+    const cashStat=$("robinhood-cash-stat");
+    const accountStat=$("robinhood-account-stat");
+    const usd=accounts.length===1?Number(accounts[0].buying_power):NaN;
+    if(cashStat)cashStat.textContent=accounts.length===1&&accounts[0].buying_power_currency==="USD"&&
+      accounts[0].buying_power!=null&&Number.isFinite(usd)?money(usd):"—";
+    if(accountStat)accountStat.textContent=accounts.some(a=>a.is_api_tradable===true)?"ACTIVE":"UNVERIFIED";
+    const executionMode=$("robinhood-execution-mode");
+    const orderPermission=$("robinhood-order-permission");
+    const executionPill=$("robinhood-execution-pill");
+    const permitted=result.order_execution_enabled===true&&worker.live_orders_allowed===true;
+    if(executionMode)executionMode.textContent=permitted?"Running":"Not armed";
+    if(orderPermission)orderPermission.textContent=permitted?"Running":"Disabled";
+    if(executionPill)executionPill.textContent=permitted?"LIVE · AUTOMATED":"NOT ARMED";
     const scanEl=$("robinhood-scanner-state");
     const orderEl=$("robinhood-order-state");
     const executionEl=$("robinhood-execution-state");
@@ -222,7 +235,8 @@ async function loadRobinhoodWorkspace(){
       request("/api/ai/readiness").then(d=>{
         ai.textContent="Shared AI provider: "+(d.provider||"not configured")+
           " · Model verification: "+(d.status||"unknown")+
-          ". Robinhood-specific strategy execution is not yet connected.";
+          " · Crypto AI review: "+(worker.ai_review_status||"no candidate")+
+          " · Model: "+(worker.ai_model||"not recorded");
       }).catch(()=>{ai.textContent="Shared AI model status unavailable";});
     }
     const positionState=$("robinhood-positions-status");
@@ -236,6 +250,8 @@ async function loadRobinhoodWorkspace(){
           return;
         }
         const holdings=Number.isInteger(portfolio.position_count)?portfolio.position_count:0;
+        if($("robinhood-holdings-stat"))$("robinhood-holdings-stat").textContent=String(holdings);
+        if($("robinhood-orders-stat"))$("robinhood-orders-stat").textContent=Number.isInteger(portfolio.order_count)?String(portfolio.order_count):"—";
         const orders=Number.isInteger(portfolio.order_count)?portfolio.order_count:0;
         positionState.textContent=holdings+" holdings · "+orders+" orders reported by Robinhood";
         if(box){
@@ -248,11 +264,14 @@ async function loadRobinhoodWorkspace(){
       }).catch(()=>{positionState.textContent="Robinhood portfolio lookup unavailable";});
     }
     const eligible=accounts.some(a=>a.is_api_tradable===true);
-    statusNode.title="Robinhood market monitoring and order-intent reconciliation are available. Live order submission remains disabled.";
+    statusNode.title="Robinhood account eligibility and execution permission are reported independently.";
     const decisionNode=$("robinhood-ai-decisions");
-    if(decisionNode)decisionNode.textContent="Market monitor and durable order journal installed. Crypto trading signals, live approvals, and broker-confirmed autonomous fills are not yet available.";
+    if(decisionNode)decisionNode.textContent=
+      (worker.ai_review_status||"No AI evaluation recorded")+
+      (worker.ai_model?" · "+worker.ai_model:"")+
+      (worker.ai_reason?" · "+worker.ai_reason:"");
     statusNode.textContent=eligible?
-      "Robinhood account verified · live order execution pending separate activation":
+      "Robinhood API account verified · "+(permitted?"live execution available":"execution not armed"):
       "Robinhood account connected · API trading eligibility not confirmed";
 
     for(const a of accounts){

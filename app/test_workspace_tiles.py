@@ -79,7 +79,7 @@ class WorkspaceTileTests(unittest.TestCase):
         self.assertIn('id="view-robinhood"',self.html)
         self.assertIn('loadRobinhoodWorkspace()',self.js)
         self.assertIn('request("/api/robinhood/status")',self.js)
-        self.assertIn('live order execution pending separate activation',self.js)
+        self.assertIn('Robinhood API account verified',self.js)
         self.assertNotIn('submit_order(',self.js)
 
     def test_read_only_connected_status_does_not_authorize_trading(self):
