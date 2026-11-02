@@ -79,21 +79,11 @@ def build_env(config,secret):
     return env
 
 def paper_environment(runtime_env):
-    """Paper-only model URL and public quotes; do not alter live child env."""
+    """Paper and live use identical news AI configuration and stock signals."""
     env=dict(runtime_env)
-    base=env.get("AI_OLLAMA_URL","")
-    if env.get("AI_PROVIDER")=="ollama" and base:
-        env["AI_OLLAMA_URL"]=base.rstrip("/")+"/api/generate"
-    else:
-        env["AI_OLLAMA_URL"]=""
-        env["AI_MODEL"]=""
     env["AI_REVIEW_TIMEOUT_SECONDS"]="18"
-    # The shared AI news classifier expects "local" for Ollama.
-    # The unified setup stores "ollama"; map only the paper child's runtime.
-    if runtime_env.get("AI_PROVIDER")=="ollama" and runtime_env.get("AI_OLLAMA_URL"):
-        env["AI_PROVIDER"]="local"
-        env["LOCAL_AI_URL"]=runtime_env["AI_OLLAMA_URL"].rstrip("/")
-        env["LOCAL_AI_MODEL"]=runtime_env.get("AI_MODEL","")
+    # build_env already normalizes Ollama to the shared classifier's 'local'
+    # provider and supplies LOCAL_AI_URL / LOCAL_AI_MODEL to both workers.
     env["PAPER_PUBLIC_MARKET_DATA"]="true"
     env["PAPER_SYMBOLS"]="SPY,QQQ,AAPL,MSFT,BTCUSD,ETHUSD"
     return env
