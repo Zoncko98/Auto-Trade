@@ -2,7 +2,7 @@ name: Publish unified Auto Trader image
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/truenas-running-baseline]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -29,6 +29,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install application test dependencies
+        run: python -m pip install -r app/requirements.txt
       - name: Run install, setup, trading and security tests
         run: |
           python -m compileall -q app installer ai-workstation
@@ -96,7 +98,11 @@ jobs:
               echo "$name:$GITHUB_REF_NAME"
               echo "$name:stable"
             else
-              echo "$name:candidate"
+              if [[ "$GITHUB_REF_NAME" == "feature/truenas-running-baseline" ]]; then
+                echo "$name:truenas-baseline"
+              else
+                echo "$name:candidate"
+              fi
               if [[ "${{ steps.visual.outputs.stable }}" == "true" ]]; then
                 echo "$name:stable"
               fi
