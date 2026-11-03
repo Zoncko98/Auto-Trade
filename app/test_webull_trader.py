@@ -169,6 +169,14 @@ class Tests(unittest.TestCase):
                 save_policy(self.state,dict(self.policy,enabled=True,stock_account="wrong"),
                             self.accounts,"ENABLE_WEBULL_LIVE")
         self.assertFalse(read_policy(self.state)["enabled"])
+    def test_status_diagnostics_are_safe_and_precise(self):
+        from webull_worker import _safe_public
+        class ServerException(Exception):pass
+        self.assertEqual(_safe_public(ServerException("HTTP Status: 403, Secret=do-not-print")),
+                         "WEBULL_HTTP_403")
+        self.assertEqual(_safe_public(WebullSignalError("Broker quote stale")),
+                         "SIGNAL_BROKER_QUOTE_STALE")
+        self.assertEqual(_safe_public(RuntimeError("secret data here")), "RuntimeError")
     def test_unsupported_quote_timestamp_and_stock_market_hours(self):
         t=datetime(2026,11,3,15,0,tzinfo=timezone.utc)
         q={"bid":"9.99","ask":"10","quote_time":int(t.timestamp()*1000)}

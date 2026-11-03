@@ -27,10 +27,12 @@ class WebullBlocked(RuntimeError):pass
 def _now():return datetime.now(timezone.utc)
 
 def _safe_public(exc):
-    # SDK exceptions can include signed headers, tokens or response bodies.
-    # Surface only HTTP status codes, which help diagnose market subscriptions.
-    if isinstance(exc,WebullError):
-        status=re.search(r"HTTP ([45]\d\d)",str(exc))
+    # SDK exceptions may contain signed headers. Only expose status codes
+    # or our own local, static signal validation messages.
+    if isinstance(exc,WebullSignalError):
+        return "SIGNAL_"+re.sub(r"[^A-Z0-9]+","_",str(exc).upper()).strip("_")[:90]
+    if isinstance(exc,WebullError) or type(exc).__name__=="ServerException":
+        status=re.search(r"HTTP (?:Status: )?([45]\d\d)",str(exc))
         if status:return "WEBULL_HTTP_"+status.group(1)
     return type(exc).__name__
 
