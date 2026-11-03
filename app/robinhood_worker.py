@@ -215,6 +215,7 @@ def run_once(state,client,feed=None):
         models=installed_models()
         result["ai_connection_status"]="READY" if configured_model in models else "MODEL_NOT_INSTALLED"
         result["ai_model"]=configured_model
+        result["ai_selected_model"]=configured_model
     except (LocalAIUnavailable,OSError,ValueError,TypeError):
         result["ai_connection_status"]="UNAVAILABLE"
 
@@ -381,6 +382,8 @@ def run_once(state,client,feed=None):
                 result["ai_connection_status"]="REVIEW_PERFORMED"
         elif result.get("ai_connection_status")=="READY":
             result["ai_connection_status"]="NOT_INVOKED_NO_RELEVANT_NEWS"
+        if outcomes and all(x in ("NEWS_EVIDENCE_MISSING","NEWS_FEED_UNAVAILABLE") for x in outcomes):
+            result["ai_model"]="NOT_INVOKED"
 
     if execution=="NOT_ARMED" and approved_signal is not None:
         try:
@@ -420,7 +423,15 @@ def run_once(state,client,feed=None):
             result["ai_reason"]="Entry AI review skipped because an existing bot position had a higher-priority exit evaluation"
             result["execution_reason"]="Entry candidate deferred while managed-position exit evaluation had priority"
         elif signal_candidates and approved_signal is None:
-            result["execution_reason"]="Technical candidates were AI-reviewed; news gate approved none"
+            outcomes=[r.get("outcome") for r in result.get("ai_candidate_reviews",[])]
+            if outcomes and all(x in ("NEWS_EVIDENCE_MISSING","NEWS_FEED_UNAVAILABLE") for x in outcomes):
+                result["execution_reason"]="Technical candidates found; relevant news unavailable, model NOT invoked"
+            elif "AI_UNAVAILABLE" in outcomes:
+                result["execution_reason"]="Technical candidate found; classifier output/service unavailable, no order"
+            elif outcomes and all(x=="AI_NO_TRADE" for x in outcomes):
+                result["execution_reason"]="News classifier returned NO TRADE for all candidates"
+            else:
+                result["execution_reason"]="Technical candidate(s) reviewed; no valid AI entry approval"
         else:
             result["execution_reason"]="No qualified technical entry or managed exit"
 
@@ -464,6 +475,7 @@ def run_once(state,client,feed=None):
         "ranked_entry_candidates":result.get("ranked_entry_candidates"),
         "ai_candidate_reviews":result.get("ai_candidate_reviews",[]),
         "ai_review_duration_seconds":result.get("ai_review_duration_seconds"),
+        "ai_selected_model":result.get("ai_selected_model"),
         "entry_signal_revalidated":result.get("entry_signal_revalidated")})
     write_atomic(evidence_path,evidence[-100:])
     return result

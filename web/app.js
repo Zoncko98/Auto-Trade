@@ -288,9 +288,11 @@ function renderRobinhoodAIReview(data){
     "No review timed":"Total "+Number(worker.ai_review_duration_seconds).toFixed(1)+" seconds"+
     " · Ollama request timeout 150 s · technical signal TTL 90 s, refreshed if needed";
   const withModel=outcomes.find(x=>x.model);
+  const failedModel=outcomes.some(x=>x.outcome==="AI_UNAVAILABLE");
   if(classifier)classifier.textContent=withModel?
     (withModel.model+" · "+(withModel.classifier_model_source||"selected")):
-    "Model not invoked on this scan";
+    (failedModel?"Model request attempted but response unavailable":
+     "Model not invoked on this scan");
   if(details)details.textContent=outcomes.length?
     outcomes.map(x=>(x.symbol||"Unknown")+" · "+(x.outcome||"unknown")+" · "+
       (Number(x.elapsed_seconds)||0).toFixed(1)+" s · "+
@@ -303,7 +305,8 @@ async function loadRobinhoodDecisionEvidence(){
   $("rh-decision-status").textContent=effective.label+" · "+effective.detail;
   $("rh-ai-connectivity").textContent="Shared Ollama: "+
     (data.worker?.ai_connection_status||"not checked")+" · Model: "+
-    (data.worker?.ai_model||"unavailable")+
+    (data.worker?.ai_model||"not invoked")+
+    " · Workstation selection: "+(data.worker?.ai_selected_model||"unavailable")+
     " · AI gate: "+(data.worker?.ai_review_status||"not evaluated");
   renderRobinhoodAIReview(data);
   renderRobinhoodScanDiagnostics(data);

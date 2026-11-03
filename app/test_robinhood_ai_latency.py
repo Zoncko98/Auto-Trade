@@ -3,6 +3,7 @@ import json,os,tempfile,unittest
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from unittest.mock import patch
+from robinhood_worker import run_once
 from local_ai_gateway import _classifier_model,classify_local_news,LocalAIUnavailable
 from robinhood_worker import ai_review_category,revalidate_buy_signal
 from robinhood_order_pass import OrderPassBlocked
@@ -107,5 +108,36 @@ class FreshSignalTests(unittest.TestCase):
                 "mid":"9.60","source":"ROBINHOOD_POLL_FALLBACK","ai_approved":True}
             with self.assertRaisesRegex(OrderPassBlocked,"price drift"):
                 revalidate_buy_signal(root,self.Broker(),original,now)
+
+class WorkerEvidenceTests(unittest.TestCase):
+    class Broker:
+        def list_accounts(self):
+            return [{"account_number":"acct","status":"active",
+                     "is_api_tradable":True,"buying_power":"15",
+                     "buying_power_currency":"USD"}]
+        def trading_pairs(self):
+            return [{"symbol":"BTC-USD","asset_code":"BTC","quote_code":"USD",
+                     "is_api_tradable":True,"min_order_amount":"1",
+                     "asset_increment":"0.001","max_order_size":"10"}]
+        def quote(self,symbol):
+            return {"results":[{"symbol":symbol,"bid":"9.99","ask":"10.00"}]}
+        def orders(self,account):return []
+        def positions(self,account):return []
+    def test_missing_news_not_recorded_as_ai_veto_or_model_request(self):
+        now=datetime.now(timezone.utc)
+        with tempfile.TemporaryDirectory() as root:
+            sub=Path(root)/"robinhood";sub.mkdir()
+            sub.joinpath("quote_history.json").write_text(json.dumps([
+                {"symbol":"BTC-USD","mid":v,
+                 "at":(now-timedelta(seconds=sec)).isoformat()}
+                for v,sec in zip(["9.85","9.90","9.94"],[400,260,130])]))
+            with patch("local_ai_gateway.installed_models",return_value=["qwen3.5:4b"]),                 patch("ai_research.approve_entry",return_value=(
+                    False,"AI research unavailable: No headlines explicitly tied to this crypto asset")):
+                result=run_once(root,self.Broker())
+            self.assertEqual(result["ai_review_status"],"NEWS_EVIDENCE_MISSING")
+            self.assertEqual(result["ai_model"],"NOT_INVOKED")
+            self.assertIn("model NOT invoked",result["execution_reason"])
+            self.assertEqual(result["ai_candidate_reviews"][0]["model"],None)
+            self.assertIsNotNone(result["ai_review_duration_seconds"])
 
 if __name__=="__main__":unittest.main()

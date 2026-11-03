@@ -317,7 +317,7 @@ def robinhood_status(state):
                                     "coinbase_scanned_pairs","pairs_checked","quotes_checked",
                                     "signal_diagnostics","top_entry_observations",
                                     "ranked_entry_candidates","ai_candidate_reviews",
-                                    "ai_review_duration_seconds","entry_signal_revalidated")}
+                                    "ai_review_duration_seconds","ai_selected_model","entry_signal_revalidated")}
                  for row in history[-100:] if isinstance(row,dict)]
         return {"effective_state":effective,"effective_detail":detail,"worker_fresh":fresh,
                 "decision_evidence":history,"pending_orders":pending_orders,
@@ -329,7 +329,7 @@ def robinhood_status(state):
                       "entry_candidate_symbol","entry_momentum_pct","ranked_entry_candidates",
                       "top_entry_observations","bot_open_positions","daily_realized_pnl_usd",
                       "ai_candidate_reviews","ai_review_duration_seconds",
-                      "entry_signal_revalidated")},
+                      "ai_selected_model","entry_signal_revalidated")},
                 "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
                 "order_execution_enabled":armed,
                 "execution_status":worker.get("execution_status","NOT_ARMED"),
