@@ -98,11 +98,20 @@ def fetch_headlines(symbol: str, now: datetime, fetch=None) -> list[dict]:
     items.sort(key=lambda item: item['published_at'], reverse=True)
     if not items:
         raise ResearchUnavailable('No independently timestamped news')
+    # Filter the full bounded RSS result before selecting the newest six.
+    # Otherwise unrelated articles crowd out valid asset-specific evidence.
+    if symbol.endswith("-USD"):
+        items=[item for item in items if crypto_headline_relevant(symbol,item)]
+        if not items:
+            raise ResearchUnavailable('No headlines explicitly tied to this crypto asset')
     return items[:MAX_HEADLINES]
 
 CRYPTO_ASSET_ALIASES = {
     "BTC": ("bitcoin",), "ETH": ("ethereum",), "SOL": ("solana",),
     "DOGE": ("dogecoin",), "BCH": ("bitcoin cash",),
+    "JTO": ("jito",), "QNT": ("quant",), "AAVE": ("aave",),
+    "AVAX": ("avalanche",), "LINK": ("chainlink",),
+    "XRP": ("ripple",), "ADA": ("cardano",),
 }
 CRYPTO_CONTEXT = re.compile(
     r"\b(?:crypto(?:currency)?|token|blockchain|coin|on-chain|defi|"

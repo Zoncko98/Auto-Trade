@@ -499,6 +499,12 @@ def attempt(client, account_hash, ledger, now, submit):
             except (OSError,TypeError,ValueError) as exc:
                 print("Position AI review telemetry unavailable:",type(exc).__name__)
         if len(positions)>=min(MAX_CONCURRENT_POSITIONS,limits['max_open_positions']):
+            if submit:
+                _audit(now,"-","POSITION_LIMIT",
+                       "Maximum concurrent positions held; monitoring exits; no new entries",
+                       signals={"open_positions":len(positions),
+                                "max_positions":min(MAX_CONCURRENT_POSITIONS,limits['max_open_positions']),
+                                "held_symbols":sorted(positions)})
             print("Maximum concurrent positions held; managing existing inventory.")
             return
         if trading_settlement_pending(ledger,now) and not (
