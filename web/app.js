@@ -231,6 +231,7 @@ function saveWorkspaceOrder(order){
   applyWorkspaceOrder();
 }
 function initWorkspaceSorting(){
+  if(typeof document.querySelector!=="function" || typeof MutationObserver!=="function")return;
   const grid=document.querySelector(".workspace-tile-grid");
   if(!grid)return;
   let dragging=null,justDragged=false;
