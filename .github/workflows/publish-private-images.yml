@@ -100,6 +100,7 @@ jobs:
             else
               if [[ "$GITHUB_REF_NAME" == "feature/truenas-running-baseline" ]]; then
                 echo "$name:truenas-baseline"
+                echo "$name:truenas-baseline-${GITHUB_SHA::12}"
               else
                 echo "$name:candidate"
               fi
