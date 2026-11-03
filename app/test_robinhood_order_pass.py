@@ -1,6 +1,8 @@
 import tempfile,unittest
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from robinhood_order_pass import review_order,submit_approved,OrderPassBlocked
+from robinhood_order_journal import OrderJournal
+from uuid import uuid4
 
 class Fake:
  def __init__(self):self.writes=[]
@@ -32,6 +34,44 @@ class OrderPassTests(unittest.TestCase):
    self.assertEqual(len(f.writes),1)
    with self.assertRaises(OrderPassBlocked):
     submit_approved(d,f,self.policy,self.signal,self.now)
+ def fill(self,journal,side,symbol,qty,price,when):
+  oid=str(uuid4())
+  journal.record_intent("a",oid,symbol,str(qty),str(price),side=side)
+  journal.reconcile("a",[{"client_order_id":oid,"state":"filled",
+    "filled_asset_quantity":str(qty),"average_price":str(price),
+    "fee_charged":"0","updated_at":when.isoformat()}])
+  return oid
+ def test_daily_realized_loss_blocks_new_buy(self):
+  with tempfile.TemporaryDirectory() as d:
+   j=OrderJournal(d)
+   self.fill(j,"buy","BTC-USD","1","10",self.now-timedelta(hours=2))
+   self.fill(j,"sell","BTC-USD","1","8",self.now-timedelta(hours=1))
+   self.policy.update({"max_daily_loss_usd":"1","reentry_cooldown_minutes":0})
+   with self.assertRaisesRegex(OrderPassBlocked,"Daily realized loss limit reached"):
+    review_order(d,Fake(),self.policy,self.signal,self.now)
+ def test_total_exposure_blocks_new_buy(self):
+  with tempfile.TemporaryDirectory() as d:
+   j=OrderJournal(d)
+   self.fill(j,"buy","ETH-USD","2","10",self.now-timedelta(hours=1))
+   self.policy.update({"max_total_exposure_usd":"20","max_open_positions":3})
+   with self.assertRaisesRegex(OrderPassBlocked,"Maximum bot crypto exposure"):
+    review_order(d,Fake(),self.policy,self.signal,self.now)
+ def test_open_position_limit_blocks_new_symbol(self):
+  with tempfile.TemporaryDirectory() as d:
+   j=OrderJournal(d)
+   for symbol in ("ETH-USD","SOL-USD","DOGE-USD"):
+    self.fill(j,"buy",symbol,"0.1","10",self.now-timedelta(hours=1))
+   self.policy.update({"max_open_positions":3,"max_total_exposure_usd":"250"})
+   with self.assertRaisesRegex(OrderPassBlocked,"Maximum bot open positions"):
+    review_order(d,Fake(),self.policy,self.signal,self.now)
+ def test_reentry_cooldown_blocks_churn(self):
+  with tempfile.TemporaryDirectory() as d:
+   j=OrderJournal(d)
+   self.fill(j,"buy","BTC-USD","1","9",self.now-timedelta(hours=1))
+   self.fill(j,"sell","BTC-USD","1","10",self.now-timedelta(minutes=10))
+   self.policy.update({"reentry_cooldown_minutes":30,"max_daily_loss_usd":"5"})
+   with self.assertRaisesRegex(OrderPassBlocked,"Re-entry cooldown"):
+    review_order(d,Fake(),self.policy,self.signal,self.now)
  def test_no_ai_no_order(self):
   with tempfile.TemporaryDirectory() as d:
    f=Fake();self.signal["ai_approved"]=False

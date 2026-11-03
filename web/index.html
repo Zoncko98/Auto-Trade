@@ -268,6 +268,22 @@
             <div class="setting-control"><select id="robinhood-risk-account" required></select></div></div>
           <div class="setting-item"><div><label for="robinhood-risk-max">Maximum per-order USD</label><p>Hard cap $25; only up to 25% of current buying power is usable.</p></div>
             <div class="setting-control"><span>$</span><input type="number" id="robinhood-risk-max" min="1" max="25" step=".01" required></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-exposure">Maximum total bot crypto exposure</label><p>Blocks new buys when bot-owned positions plus the proposed order would exceed this value.</p></div>
+            <div class="setting-control"><span>$</span><input type="number" id="robinhood-risk-exposure" min="1" max="250" step=".01" required></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-daily-loss">Maximum daily realized loss</label><p>After this UTC-day loss is reached, new buys are blocked. Risk-reducing sells remain allowed.</p></div>
+            <div class="setting-control"><span>$</span><input type="number" id="robinhood-risk-daily-loss" min=".10" max="100" step=".01" required></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-positions">Maximum bot open positions</label><p>Counts only positions established by Auto Trader and reconciled to broker fills.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-positions" min="1" max="10" step="1" required></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-hold">Minimum hold before profit exit</label><p>Ordinary reversal exits cannot churn a new position before this time. Stop-loss exits can act sooner.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-hold" min="1" max="1440" step="1" required><span>min</span></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-profit">Minimum estimated profit for reversal exit</label><p>A technical reversal only sells when estimated net P/L clears this threshold.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-profit" min=".10" max="10" step=".05" required><span>%</span></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-stop">Cost-basis stop loss</label><p>Allows a protective exit when broker-confirmed cost basis falls by this amount.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-stop" min=".50" max="15" step=".05" required><span>%</span></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-fee-buffer">Exit fee/slippage buffer</label><p>Conservative haircut applied before deciding whether an exit is profitable.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-fee-buffer" min="0" max="2" step=".05" required><span>%</span></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-cooldown">Re-entry cooldown after a bot sell</label><p>Prevents immediate buy-back churn in the same crypto after an exit.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-cooldown" min="0" max="1440" step="1" required><span>min</span></div></div>
           <div class="setting-item"><div><label>Verified exchange order minimum</label><p>Must come from Robinhood trading-pair metadata; cannot be bypassed in this form.</p></div>
             <div class="setting-control"><strong id="robinhood-risk-minimum">Not verified</strong></div></div>
           <div class="setting-item"><div><label for="robinhood-risk-activate">Authorize autonomous live crypto orders</label><p>Real-money orders may execute without further confirmation when technical, AI and broker risk checks pass.</p></div>

@@ -184,6 +184,12 @@ async function loadRobinhoodDecisionEvidence(){
     "<tr><td>"+esc(x.at||"—")+"</td><td>"+esc(x.signal||"—")+
     "</td><td>"+esc(x.ai_review_status||"—")+"</td><td>"+esc(x.ai_model||"—")+
     "</td><td>"+esc(x.ai_reason||"—")+"</td><td>"+esc(x.execution_status||"—")+
+    (x.execution_reason?" · "+esc(x.execution_reason):"")+
+    (x.exit_candidate_symbol?" · Exit "+esc(x.exit_candidate_symbol)+
+      " momentum "+esc(x.exit_momentum_pct??"unknown")+"%, spread "+
+      esc(x.exit_spread_pct??"unknown")+"%":"")+
+    (x.entry_candidate_symbol?" · Entry "+esc(x.entry_candidate_symbol)+
+      " momentum "+esc(x.entry_momentum_pct??"unknown")+"%":"")+
     "</td></tr>").join(""):'<tr><td colspan="6">No Robinhood worker decisions recorded yet</td></tr>';
 }
 async function loadRobinhoodExtras(){
@@ -211,6 +217,14 @@ async function loadRobinhoodRisk(){
   }
   if(policy.account)select.value=policy.account;
   $("robinhood-risk-max").value=policy.max_order_usd||"5";
+  $("robinhood-risk-exposure").value=policy.max_total_exposure_usd||"25";
+  $("robinhood-risk-daily-loss").value=policy.max_daily_loss_usd||"5";
+  $("robinhood-risk-positions").value=policy.max_open_positions??3;
+  $("robinhood-risk-hold").value=policy.min_hold_minutes??15;
+  $("robinhood-risk-profit").value=policy.min_profit_pct||"1";
+  $("robinhood-risk-stop").value=policy.stop_loss_pct||"2";
+  $("robinhood-risk-fee-buffer").value=policy.fee_buffer_pct||"0.25";
+  $("robinhood-risk-cooldown").value=policy.reentry_cooldown_minutes??30;
   $("robinhood-risk-minimum").textContent=
     Number(policy.verified_broker_minimum_usd)>0?
     money(Number(policy.verified_broker_minimum_usd)):"Not verified";
@@ -229,6 +243,14 @@ async function saveRobinhoodRisk(event){
   try{
     const payload={account:$("robinhood-risk-account").value,
       max_order_usd:$("robinhood-risk-max").value,
+      max_total_exposure_usd:$("robinhood-risk-exposure").value,
+      max_daily_loss_usd:$("robinhood-risk-daily-loss").value,
+      max_open_positions:Number($("robinhood-risk-positions").value),
+      min_hold_minutes:Number($("robinhood-risk-hold").value),
+      min_profit_pct:$("robinhood-risk-profit").value,
+      stop_loss_pct:$("robinhood-risk-stop").value,
+      fee_buffer_pct:$("robinhood-risk-fee-buffer").value,
+      reentry_cooldown_minutes:Number($("robinhood-risk-cooldown").value),
       verified_broker_minimum_usd:"0",enabled:$("robinhood-risk-activate").checked};
     if(payload.enabled&&!window.confirm("Enable REAL-MONEY autonomous Robinhood crypto orders under these limits?"))return;
     await request("/api/robinhood/risk",{method:"POST",body:JSON.stringify(payload)});
@@ -287,7 +309,10 @@ async function loadRobinhoodWorkspace(){
       ". Broker historical orders are separate from bot-confirmed fills.";
     if(executionEl)executionEl.textContent=effective.detail+
       " · Worker status: "+(worker.execution_status||"unavailable")+
-      " · Risk: "+(worker.risk_check||"unavailable");
+      " · Risk: "+(worker.risk_check||"unavailable")+
+      " · Bot positions: "+(worker.bot_open_positions??"unavailable")+
+      " · Daily realized P/L: "+(worker.daily_realized_pnl_usd==null?"unavailable":money(Number(worker.daily_realized_pnl_usd)))+
+      " · Why: "+(worker.execution_reason||"Not yet recorded");
     const activityEl=$("robinhood-trade-activity");
     if(activityEl)activityEl.textContent=worker.last_order_confirmed?
       "Broker-confirmed bot fill recorded; inspect broker order history for details.":

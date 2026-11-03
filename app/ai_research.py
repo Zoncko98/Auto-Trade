@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
+import re
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
@@ -87,6 +88,31 @@ def fetch_headlines(symbol: str, now: datetime, fetch=None) -> list[dict]:
         raise ResearchUnavailable('No independently timestamped news')
     return items[:MAX_HEADLINES]
 
+CRYPTO_ASSET_ALIASES = {
+    "BTC": ("bitcoin",), "ETH": ("ethereum",), "SOL": ("solana",),
+    "DOGE": ("dogecoin",), "BCH": ("bitcoin cash",),
+}
+CRYPTO_CONTEXT = re.compile(
+    r"\b(?:crypto(?:currency)?|token|blockchain|coin|on-chain|defi|"
+    r"decentralized|digital asset|exchange listing)\b", re.I)
+
+def crypto_headline_relevant(symbol: str, headline: dict) -> bool:
+    """Do not treat unrelated stock/hardware articles as token catalysts."""
+    if not symbol.endswith("-USD"):
+        return True
+    base = symbol[:-4]
+    if not isinstance(headline, dict) or not isinstance(headline.get("title"), str):
+        return False
+    title = headline["title"]
+    aliases = CRYPTO_ASSET_ALIASES.get(base, ())
+    if any(re.search(r"(?<![a-zA-Z])"+re.escape(alias)+r"(?![a-zA-Z])", title, re.I)
+           for alias in aliases):
+        return True
+    # Ambiguous symbols like CHIP and MON need BOTH an exact asset ticker
+    # and independently indicated crypto context.
+    return (bool(re.search(r"(?<![a-zA-Z])"+re.escape(base)+r"(?![a-zA-Z])", title))
+            and bool(CRYPTO_CONTEXT.search(title)))
+
 def approve_entry(symbol: str, now: datetime,
                   get_headlines=fetch_headlines,
                   classifier=classify_news) -> tuple[bool, str]:
@@ -104,6 +130,10 @@ def approve_entry(symbol: str, now: datetime,
                 return cached_result
     try:
         news = get_headlines(symbol, now)
+        if symbol.endswith("-USD"):
+            news = [row for row in news if crypto_headline_relevant(symbol, row)]
+            if not news:
+                raise ResearchUnavailable("No headlines explicitly tied to this crypto asset")
         result = classifier(symbol, news)
         if not isinstance(result, dict) or result.get('ticker') != symbol:
             raise ResearchUnavailable('Wrong or missing model security')

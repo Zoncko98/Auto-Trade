@@ -193,13 +193,19 @@ def robinhood_status(state):
             history=json.loads((state/"robinhood"/"decision_history.json").read_text())
             if not isinstance(history,list):history=[]
         except (OSError,ValueError,TypeError):history=[]
-        history=[{k:row.get(k) for k in ("at","signal","ai_review_status","ai_connection_status","ai_model","ai_reason","execution_status","risk_check")}
+        history=[{k:row.get(k) for k in ("at","signal","ai_review_status","ai_connection_status","ai_model",
+                                    "ai_reason","execution_status","execution_reason","risk_check",
+                                    "exit_candidate_symbol","exit_momentum_pct","exit_spread_pct",
+                                    "exit_signal_reason","entry_candidate_symbol","entry_momentum_pct")}
                  for row in history[-100:] if isinstance(row,dict)]
         return {"effective_state":effective,"effective_detail":detail,"worker_fresh":fresh,
                 "decision_evidence":history,"policy_enabled":armed,"worker":{k:worker.get(k) for k in
                     ("updated_at","worker","quotes_checked","pairs_checked","universe_size","scan_batch","coinbase_feed","coinbase_live_pairs","coinbase_scanned_pairs","market_data_source",
                      "pending_order_intents","risk_check", "last_signal","observations","signal_diagnostics","ai_review_status","ai_connection_status","ai_model","ai_reason","execution_status","live_orders_allowed",
-                     "last_order_confirmed","reason")},
+                      "last_order_confirmed","reason","execution_reason","exit_candidate_symbol",
+                      "exit_momentum_pct","exit_spread_pct","exit_signal_reason",
+                      "entry_candidate_symbol","entry_momentum_pct","ranked_entry_candidates",
+                      "bot_open_positions","daily_realized_pnl_usd")},
                 "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
                 "order_execution_enabled":armed,
                 "execution_status":worker.get("execution_status","NOT_ARMED"),

@@ -12,7 +12,11 @@ class PolicyTests(unittest.TestCase):
                      "max_order_usd":"5","verified_broker_minimum_usd":"0"},self.accounts,self.pairs)
    self.assertTrue(doc["configured"])
    self.assertFalse(doc["enabled"])
-   self.assertEqual(read_policy(d)["max_order_usd"],"5")
+   policy=read_policy(d)
+   self.assertEqual(policy["max_order_usd"],"5")
+   self.assertEqual(policy["min_hold_minutes"],15)
+   self.assertEqual(policy["stop_loss_pct"],"2.0")
+   self.assertEqual(policy["max_open_positions"],3)
  def test_arm_after_verified_pair_and_cash(self):
   with tempfile.TemporaryDirectory() as d:
    result=save_policy(d,{"account":"test-123","enabled":True,"max_order_usd":"5",

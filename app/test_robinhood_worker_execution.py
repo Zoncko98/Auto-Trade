@@ -40,7 +40,9 @@ class FullWorkerExecutionTests(unittest.TestCase):
     j=OrderJournal(tmp);prior=str(uuid4())
     j.record_intent("acct",prior,"BTC-USD","2","10",side="buy")
     j.reconcile("acct",[{"client_order_id":prior,"state":"filled",
-                         "filled_asset_quantity":"2"}])
+                         "filled_asset_quantity":"2","average_price":"9.50",
+                         "fee_charged":"0",
+                         "updated_at":(now-timedelta(minutes=20)).isoformat()}])
    (path/"quote_history.json").write_text(json.dumps([
     {"symbol":"BTC-USD","mid":mid,
      "at":(now-timedelta(seconds=elapsed)).isoformat()}
@@ -59,6 +61,36 @@ class FullWorkerExecutionTests(unittest.TestCase):
     self.assertEqual(len(broker.submissions),1)
     self.assertTrue(OrderJournal(tmp).pending())
    return result
+ def test_second_ranked_candidate_can_trade_after_ai_veto(self):
+  class MultiBroker(SimulatedBroker):
+   def trading_pairs(self):
+    return [{"symbol":s,"asset_code":s[:-4],"quote_code":"USD",
+             "is_api_tradable":True,"min_order_amount":"1",
+             "asset_increment":"0.001","max_order_size":"100"}
+            for s in ("BTC-USD","ETH-USD")]
+   def quote(self,symbol):
+    return {"results":[{"symbol":symbol,"bid":"9.99","ask":"10.00"}]}
+  broker=MultiBroker();now=datetime.now(timezone.utc)
+  with tempfile.TemporaryDirectory() as tmp:
+   path=Path(tmp)/"robinhood";path.mkdir()
+   (path/"risk_policy.json").write_text(json.dumps({
+    "enabled":True,"account":"acct","max_order_usd":"5",
+    "verified_broker_minimum_usd":"1"}))
+   history=[]
+   for symbol,prices in (("BTC-USD",["9.81","9.86","9.91"]),
+                         ("ETH-USD",["9.88","9.92","9.95"])):
+    history.extend({"symbol":symbol,"mid":mid,
+       "at":(now-timedelta(seconds=elapsed)).isoformat()}
+       for mid,elapsed in zip(prices,[400,260,130]))
+   (path/"quote_history.json").write_text(json.dumps(history))
+   def approve(symbol,_now):
+    return (symbol=="ETH-USD","approved" if symbol=="ETH-USD" else "vetoed")
+   with patch("robinhood_crypto_execution.RobinhoodCryptoTradingAdapter.from_state_authorized",return_value=broker),        patch("local_ai_gateway.installed_models",return_value=["qwen3.5:9b"]),        patch("ai_research.approve_entry",side_effect=approve),        patch("ai_research.research_evidence",return_value={"model":"qwen3.5:9b"}):
+    result=run_once(tmp,broker)
+   self.assertEqual(len(broker.submissions),1)
+   self.assertEqual(broker.submissions[0]["symbol"],"ETH-USD")
+   self.assertEqual(result["entry_candidate_symbol"],"ETH-USD")
+   self.assertEqual(result["execution_status"],"ORDER_ACCEPTED")
  def test_buy_approval_to_signed_adapter(self):
   result=self.scenario(True)
   self.assertEqual(result["execution_status"],"ORDER_ACCEPTED")
