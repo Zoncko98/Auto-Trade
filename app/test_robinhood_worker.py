@@ -6,7 +6,8 @@ class WorkerTests(unittest.TestCase):
   class Fake:
    def list_accounts(self):
     return [{"status":"active","is_api_tradable":True,"buying_power":"1.86","buying_power_currency":"USD"}]
-   def quote(self,symbol):return {"results":[{"symbol":symbol}]}
+   def trading_pairs(self):return [{"symbol":s,"quote_code":"USD","is_api_tradable":True} for s in ("BTC-USD","ETH-USD","SOL-USD","DOGE-USD")]
+   def quote(self,symbol):return {"results":[{"symbol":symbol,"bid":"10.00","ask":"10.01"}]}
    def submit_order(self,*args):raise AssertionError("No live orders!")
   with tempfile.TemporaryDirectory() as d:
    result=run_once(d,Fake())

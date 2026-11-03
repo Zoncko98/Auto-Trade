@@ -181,7 +181,7 @@ def robinhood_status(state):
             effective="WORKER_OFFLINE"; detail="Trading policy armed, but a fresh crypto worker heartbeat is missing"
         elif pending>0:
             effective="RECONCILIATION_PENDING"; detail="Unresolved bot order intent requires broker reconciliation"
-        elif worker.get("execution_status") in ("ORDER_ACCEPTED","SUBMITTED_UNCONFIRMED"):
+        elif worker.get("execution_status") in ("ORDER_ACCEPTED","SUBMITTED_UNCONFIRMED","SELL_ORDER_ACCEPTED","SELL_SUBMITTED_UNCONFIRMED"):
             effective="ORDER_PENDING"; detail="Broker order submitted; confirm fill separately"
         elif worker.get("risk_check")!="ACCOUNT_PREFLIGHT_PASSED_SIGNAL_NOT_CHECKED":
             effective="RISK_BLOCKED"; detail="Risk preflight: "+str(worker.get("risk_check") or "unknown")
@@ -197,7 +197,7 @@ def robinhood_status(state):
                  for row in history[-100:] if isinstance(row,dict)]
         return {"effective_state":effective,"effective_detail":detail,"worker_fresh":fresh,
                 "decision_evidence":history,"policy_enabled":armed,"worker":{k:worker.get(k) for k in
-                    ("updated_at","worker","quotes_checked","pairs_checked",
+                    ("updated_at","worker","quotes_checked","pairs_checked","universe_size","scan_batch",
                      "pending_order_intents","risk_check", "last_signal","observations","signal_diagnostics","ai_review_status","ai_connection_status","ai_model","ai_reason","execution_status","live_orders_allowed",
                      "last_order_confirmed","reason")},
                 "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,

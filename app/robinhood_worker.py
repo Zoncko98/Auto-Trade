@@ -45,14 +45,37 @@ def run_once(state,client):
         if not isinstance(history,list):history=[]
     except (OSError,ValueError,TypeError):
         history=[]
+    # Build the scan universe from real broker trading-pair metadata, never
+    # fabricated listings. Keep a bounded batch per cycle to protect the API.
+    from robinhood_crypto_gateway import PAIR as PAIR_REGEX
+    try:
+        metadata=client.trading_pairs()
+        universe=sorted({row["symbol"] for row in metadata if isinstance(row,dict)
+            and row.get("is_api_tradable") is True and row.get("quote_code")=="USD"
+            and isinstance(row.get("symbol"),str) and PAIR_REGEX.fullmatch(row["symbol"])})
+    except (RobinhoodUnavailable,ValueError,TypeError,KeyError):
+        universe=[]
+    if not universe:
+        universe=list(PAIRS)
+    cursor_path=Path(state)/"robinhood"/"universe_cursor.json"
+    try:
+        cursor=int(json.loads(cursor_path.read_text()).get("offset",0))
+    except (OSError,ValueError,TypeError,AttributeError):cursor=0
+    start=cursor%len(universe)
+    batch=[universe[(start+i)%len(universe)] for i in range(min(24,len(universe)))]
+    write_atomic(cursor_path,{"offset":(start+len(batch))%len(universe)})
+    result["universe_size"]=len(universe)
+    result["scan_batch"]=batch
     observations=[]
-    for symbol in PAIRS:
+    for symbol in batch:
         try:
             observations.append(observe(history,symbol,client.quote(symbol)))
         except (RobinhoodUnavailable,ValueError,TypeError,KeyError):
             continue
+    result["pairs_checked"]=len(batch)
+    result["quotes_checked"]=len(observations)
     history=(history+[{"symbol":r["symbol"],"mid":r["mid"],"at":r["at"]}
-                       for r in observations])[-96:]
+                       for r in observations])[-2400:]
     write_atomic(history_path,history)
     signal_candidates=[r for r in observations if r["technical_approved"]]
     result["last_signal"]=(signal_candidates[0]["symbol"]+": MOMENTUM_CANDIDATE"
@@ -75,6 +98,9 @@ def run_once(state,client):
         result["ai_model"]=configured_model
     except (LocalAIUnavailable,OSError,ValueError,TypeError):
         result["ai_connection_status"]="UNAVAILABLE"
+    # Exit evaluation is independent of bullish entry news; holdings limits,
+    # verified bid and exchange minima are enforced in the sell order pass.
+    exit_candidates=[r for r in observations if r.get("technical_exit") is True]
     approved_signal=None
     if signal_candidates:
         # The same configured AI_PROVIDER, LOCAL_AI_URL and LOCAL_AI_MODEL
@@ -145,11 +171,31 @@ def run_once(state,client):
                 RobinhoodUnavailable,OrderPassBlocked,RiskDenied,
                 UnreconciledOrder) as exc:
             execution="BLOCKED_"+type(exc).__name__
+    if approved_signal is None and exit_candidates and not journal.pending():
+        try:
+            from robinhood_order_pass import submit_sell_approved,OrderPassBlocked
+            from robinhood_crypto_execution import RobinhoodCryptoTradingAdapter
+            policy=json.loads(policy_path.read_text())
+            if policy.get("enabled") is not True:
+                raise OrderPassBlocked("Account live policy not enabled")
+            trader=RobinhoodCryptoTradingAdapter.from_state_authorized(state,policy)
+            # Only assets already owned may be reduced; no shorting.
+            receipt=submit_sell_approved(state,trader,policy,exit_candidates[0])
+            execution="SELL_ORDER_ACCEPTED" if receipt["broker_acknowledged"] else "SELL_SUBMITTED_UNCONFIRMED"
+            result["last_signal"]=exit_candidates[0]["symbol"]+": EXIT_ORDER"
+            if receipt["broker_acknowledged"]:
+                journal.reconcile(policy["account"],trader.orders(policy["account"]))
+                order_confirmed=any(row.get("client_order_id")==receipt["client_order_id"]
+                    and row.get("status")=="filled" for row in journal.load()["orders"])
+        except (OSError,ValueError,KeyError,TypeError,
+                RobinhoodUnavailable,OrderPassBlocked,RiskDenied,
+                UnreconciledOrder) as exc:
+            execution="SELL_BLOCKED_"+type(exc).__name__
     result.update({"risk_check":risk_check,"pending_order_intents":len(journal.pending()),
        "updated_at":datetime.now(timezone.utc).isoformat(),
        "worker":"monitoring",
        "execution_status":execution,
-       "live_orders_allowed":execution in ("ORDER_ACCEPTED","SUBMITTED_UNCONFIRMED"),
+       "live_orders_allowed":execution in ("ORDER_ACCEPTED","SUBMITTED_UNCONFIRMED","SELL_ORDER_ACCEPTED","SELL_SUBMITTED_UNCONFIRMED"),
        "last_order_confirmed":order_confirmed,
        "reason":"Order submission requires explicit account risk approval and broker-confirmed reconciliation"})
     write_atomic(Path(state)/"robinhood"/"worker_status.json",result)

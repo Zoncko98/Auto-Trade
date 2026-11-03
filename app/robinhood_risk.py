@@ -18,8 +18,9 @@ def preflight(account,policy,symbol,ask,spread_pct,pending_orders=0):
         raise RiskDenied("Account cannot trade through API")
     if account.get("buying_power_currency")!="USD":raise RiskDenied("Buying power not USD")
     if pending_orders:raise RiskDenied("Unreconciled orders")
-    if symbol not in ("BTC-USD","ETH-USD","SOL-USD","DOGE-USD"):
-        raise RiskDenied("Pair not approved for this strategy")
+    from robinhood_crypto_gateway import PAIR
+    if not isinstance(symbol,str) or not PAIR.fullmatch(symbol):
+        raise RiskDenied("Invalid USD trading pair")
     cash=money(account.get("buying_power"))
     maximum=money(policy.get("max_order_usd",0))
     minimum=money(policy.get("verified_broker_minimum_usd",0))

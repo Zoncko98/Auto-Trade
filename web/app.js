@@ -274,6 +274,7 @@ async function loadRobinhoodWorkspace(){
     if(scanEl)scanEl.textContent="Worker: "+(worker.worker||"not started")+
       " · Quotes checked: "+(Number.isInteger(worker.quotes_checked)?worker.quotes_checked:"unavailable")+
       " / "+(Number.isInteger(worker.pairs_checked)?worker.pairs_checked:"?")+
+      " · Broker-supported universe: "+(worker.universe_size??"unavailable")+
       " · Last checked: "+lastSeen+
       ". Quote checks are not trading signals.";
     if(orderEl)orderEl.textContent="Unreconciled Auto Trader intents: "+

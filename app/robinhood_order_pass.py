@@ -30,8 +30,9 @@ def review_order(state,client,policy,signal,now=None):
     except (ValueError,TypeError,AttributeError):raise OrderPassBlocked("Signal timestamp invalid") from None
     if age<0 or age>90:raise OrderPassBlocked("Signal is stale")
     symbol=signal.get("symbol")
-    if symbol not in ("BTC-USD","ETH-USD","SOL-USD","DOGE-USD"):
-        raise OrderPassBlocked("Crypto pair not in approved universe")
+    from robinhood_crypto_gateway import PAIR
+    if not isinstance(symbol,str) or not PAIR.fullmatch(symbol):
+        raise OrderPassBlocked("Invalid USD trading pair")
     accounts=client.list_accounts()
     matched=[a for a in accounts if isinstance(a,dict) and a.get("account_number")==policy.get("account")]
     if len(matched)!=1:raise OrderPassBlocked("Configured Robinhood account missing")
@@ -79,3 +80,70 @@ def submit_approved(state,client,policy,signal,now=None):
         "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
     return {"client_order_id":order_id,"broker_acknowledged":isinstance(result,dict) and bool(result.get("id")),
             "fill_verified":False}
+
+def review_sell(state,client,policy,signal,now=None):
+    """Exit decision for existing holdings only; never opens a short position."""
+    now=now or datetime.now(timezone.utc)
+    if not isinstance(signal,dict) or signal.get("technical_exit") is not True:
+        raise OrderPassBlocked("Validated exit signal required")
+    try:
+        age=(now-datetime.fromisoformat(signal["at"].replace("Z","+00:00"))).total_seconds()
+    except (KeyError,ValueError,TypeError,AttributeError):
+        raise OrderPassBlocked("Invalid exit timestamp") from None
+    if not 0<=age<=90:raise OrderPassBlocked("Exit signal stale")
+    from robinhood_crypto_gateway import PAIR
+    symbol=signal.get("symbol")
+    if not isinstance(symbol,str) or not PAIR.fullmatch(symbol):
+        raise OrderPassBlocked("Invalid USD pair")
+    if policy.get("enabled") is not True:raise OrderPassBlocked("Trading permission disabled")
+    accounts=[a for a in client.list_accounts() if isinstance(a,dict)
+              and a.get("account_number")==policy.get("account")
+              and a.get("is_api_tradable") is True and a.get("status")=="active"]
+    if len(accounts)!=1:raise OrderPassBlocked("Trading account not verified")
+    account=accounts[0]["account_number"]
+    journal=OrderJournal(state)
+    if journal.pending():raise OrderPassBlocked("Unresolved order intent")
+    orders=client.orders(account)
+    if not isinstance(orders,list) or any(isinstance(o,dict) and o.get("state") in
+            ("open","pending","partially_filled") for o in orders):
+        raise OrderPassBlocked("Pending broker order or order history unavailable")
+    matches=[p for p in client.trading_pairs() if isinstance(p,dict)
+        and p.get("symbol")==symbol and p.get("is_api_tradable") is True]
+    if len(matches)!=1:raise OrderPassBlocked("Pair not broker tradable")
+    metadata=matches[0]
+    increment=money(metadata.get("asset_increment",0))
+    minimum=money(metadata.get("min_order_amount",0))
+    max_qty=money(metadata.get("max_order_size",0))
+    if increment<=0 or minimum<=0 or max_qty<=0:
+        raise OrderPassBlocked("Broker sell constraints unverified")
+    rows=[h for h in client.positions(account) if isinstance(h,dict)
+          and h.get("asset_code")==symbol.removesuffix("-USD")]
+    if len(rows)!=1:raise OrderPassBlocked("Owned asset unavailable")
+    available=money(rows[0].get("quantity_available_for_trading"))
+    if available<=0:raise OrderPassBlocked("No available holding to sell")
+    bid,ask=_quote_prices(client.quote(symbol),symbol)
+    spread=(ask-bid)/ask*100
+    if spread>Decimal("0.5"):raise OrderPassBlocked("Excessive sell spread")
+    max_notional=money(policy.get("max_order_usd",0))
+    if not 0<max_notional<=Decimal("25"):
+        raise OrderPassBlocked("Account sell limit invalid")
+    permitted=min(available,max_qty,max_notional/bid)
+    qty=(permitted/increment).to_integral_value(rounding=ROUND_DOWN)*increment
+    if qty<=0 or qty>available or qty*bid<minimum:
+        raise OrderPassBlocked("Sell order below minimum or unavailable")
+    return {"account":account,"symbol":symbol,"quantity":str(qty),
+        "limit_price":str(bid),"notional":str(qty*bid)}
+
+def submit_sell_approved(state,client,policy,signal,now=None):
+    prepared=review_sell(state,client,policy,signal,now)
+    order_id=str(uuid4())
+    journal=OrderJournal(state)
+    journal.record_intent(prepared["account"],order_id,prepared["symbol"],
+                          prepared["quantity"],prepared["limit_price"])
+    result=client.submit_order(prepared["account"],{
+        "type":"limit","side":"sell","symbol":prepared["symbol"],
+        "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
+        "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
+    return {"client_order_id":order_id,
+        "broker_acknowledged":isinstance(result,dict) and bool(result.get("id")),
+        "fill_verified":False}

@@ -33,10 +33,10 @@ def save_policy(root,payload,accounts,pairs):
     enabled=payload.get("enabled")
     if type(enabled) is not bool:raise PolicyError("Explicit trading permission required")
     if not isinstance(pairs,list):raise PolicyError("Broker trading pairs unavailable")
-    from robinhood_crypto_signals import PAIRS
+    from robinhood_crypto_gateway import PAIR
     minimums=[]
     for row in pairs:
-        if (isinstance(row,dict) and row.get("symbol") in PAIRS
+        if (isinstance(row,dict) and isinstance(row.get("symbol"),str) and PAIR.fullmatch(row["symbol"])
             and row.get("is_api_tradable") is True):
             try:
                 v=_amount(row.get("min_order_amount"),Decimal("0.00000001"),Decimal("25"))
