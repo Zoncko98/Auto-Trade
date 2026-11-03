@@ -283,3 +283,17 @@
  .view .stats-grid{grid-template-columns:minmax(0,1fr)}
  .view .control-buttons .btn{white-space:normal}
 }
+
+
+/* Phase 2: consistent forms and legible decision evidence */
+.view .settings-layout .setting-item,.view .panel .setting-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,260px);align-items:center;gap:20px;padding:15px 0;border-bottom:1px solid rgba(130,158,196,.16)}
+.view .setting-item label{font-weight:700;line-height:1.5}
+.view .setting-item p{line-height:1.6}
+.view .setting-control{min-width:0}
+.view .setting-control input:not([type=checkbox]),.view .setting-control select{min-width:0;width:100%;box-sizing:border-box}
+.view .form-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.view .table-wrap table{width:100%;border-collapse:collapse}
+.view .table-wrap td,.view .table-wrap th{vertical-align:top;line-height:1.55}
+.view .table-wrap td{overflow-wrap:anywhere}
+.view .panel-note{overflow-wrap:anywhere}
+@media(max-width:680px){.view .settings-layout .setting-item,.view .panel .setting-item{grid-template-columns:minmax(0,1fr);gap:8px}}

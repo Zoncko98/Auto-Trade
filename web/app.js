@@ -1246,11 +1246,11 @@ async function loadWebullTrader(){
   const data=await request("/api/webull/trader");
   const worker=data.worker||{},policy=data.policy||{};
   webullTraderPolicy=policy;
-  const armed=data.execution_validated===true&&policy.enabled===true;
+  const armed=false; // Do not infer live permission from saved policy and execution validation.
   const mode=$("webull-order-mode");
-  if(mode){mode.textContent=armed?"ARMED":"DISARMED";mode.className="mode-tag "+(armed?"running":"stopped");}
+  if(mode){mode.textContent=data.execution_validated===true&&policy.enabled===true?"PERMISSION UNVERIFIED":"DISARMED";mode.className="mode-tag stopped";}
   const orders=$("webull-orders-count");
-  if(orders)orders.textContent=Array.isArray(worker.pending_orders)?String(worker.pending_orders.length)+" pending":"Unavailable";
+  if(orders)orders.textContent=Array.isArray(worker.pending_orders)?String(worker.pending_orders.length):"Unavailable";
   const root=webullListRoot("webull-engine-fields");
   const heartbeat=$("webull-worker-updated");
   const age=Date.now()-Date.parse(worker.updated_at||"");
