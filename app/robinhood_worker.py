@@ -92,7 +92,7 @@ def run_once(state,client,feed=None):
                         (datetime.now(timezone.utc)-
                          datetime.fromisoformat(x["at"])).total_seconds()>=20]
                 row=observe(recent,symbol,market["quotes"][symbol])
-                row["source"]="COINBASE_WS"
+                row["source"]="COINBASE_WS" if market.get("state")=="LIVE" else "COINBASE_RECENT_CACHE"
                 coinbase_used+=1
                 if row.get("technical_approved") or row.get("technical_exit"):
                     rb,ra=_quote_prices(client.quote(symbol),symbol)
@@ -111,7 +111,9 @@ def run_once(state,client,feed=None):
         except (RobinhoodUnavailable,ValueError,TypeError,KeyError):
             continue
     result["coinbase_scanned_pairs"]=coinbase_used
-    result["market_data_source"]="COINBASE_PUBLIC_WS" if coinbase_used else "ROBINHOOD_POLL_FALLBACK"
+    result["market_data_source"]=(
+        "COINBASE_PUBLIC_WS" if coinbase_used and market.get("state")=="LIVE" else
+        "COINBASE_RECENT_CACHE" if coinbase_used else "ROBINHOOD_POLL_FALLBACK")
     result["pairs_checked"]=len(batch)
     result["quotes_checked"]=len(observations)
     history=(history+[{"symbol":r["symbol"],"mid":r["mid"],"at":r["at"]}
@@ -130,8 +132,19 @@ def run_once(state,client,feed=None):
                           "NO_SIGNAL" if observations else "QUOTE_UNAVAILABLE")
     result["signal_diagnostics"]=" · ".join(
         r["symbol"]+" ["+r.get("source","unverified")+"]: "+r["signal"]+
-        (" ("+str(r["momentum_pct"])+"% momentum, "+str(r["spread_pct"])+"% spread)" if r.get("momentum_pct") is not None else "")
+        (" ("+str(r["momentum_pct"])+"% momentum, "+str(r["spread_pct"])+"% spread; "+
+         r.get("signal_reason","reason unavailable")+")" if r.get("momentum_pct") is not None else
+         " ("+r.get("signal_reason","reason unavailable")+")")
         for r in observations) or "No valid broker quotes"
+    ranked_observations=sorted(
+        [r for r in observations if r.get("momentum_pct") is not None],
+        key=lambda r:float(r.get("momentum_pct") or -999),reverse=True)
+    result["top_entry_observations"]=[{
+        "symbol":r.get("symbol"),"signal":r.get("signal"),"momentum_pct":r.get("momentum_pct"),
+        "spread_pct":r.get("spread_pct"),"source":r.get("source"),
+        "signal_reason":r.get("signal_reason"),"trend_up":r.get("trend_up"),
+        "history_points":r.get("history_points"),"history_span_seconds":r.get("history_span_seconds")}
+        for r in ranked_observations[:5]]
     result["observations"]=len(observations)
     result["ai_review_status"]="NOT_INVOKED_NO_TECHNICAL_CANDIDATE"
     result["ai_reason"]="Ollama review requires a qualified technical candidate; no trade decision was requested"
@@ -353,7 +366,16 @@ def run_once(state,client,feed=None):
         "exit_spread_pct":result.get("exit_spread_pct"),
         "exit_signal_reason":result.get("exit_signal_reason"),
         "entry_candidate_symbol":result.get("entry_candidate_symbol"),
-        "entry_momentum_pct":result.get("entry_momentum_pct")})
+        "entry_momentum_pct":result.get("entry_momentum_pct"),
+        "market_data_source":result.get("market_data_source"),
+        "coinbase_feed":result.get("coinbase_feed"),
+        "coinbase_live_pairs":result.get("coinbase_live_pairs"),
+        "coinbase_scanned_pairs":result.get("coinbase_scanned_pairs"),
+        "pairs_checked":result.get("pairs_checked"),
+        "quotes_checked":result.get("quotes_checked"),
+        "signal_diagnostics":result.get("signal_diagnostics"),
+        "top_entry_observations":result.get("top_entry_observations"),
+        "ranked_entry_candidates":result.get("ranked_entry_candidates")})
     write_atomic(evidence_path,evidence[-100:])
     return result
 

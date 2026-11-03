@@ -17,6 +17,11 @@ def date(x):
   d=datetime.fromisoformat(x.replace("Z","+00:00"))
   return d if d.tzinfo else None
  except (ValueError,TypeError,AttributeError):return None
+def online_products(msg):
+ if not isinstance(msg,dict) or msg.get("type")!="status":return set()
+ return {p["id"] for p in msg.get("products",[])
+  if isinstance(p,dict) and isinstance(p.get("id"),str)
+  and PAIR.fullmatch(p["id"]) and p.get("status")=="online"}
 def ticker(msg,allowed,now=None):
  now=now or datetime.now(timezone.utc)
  if not isinstance(msg,dict) or msg.get("type")!="ticker":return None
@@ -51,7 +56,11 @@ def read_snapshot(root,now=None):
    if at0 and mid and 0<=(now-at0).total_seconds()<=3600:
     accepted.append({"symbol":sym,"at":at0.isoformat(),"mid":str(mid)})
   history[sym]=accepted
- return {"state":"LIVE" if quotes else "STALE_OR_UNAVAILABLE","quotes":quotes,"history":history,"subscribed":doc.get("subscribed",0)}
+ state=("LIVE" if quotes and doc.get("connected") is True else
+        "RECENT_CACHE" if quotes else "STALE_OR_UNAVAILABLE")
+ return {"state":state,"quotes":quotes,"history":history,
+         "connected":doc.get("connected") is True,
+         "subscribed":doc.get("subscribed",0)}
 class CoinbaseFeed:
  def __init__(self,state,connector=None):
   self.state=Path(state);self.connector=connector
@@ -101,9 +110,19 @@ class CoinbaseFeed:
      from websocket import create_connection
      sock=create_connection(URL,timeout=10,sslopt={"cert_reqs":ssl.CERT_REQUIRED})
     else:sock=self.connector(URL)
-    with self.lock:self.active,self.connected=wanted,True
-    sock.send(json.dumps({"type":"subscribe","product_ids":list(wanted),
-      "channels":["ticker_batch"]}))
+    sock.send(json.dumps({"type":"subscribe","channels":["status"]}))
+    catalogue=set()
+    for _ in range(4):
+     message=json.loads(sock.recv())
+     if isinstance(message,dict) and message.get("type")=="status":
+      catalogue=online_products(message)
+      break
+    supported=tuple(sym for sym in wanted if sym in catalogue)
+    if not supported:raise RuntimeError("No overlapping Coinbase markets")
+    with self.lock:self.active,self.connected=supported,True
+    sock.send(json.dumps({"type":"subscribe","product_ids":list(supported),
+     "channels":["ticker_batch"]}))
+    sock.send(json.dumps({"type":"unsubscribe","channels":["status"]}))
     retry=2
     while True:
      with self.lock:

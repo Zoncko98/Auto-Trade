@@ -272,6 +272,14 @@
         <strong id="rh-decision-status">Loading recorded crypto decisions…</strong>
         <p id="rh-ai-connectivity">Checking configured Ollama model connectivity…</p>
         <p>Technical scan observations do not by themselves authorize orders.</p></div></div>
+      <section class="panel list-panel" id="rh-scan-diagnostics-panel">
+        <div class="panel-heading"><div><h2>Latest technical scan diagnostics</h2>
+          <p>Why the most recent crypto scan did or did not produce an entry candidate.</p></div></div>
+        <div class="readiness-item"><span>Market data</span><strong id="rh-scan-source">Loading…</strong></div>
+        <div class="readiness-item"><span>Coverage</span><strong id="rh-scan-coverage">Loading…</strong></div>
+        <div class="readiness-item"><span>Closest entry candidates</span><strong id="rh-scan-closest">Loading…</strong></div>
+        <details><summary>Per-symbol scan reasons</summary><p class="panel-note" id="rh-scan-reasons">Loading scan diagnostics…</p></details>
+      </section>
       <section class="panel list-panel hidden" id="rh-pending-order-panel">
         <div class="panel-heading"><div><h2>Pending order reconciliation</h2>
           <p>The duplicate-order lock remains active until Robinhood reports a final order state and any fill can be reconciled.</p></div></div>

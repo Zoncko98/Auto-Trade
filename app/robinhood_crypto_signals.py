@@ -32,22 +32,37 @@ def observe(history,symbol,quote,now=None):
     fresh.append((0,mid))
     # Need genuine historical observations spanning at least 5 minutes.
     signal="INSUFFICIENT_HISTORY"
+    reason="Need at least 4 samples spanning 5 minutes"
     momentum=None
-    if len(fresh)>=4 and max(a for a,_ in fresh)>=300:
+    span=max((a for a,_ in fresh),default=0)
+    trend_up=False;trend_down=False
+    checks=[]
+    if len(fresh)>=4 and span>=300:
+        signal="NO_SIGNAL"
         fresh.sort(key=lambda point:-point[0])
         checks=[fresh[int(i*(len(fresh)-1)/3)][1] for i in range(4)]
         old=checks[0]
         momentum=(mid/old-1)*100
-        signal=("MOMENTUM_CANDIDATE" if Decimal("0.5")<=momentum<=Decimal("2")
-                and spread<=Decimal("0.5") and
-                all(checks[i]>checks[i-1] for i in range(1,4))
-                else "NO_SIGNAL")
-    exit_candidate=(len(fresh)>=4 and max(a for a,_ in fresh)>=300
+        trend_up=all(checks[i]>checks[i-1] for i in range(1,4))
+        trend_down=all(checks[i]<checks[i-1] for i in range(1,4))
+        if spread>Decimal("0.5"):
+            reason="Spread exceeds 0.5% entry ceiling"
+        elif momentum<Decimal("0.5"):
+            reason="Momentum below +0.5% entry floor"
+        elif momentum>Decimal("2"):
+            reason="Momentum above +2.0% entry ceiling"
+        elif not trend_up:
+            reason="Four checkpoint prices are not strictly rising"
+        else:
+            signal="MOMENTUM_CANDIDATE"
+            reason="Qualified +0.5% to +2.0% rising momentum with acceptable spread"
+    exit_candidate=(len(fresh)>=4 and span>=300
         and momentum is not None and Decimal("-2")<=momentum<=Decimal("-0.5")
-        and spread<=Decimal("0.5") and
-        all(checks[i]<checks[i-1] for i in range(1,4)))
+        and spread<=Decimal("0.5") and trend_down)
     return {"at":now.isoformat(),"symbol":symbol,"mid":str(mid),
             "technical_exit":exit_candidate,
             "spread_pct":round(float(spread),4),"momentum_pct":round(float(momentum),4) if momentum is not None else None,
+            "history_points":len(fresh),"history_span_seconds":round(float(span),1),
+            "trend_up":trend_up,"trend_down":trend_down,"signal_reason":reason,
             "signal":signal,"technical_approved":signal=="MOMENTUM_CANDIDATE",
             "ai_approved":False,"execution_eligible":False}

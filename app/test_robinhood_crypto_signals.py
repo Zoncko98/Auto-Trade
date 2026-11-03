@@ -14,7 +14,28 @@ class Signals(unittest.TestCase):
  def test_no_history_no_signal(self):
   row=observe([],"BTC-USD",{"results":[{"symbol":"BTC-USD","bid":"10","ask":"10.01"}]})
   self.assertEqual(row["signal"],"INSUFFICIENT_HISTORY")
+  self.assertIn("4 samples",row["signal_reason"])
+  self.assertEqual(row["history_points"],1)
 
+ def test_low_positive_momentum_explains_no_signal(self):
+  now=datetime(2026,11,3,0,0,tzinfo=timezone.utc)
+  history=[{"symbol":"BTC-USD","mid":str(x),
+    "at":(now-timedelta(minutes=m)).isoformat()}
+    for m,x in [(9,100),(6,100.03),(3,100.06)]]
+  row=observe(history,"BTC-USD",
+    {"results":[{"symbol":"BTC-USD","bid":"100.09","ask":"100.11"}]},now)
+  self.assertEqual(row["signal"],"NO_SIGNAL")
+  self.assertIn("below +0.5%",row["signal_reason"])
+  self.assertTrue(row["trend_up"])
+ def test_excessive_spread_explains_no_signal(self):
+  now=datetime(2026,11,3,0,0,tzinfo=timezone.utc)
+  history=[{"symbol":"BTC-USD","mid":str(x),
+    "at":(now-timedelta(minutes=m)).isoformat()}
+    for m,x in [(9,100),(6,100.2),(3,100.4)]]
+  row=observe(history,"BTC-USD",
+    {"results":[{"symbol":"BTC-USD","bid":"100.2","ask":"101.0"}]},now)
+  self.assertEqual(row["signal"],"NO_SIGNAL")
+  self.assertIn("Spread exceeds",row["signal_reason"])
  def test_rotating_market_samples_qualify_within_hour(self):
   now=datetime(2026,11,3,0,0,tzinfo=timezone.utc)
   history=[{"symbol":"ZEC-USD","mid":str(x),

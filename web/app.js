@@ -201,6 +201,23 @@ function formatAge(seconds){
   if(seconds<3600)return Math.floor(seconds/60)+" min";
   return Math.floor(seconds/3600)+"h "+Math.floor((seconds%3600)/60)+"m";
 }
+function renderRobinhoodScanDiagnostics(data){
+  const worker=data?.worker||{};
+  const source=$("rh-scan-source"),coverage=$("rh-scan-coverage"),
+        closest=$("rh-scan-closest"),reasons=$("rh-scan-reasons");
+  if(source)source.textContent=(worker.market_data_source||"unavailable")+
+    " · Coinbase "+(worker.coinbase_feed||"unavailable")+
+    " · "+(worker.coinbase_live_pairs??"unknown")+" fresh Coinbase pairs";
+  if(coverage)coverage.textContent=(worker.quotes_checked??"unknown")+"/"+
+    (worker.pairs_checked??"unknown")+" quotes checked · "+
+    (worker.coinbase_scanned_pairs??"unknown")+" using Coinbase";
+  const top=Array.isArray(worker.top_entry_observations)?worker.top_entry_observations:[];
+  if(closest)closest.textContent=top.length?top.map(x=>
+    (x.symbol||"?")+" "+(x.momentum_pct==null?"n/a":x.momentum_pct+"%")+
+    " · "+(x.signal_reason||x.signal||"no reason")).join(" | "):
+    "No momentum observations available";
+  if(reasons)reasons.textContent=worker.signal_diagnostics||"No per-symbol diagnostics were recorded";
+}
 function renderRobinhoodPendingOrder(data){
   const panel=$("rh-pending-order-panel");
   const rows=Array.isArray(data.pending_orders)?data.pending_orders:[];
@@ -266,6 +283,7 @@ async function loadRobinhoodDecisionEvidence(){
     (data.worker?.ai_connection_status||"not checked")+" · Model: "+
     (data.worker?.ai_model||"unavailable")+
     " · AI gate: "+(data.worker?.ai_review_status||"not evaluated");
+  renderRobinhoodScanDiagnostics(data);
   renderRobinhoodPendingOrder(data);
   const rows=Array.isArray(data.decision_evidence)?data.decision_evidence:[];
   $("rh-decision-rows").innerHTML=rows.length?rows.slice().reverse().map(x=>
@@ -703,7 +721,14 @@ function opsInspect(){
     ["AI model",d.ai_model],["AI reasoning",d.ai_reason||d.summary],
     ["Entry candidate",d.entry_candidate_symbol],["Exit candidate",d.exit_candidate_symbol],
     ["Momentum",d.entry_momentum_pct??d.exit_momentum_pct],
-    ["Spread",d.exit_spread_pct],["Execution state",d.execution_status||"Not reported"],
+    ["Spread",d.exit_spread_pct],["Market data",d.market_data_source],
+    ["Coinbase feed",d.coinbase_feed],
+    ["Quotes checked",d.quotes_checked==null?null:String(d.quotes_checked)+"/"+String(d.pairs_checked??"?")],
+    ["Closest candidates",Array.isArray(d.top_entry_observations)?d.top_entry_observations.map(x=>
+      (x.symbol||"?")+" "+(x.momentum_pct==null?"n/a":x.momentum_pct+"%")+
+      " · "+(x.signal_reason||x.signal||"")).join(" | "):null],
+    ["Scan diagnostics",d.signal_diagnostics],
+    ["Execution state",d.execution_status||"Not reported"],
     ["Execution reason",d.execution_reason],["Broker fill","Not established by this decision record"]
   ]);
 }

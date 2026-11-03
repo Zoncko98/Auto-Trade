@@ -299,7 +299,11 @@ def robinhood_status(state):
         history=[{k:row.get(k) for k in ("at","signal","ai_review_status","ai_connection_status","ai_model",
                                     "ai_reason","execution_status","execution_reason","risk_check",
                                     "exit_candidate_symbol","exit_momentum_pct","exit_spread_pct",
-                                    "exit_signal_reason","entry_candidate_symbol","entry_momentum_pct")}
+                                    "exit_signal_reason","entry_candidate_symbol","entry_momentum_pct",
+                                    "market_data_source","coinbase_feed","coinbase_live_pairs",
+                                    "coinbase_scanned_pairs","pairs_checked","quotes_checked",
+                                    "signal_diagnostics","top_entry_observations",
+                                    "ranked_entry_candidates")}
                  for row in history[-100:] if isinstance(row,dict)]
         return {"effective_state":effective,"effective_detail":detail,"worker_fresh":fresh,
                 "decision_evidence":history,"pending_orders":pending_orders,
@@ -309,7 +313,7 @@ def robinhood_status(state):
                       "last_order_confirmed","reason","execution_reason","exit_candidate_symbol",
                       "exit_momentum_pct","exit_spread_pct","exit_signal_reason",
                       "entry_candidate_symbol","entry_momentum_pct","ranked_entry_candidates",
-                      "bot_open_positions","daily_realized_pnl_usd")},
+                      "top_entry_observations","bot_open_positions","daily_realized_pnl_usd")},
                 "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
                 "order_execution_enabled":armed,
                 "execution_status":worker.get("execution_status","NOT_ARMED"),
