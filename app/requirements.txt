@@ -2,4 +2,4 @@ python-dotenv
 cryptography>=42
 websocket-client>=1.8,<2
 
-webull-openapi-python-sdk
+webull-openapi-python-sdk==3.0.4

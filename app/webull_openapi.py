@@ -5,12 +5,37 @@ account-specific execution and reconciliation worker is integrated and verified.
 """
 import json
 import os
+import logging
+import sys
+import threading
 import stat
 import secrets
 from pathlib import Path
 
 class WebullError(RuntimeError):
     pass
+
+# Webull TradeClient otherwise initializes an implicit relative file handler for
+# webull_trade_sdk.log. The production /app filesystem is intentionally read-only.
+# Keep one SDK warning handler for this process; do not log account payloads or keys.
+_SDK_LOG_LOCK = threading.Lock()
+_sdk_stream_handler = None
+
+def _configure_sdk_logging(api):
+    global _sdk_stream_handler
+    with _SDK_LOG_LOCK:
+        logger = logging.getLogger("webull.core")
+        if _sdk_stream_handler is not None:
+            logger.removeHandler(_sdk_stream_handler)
+            _sdk_stream_handler.close()
+            _sdk_stream_handler = None
+        existing = list(logger.handlers)
+        # Public SDK API; marks the client as configured, preventing the default
+        # TimedRotatingFileHandler inside TradeClient._init_logger.
+        api.set_stream_logger(log_level=logging.WARNING, stream=sys.stderr)
+        added = [handler for handler in logger.handlers if handler not in existing]
+        if added:
+            _sdk_stream_handler = added[-1]
 
 def _file(state):
     return Path(state)/"config"/"webull_openapi.json"
@@ -68,6 +93,7 @@ def _client(state):
     token_dir.mkdir(parents=True,mode=0o700,exist_ok=True)
     if token_dir.stat().st_mode & 0o077: raise WebullError("Unsafe token directory permissions")
     api.set_token_dir(str(token_dir))
+    _configure_sdk_logging(api)
     return TradeClient(api),cfg["environment"]
 
 def _data(response):
