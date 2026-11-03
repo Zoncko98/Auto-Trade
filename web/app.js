@@ -157,6 +157,7 @@ function clearWorkspaceBalances(){
   // Invalidate in-flight authenticated Robinhood portfolio responses on sign-out.
   robinhoodTileRefreshId++;
   webullTileRefreshId++;
+  webullEquityRequestId++;
   if(typeof document.querySelector==="function")updateWebullTile({});
   const rh=$("workspace-robinhood-balance"), note=$("workspace-robinhood-value-note");
   if(rh){rh.textContent="Account value unavailable";rh.title="Sign in to view verified Robinhood holdings and USD buying power";}
@@ -176,13 +177,131 @@ function webullAccountVerified(data){
     data.accounts.some(a=>typeof a?.account_id==="string" &&
       a.account_id.trim().length>0 && a.account_id.toLowerCase()!=="unknown");
 }
+let webullEquityRequestId=0;
+function verifiedWebullUsd(raw){
+  if(typeof raw!=="string"||!/^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(raw))return null;
+  const value=Number(raw);
+  return Number.isFinite(value)&&value<=1e12?value:null;
+}
+async function refreshWebullEquity(accounts){
+  const id=++webullEquityRequestId;
+  const results=await Promise.allSettled(accounts.map(a=>
+    request("/api/webull/portfolio?account_id="+encodeURIComponent(a.account_id))));
+  if(id!==webullEquityRequestId||!csrf)return;
+  let sum=0,valid=0;
+  for(const result of results){
+    if(result.status!=="fulfilled")continue;
+    const balance=result.value?.balances;
+    if(balance?.total_asset_currency!=="USD")continue;
+    const equity=verifiedWebullUsd(balance.total_net_liquidation_value);
+    if(equity===null)continue;
+    sum+=equity;valid++;
+  }
+  const main=$("workspace-webull-balance"),detail=$("workspace-webull-detail");
+  if(!main||!detail)return;
+  if(valid===accounts.length&&valid>0){
+    main.textContent="Equity "+money(sum);
+    detail.textContent=(valid===1?"1 verified account":valid+" verified accounts")+
+      " · broker-reported USD net liquidation value · live orders disabled";
+  }else{
+    main.textContent="Equity unavailable";
+    detail.textContent=valid+" of "+accounts.length+
+      " account balances verified · open Webull for details · live orders disabled";
+  }
+}
+const WORKSPACE_ORDER_KEY="auto-trader.workspace-order.v1";
+const WORKSPACE_DEFAULT_ORDER=["live","paper","robinhood_crypto","webull"];
+function workspaceOrder(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(WORKSPACE_ORDER_KEY));
+    return Array.isArray(raw)&&raw.length===4&&new Set(raw).size===4&&
+      raw.every(x=>WORKSPACE_DEFAULT_ORDER.includes(x))?raw:WORKSPACE_DEFAULT_ORDER;
+  }catch(_){return WORKSPACE_DEFAULT_ORDER;}
+}
+function applyWorkspaceOrder(){
+  const grid=document.querySelector(".workspace-tile-grid");
+  if(!grid)return;
+  const order=workspaceOrder();
+  [...grid.querySelectorAll("[data-workspace]")].sort((a,b)=>
+    order.indexOf(a.dataset.workspace)-order.indexOf(b.dataset.workspace))
+    .forEach(tile=>grid.appendChild(tile));
+}
+function saveWorkspaceOrder(order){
+  try{localStorage.setItem(WORKSPACE_ORDER_KEY,JSON.stringify(order));}catch(_){}
+  applyWorkspaceOrder();
+}
+function initWorkspaceSorting(){
+  const grid=document.querySelector(".workspace-tile-grid");
+  if(!grid)return;
+  let dragging=null,justDragged=false;
+  const prepare=()=>{
+    grid.querySelectorAll("[data-workspace]").forEach(tile=>{
+      tile.draggable=true;
+      tile.title="Drag to rearrange, or use Alt + arrow keys. Click to open.";
+    });
+  };
+  prepare();
+  new MutationObserver(prepare).observe(grid,{childList:true});
+  grid.addEventListener("dragstart",e=>{
+    const tile=e.target.closest("[data-workspace]");
+    if(!tile)return;
+    dragging=tile.dataset.workspace;
+    e.dataTransfer.effectAllowed="move";
+    e.dataTransfer.setData("text/plain",dragging);
+    tile.classList.add("workspace-dragging");
+  });
+  grid.addEventListener("dragover",e=>{
+    if(!dragging)return;
+    const target=e.target.closest("[data-workspace]");
+    if(!target||target.dataset.workspace===dragging)return;
+    e.preventDefault();e.dataTransfer.dropEffect="move";
+    target.classList.add("workspace-drop-target");
+  });
+  grid.addEventListener("dragleave",e=>{
+    e.target.closest("[data-workspace]")?.classList.remove("workspace-drop-target");
+  });
+  grid.addEventListener("drop",e=>{
+    const target=e.target.closest("[data-workspace]");
+    if(!dragging||!target)return;
+    e.preventDefault();
+    const order=[...workspaceOrder()];
+    const from=order.indexOf(dragging),to=order.indexOf(target.dataset.workspace);
+    if(from>=0&&to>=0){order.splice(from,1);order.splice(to,0,dragging);saveWorkspaceOrder(order);}
+    justDragged=true;dragging=null;
+    grid.querySelectorAll(".workspace-drop-target,.workspace-dragging").forEach(t=>
+      t.classList.remove("workspace-drop-target","workspace-dragging"));
+  });
+  grid.addEventListener("dragend",()=>{
+    dragging=null;
+    grid.querySelectorAll(".workspace-drop-target,.workspace-dragging").forEach(t=>
+      t.classList.remove("workspace-drop-target","workspace-dragging"));
+  });
+  grid.addEventListener("click",e=>{
+    if(justDragged){e.preventDefault();e.stopImmediatePropagation();justDragged=false;}
+  },true);
+  grid.addEventListener("keydown",e=>{
+    if(!e.altKey||!["ArrowLeft","ArrowRight"].includes(e.key))return;
+    const tile=e.target.closest("[data-workspace]");if(!tile)return;
+    e.preventDefault();e.stopPropagation();
+    const order=[...workspaceOrder()],i=order.indexOf(tile.dataset.workspace);
+    const j=i+(e.key==="ArrowLeft"?-1:1);
+    if(i<0||j<0||j>=order.length)return;
+    [order[i],order[j]]=[order[j],order[i]];
+    saveWorkspaceOrder(order);tile.focus();
+  });
+  $("workspace-reset-order")?.addEventListener("click",()=>{
+    saveWorkspaceOrder(WORKSPACE_DEFAULT_ORDER);
+  });
+  applyWorkspaceOrder();
+}
+
 function positionWebullTile(verified){
   const tile=document.querySelector('[data-workspace="webull"]');
   const active=document.querySelector(".workspace-tile-grid");
   const upcoming=document.querySelector(".workspace-upcoming-grid");
   if(!tile||!active||!upcoming)return;
   const target=verified?active:upcoming;
-  if(tile.parentElement!==target)target.appendChild(tile);
+  if(tile.parentElement!==target){target.appendChild(tile);applyWorkspaceOrder();}
   tile.classList.toggle("workspace-tile-featured",verified);
   tile.classList.toggle("workspace-tile-compact",!verified);
   const label=tile.querySelector(".workspace-tile-equity-label");
@@ -202,9 +321,9 @@ function updateWebullTile(data){
   if(verified){
     const sandbox=data.environment==="sandbox";
     const types=[...new Set(accounts.map(a=>a.account_type).filter(x=>typeof x==="string" && x.trim()))];
-    main.textContent=accounts.length+" verified "+(accounts.length===1?"account":"accounts");
-    detail.textContent=(types.length?types.join(", ")+" · ":"")+
-      "View broker balances and positions in Webull · live orders disabled";
+    main.textContent="Checking equity…";
+    detail.textContent=(types.length?types.join(", ")+" · ":"")+"Verified · fetching broker equity · live orders disabled";
+    refreshWebullEquity(accounts);
     statusNode.textContent=sandbox?"SANDBOX · ACCOUNT VERIFIED":"ACCOUNT VERIFIED";
     tile.title="Webull account verified; automated live orders disabled";
     tile.setAttribute("aria-label","Open verified Webull account workspace");
@@ -226,6 +345,7 @@ function updateWebullTile(data){
 }
 async function refreshWebullTile(){
   const id=++webullTileRefreshId;
+  webullEquityRequestId++;
   try{
     const data=await request("/api/webull/status");
     if(id!==webullTileRefreshId||!csrf)return;
@@ -241,7 +361,7 @@ function positionRobinhoodTile(configured){
   const upcoming=document.querySelector('.workspace-upcoming-grid');
   if(!tile||!active||!upcoming)return;
   const target=configured?active:upcoming;
-  if(tile.parentElement!==target)target.appendChild(tile);
+  if(tile.parentElement!==target){target.appendChild(tile);applyWorkspaceOrder();}
   tile.classList.toggle("workspace-tile-featured",configured);
   tile.classList.toggle("workspace-tile-compact",!configured);
   const label=tile.querySelector(".workspace-tile-equity-label");
@@ -1768,3 +1888,6 @@ document.addEventListener("click",e=>{
  if(e.target.closest("#operations-refresh"))loadOperations().catch(err=>{if($("ops-updated"))$("ops-updated").textContent=err.message;});
 });
 document.addEventListener("change",e=>{if(e.target.id==="ops-decision-select")opsInspect();});
+
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initWorkspaceSorting,{once:true});
+else initWorkspaceSorting();

@@ -243,3 +243,10 @@
  .verified-broker-items{display:flex;gap:12px;flex-wrap:wrap}
  .verified-broker{font-size:11px}
 }
+
+.workspace-sort-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;color:#93aaca;font-size:12px}
+.workspace-tile-grid .workspace-tile{cursor:grab}
+.workspace-tile-grid .workspace-tile:active{cursor:grabbing}
+.workspace-tile.workspace-dragging{opacity:.5}
+.workspace-tile.workspace-drop-target{outline:2px dashed #8dc7ff;outline-offset:3px}
+@media(max-width:700px){.workspace-sort-toolbar{align-items:flex-start;flex-direction:column}}
