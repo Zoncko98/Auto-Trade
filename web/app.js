@@ -1087,6 +1087,8 @@ function bindEvents(){
     "/api/live/export.xlsx","autotrader-live-trades.xlsx",$("export-live-trades")));
   $("export-live-evidence").addEventListener("click",()=>downloadWorkbook(
     "/api/live/export.xlsx","autotrader-live-evidence.xlsx",$("export-live-evidence")));
+  $("ops-history-account")?.addEventListener("change",opsHistoryDraw);
+  $("ops-history-range")?.addEventListener("change",opsHistoryDraw);
   $("robinhood-refresh")?.addEventListener("click",()=>loadRobinhoodWorkspace().catch(err=>toast(err.message,true)));
   $("robinhood-configure")?.addEventListener("click",()=>showView("brokers"));
   $("rh-pending-resolve")?.addEventListener("click",()=>resolveRobinhoodPendingOrder()
@@ -1111,6 +1113,35 @@ function bindEvents(){
         "autotrader-paper-trade-"+index+".xlsx",paper);
     }
   });
+}
+let operationsHistoryPoints=[];
+function opsHistoryDraw(){
+  const chart=$("ops-history-chart"),note=$("ops-history-note");
+  if(!chart||!note)return;
+  const account=$("ops-history-account")?.value||"paper";
+  const days=Number($("ops-history-range")?.value||1);
+  chart.replaceChildren();
+  if(account!=="paper"){
+    note.textContent="No authenticated historical equity series is available for "+account+". A current broker balance is not historical performance. No values have been invented.";
+    return;
+  }
+  const cutoff=days>0?Date.now()-days*86400000:-Infinity;
+  const valid=operationsHistoryPoints.filter(p=>{
+    const equity=Number(p.equity);
+    const at=Date.parse(p.at||p.timestamp||p.time||p.created_at||"");
+    return Number.isFinite(equity)&&Number.isFinite(at)&&at>=cutoff&&at<=Date.now()+60000;
+  }).sort((a,b)=>Date.parse(a.at||a.timestamp||a.time||a.created_at)-Date.parse(b.at||b.timestamp||b.time||b.created_at));
+  if(valid.length<2){note.textContent="Fewer than two timestamped simulated equity snapshots are available for this range. A performance trend cannot be calculated.";return;}
+  const values=valid.map(p=>Number(p.equity)),low=Math.min(...values),high=Math.max(...values),span=Math.max(high-low,.01);
+  const w=800,h=180,pad=16;
+  const coords=values.map((v,i)=>(pad+i/(values.length-1)*(w-pad*2)).toFixed(1)+","+(pad+(high-v)/span*(h-pad*2)).toFixed(1)).join(" ");
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox","0 0 800 180");svg.setAttribute("preserveAspectRatio","none");
+  const line=document.createElementNS("http://www.w3.org/2000/svg","polyline");
+  line.setAttribute("points",coords);line.setAttribute("fill","none");line.setAttribute("stroke","#63b3ff");line.setAttribute("stroke-width","3");
+  svg.appendChild(line);chart.appendChild(svg);
+  const change=values.at(-1)-values[0],pctChange=values[0]!==0?change/values[0]*100:null;
+  note.textContent="Simulated equity · "+valid.length+" recorded snapshots · "+money(values[0])+" to "+money(values.at(-1))+" · change "+money(change)+(pctChange===null?"":" ("+pctChange.toFixed(2)+"%)")+". This is not a broker return.";
 }
 let operationsDecisions=[];
 function opsRecord(title,fields){
@@ -1170,6 +1201,9 @@ async function loadOperations(){
   const webullBalances=webullResult?.balances||null;
   const webullUsd=webullBalances?.total_asset_currency==="USD";
   const webullEquity=webullUsd?verifiedWebullUsd(webullBalances.total_net_liquidation_value):null;
+  const performance=await request("/api/performance").catch(()=>null);
+  operationsHistoryPoints=Array.isArray(performance?.points)?performance.points:[];
+  opsHistoryDraw();
   const sourceNote=(v)=>v?"Loaded":"Unavailable / request failed";
   const worker=rh?.worker||{};
   const rhRows=Array.isArray(rh?.decision_evidence)?rh.decision_evidence:[];
@@ -1211,7 +1245,16 @@ async function loadOperations(){
     ["Broker state",x.broker_state],["Broker lookup",x.broker_lookup_detail],
     ["Age",Number.isFinite(x.age_seconds)?formatAge(x.age_seconds):null]
   ]));
-  $("ops-orders").innerHTML=opsRecord("Execution & reconciliation status",[
+  const orderStates=opsRecord("Broker order lifecycle · verification boundaries",[
+    ["Submitted","Local order intent only; not a fill"],
+    ["Accepted","Broker acknowledgement; execution not guaranteed"],
+    ["Partially filled","Only broker-reported executed quantity is filled"],
+    ["Filled","Requires broker-confirmed execution"],
+    ["Canceled / rejected","Broker terminal status; never counted as filled"],
+    ["Unresolved","Retain duplicate-order lock pending reconciliation"],
+    ["Webull and Schwab detail","Open the respective broker order screen for authoritative records"]
+  ]);
+  $("ops-orders").innerHTML=orderStates+opsRecord("Execution & reconciliation status",[
     ["Robinhood unresolved intents",rh?String(pending.length):null],
     ["Robinhood execution",worker.execution_status],["Last execution reason",worker.execution_reason],
     ["Schwab worker",live?live.worker_online===true?"Online":"Offline / unverified":null],
@@ -1260,6 +1303,22 @@ async function loadOperations(){
       ["Cost basis",h.cost_basis_verified===true?"Verified":h.cost_basis_verified===false?"Not verified":"Not established"],
       ["Take-profit trigger","Not verified for this position"],
       ["Trailing high-water mark","Not available in broker holdings response"]
+    ]));
+  }
+  if(Array.isArray(live?.positions))for(const h of live.positions.slice(0,30)){
+    exitRows.push(opsRecord("Schwab position · "+(h.symbol||h.asset||"Unknown"),[
+      ["Held quantity",h.quantity??h.shares],
+      ["Average cost",h.average_cost??h.avg_cost],
+      ["Unrealized P/L",h.unrealized_pnl],
+      ["Take-profit and trailing protection","Not independently verified from position data"]
+    ]));
+  }
+  if(wbHoldings)for(const h of wbHoldings.slice(0,30)){
+    exitRows.push(opsRecord("Webull position · "+(h.symbol||h.ticker||h.instrument_id||"Unknown"),[
+      ["Held quantity",h.quantity??h.position??h.total_quantity],
+      ["Average cost",h.average_cost??h.cost_price],
+      ["Unrealized P/L",h.unrealized_pnl??h.unrealized_profit_loss],
+      ["Take-profit and trailing protection","Not independently verified from position data"]
     ]));
   }
   $("ops-exits").innerHTML=exitRows.join("");

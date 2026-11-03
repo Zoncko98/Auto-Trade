@@ -316,3 +316,13 @@
 @media(max-width:420px){.ops-account-links{grid-template-columns:minmax(0,1fr)}}
 
 .ops-tabs{display:flex;flex-wrap:wrap;gap:8px}.ops-tabs .btn{min-height:40px}@media(max-width:680px){.ops-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.ops-tabs .btn{white-space:normal}}
+
+
+.ops-history{margin-top:18px;border:1px solid #31425d;border-radius:12px;padding:16px;min-width:0}
+.ops-history-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.ops-history-toolbar h3{margin-right:auto}
+.ops-history-toolbar label{font-size:12px}
+.ops-history-toolbar select{min-height:40px;max-width:160px}
+.ops-history-chart{width:100%;min-height:180px;overflow:hidden}
+.ops-history-chart svg{display:block;width:100%;height:180px}
+@media(max-width:680px){.ops-history-toolbar{align-items:stretch}.ops-history-toolbar h3{flex-basis:100%}.ops-history-toolbar select{flex:1;min-width:95px}.ops-history{padding:10px}}

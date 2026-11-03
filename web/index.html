@@ -121,6 +121,14 @@
         <section class="panel hidden" data-ops-panel="portfolio"><h2>Unified portfolio</h2>
           <p class="muted">Real brokerage and simulated equity are never combined. Schwab, Robinhood and Webull remain separate; missing or stale valuations are never treated as zero.</p>
           <div id="ops-portfolio" class="ops-records">Loading…</div>
+          <div class="ops-history">
+            <div class="ops-history-toolbar"><h3>Portfolio performance history</h3>
+              <label for="ops-history-account">Account</label><select id="ops-history-account" class="ops-select"><option value="paper">Paper Trading</option><option value="schwab">Schwab</option><option value="robinhood">Robinhood</option><option value="webull">Webull</option></select>
+              <label for="ops-history-range">Range</label><select id="ops-history-range" class="ops-select"><option value="1">1D</option><option value="7">1W</option><option value="30">1M</option><option value="90">3M</option><option value="365">1Y</option><option value="0">All</option></select>
+            </div>
+            <p id="ops-history-note" class="muted" role="status">Loading recorded snapshots…</p>
+            <div id="ops-history-chart" class="ops-history-chart" role="img" aria-label="Recorded portfolio equity history"></div>
+          </div>
           <div class="ops-account-links"><button class="btn secondary" type="button" data-view="live">Schwab holdings</button><button class="btn secondary" type="button" data-view="robinhood">Robinhood holdings</button><button class="btn secondary" type="button" data-view="webull">Webull holdings</button><button class="btn secondary" type="button" data-view="overview">Paper portfolio</button></div></section>
         <section class="panel hidden" data-ops-panel="exits"><h2>Position exit monitoring</h2>
           <p class="muted">Read-only broker position observations. Profit targets and trailing protection are never assumed armed without verified worker evidence. This screen cannot submit an order.</p>
