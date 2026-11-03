@@ -17,6 +17,7 @@ import ssl
 import threading
 import time
 from datetime import datetime, timezone
+from collections import deque
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -152,6 +153,39 @@ def _last_jsonl(path: Path, maximum: int = 400):
     except (OSError, UnicodeError):
         return []
     return items
+
+
+
+def _performance_points(path: Path, days: int, maximum: int = 1200):
+    """Read a bounded, date-filtered tail without loading the entire history."""
+    from datetime import timedelta
+    if not path.exists():
+        return []
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days) if days else None
+    points = deque(maxlen=maximum)
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if len(line) > 8192:
+                    continue
+                try:
+                    point = json.loads(line)
+                    if not isinstance(point, dict) or isinstance(point.get("equity"), bool):
+                        continue
+                    equity = float(point["equity"])
+                    if not (float("-inf") < equity < float("inf")):
+                        continue
+                    timestamp = datetime.fromisoformat(str(point["timestamp"]).replace("Z", "+00:00"))
+                    if timestamp.tzinfo is None:
+                        continue
+                    if cutoff and timestamp < cutoff:
+                        continue
+                    points.append({"timestamp": timestamp.isoformat(), "equity": equity})
+                except (ValueError, TypeError, KeyError, OverflowError):
+                    continue
+    except (OSError, UnicodeError):
+        return []
+    return list(points)
 
 
 def _page_of(items, params):
@@ -515,7 +549,11 @@ class Handler(BaseHTTPRequestHandler):
                 params = parse_qs(urlparse(self.path).query)
                 return self._json(200, _page_of(data.get(field, []), params))
             if path == "/api/performance":
-                return self._json(200, {"points": _last_jsonl(STATE_DIR / "performance.jsonl", 250)})
+                params = parse_qs(urlparse(self.path).query)
+                days = int(params.get("days", ["1"])[0])
+                if days not in (0, 1, 7, 30, 90, 365):
+                    return self._json(400, {"error": "Unsupported performance range"})
+                return self._json(200, {"points": _performance_points(STATE_DIR / "performance.jsonl", days), "days": days, "source": "paper"})
             if path == "/api/audit":
                 return self._json(200, {"events": _last_jsonl(STATE_DIR / "settings_audit.jsonl", 100)})
         except (ValueError, TypeError, OverflowError, OSError) as exc:

@@ -1087,8 +1087,8 @@ function bindEvents(){
     "/api/live/export.xlsx","autotrader-live-trades.xlsx",$("export-live-trades")));
   $("export-live-evidence").addEventListener("click",()=>downloadWorkbook(
     "/api/live/export.xlsx","autotrader-live-evidence.xlsx",$("export-live-evidence")));
-  $("ops-history-account")?.addEventListener("change",opsHistoryDraw);
-  $("ops-history-range")?.addEventListener("change",opsHistoryDraw);
+  $("ops-history-account")?.addEventListener("change",opsHistoryLoad);
+  $("ops-history-range")?.addEventListener("change",opsHistoryLoad);
   $("robinhood-refresh")?.addEventListener("click",()=>loadRobinhoodWorkspace().catch(err=>toast(err.message,true)));
   $("robinhood-configure")?.addEventListener("click",()=>showView("brokers"));
   $("rh-pending-resolve")?.addEventListener("click",()=>resolveRobinhoodPendingOrder()
@@ -1119,6 +1119,26 @@ function opsCompactNumber(value,digits=6){
   const n=Number(value);
   if(!Number.isFinite(n))return "Unavailable";
   return n.toLocaleString(undefined,{maximumFractionDigits:digits});
+}
+let operationsHistoryRequest=0;
+async function opsHistoryLoad(){
+  const account=$("ops-history-account")?.value||"paper";
+  const days=Number($("ops-history-range")?.value||1);
+  const serial=++operationsHistoryRequest;
+  operationsHistoryPoints=[];
+  if(account!=="paper"){opsHistoryDraw();return;}
+  const note=$("ops-history-note");
+  if(note)note.textContent="Loading recorded simulated equity history…";
+  try{
+    const result=await request("/api/performance?days="+days);
+    if(serial!==operationsHistoryRequest)return;
+    operationsHistoryPoints=Array.isArray(result?.points)?result.points:[];
+    opsHistoryDraw();
+  }catch(err){
+    if(serial!==operationsHistoryRequest)return;
+    opsHistoryDraw();
+    if(note)note.textContent="Performance history unavailable: "+String(err.message||err).slice(0,140);
+  }
 }
 let operationsHistoryPoints=[];
 function opsHistoryDraw(){
@@ -1207,9 +1227,7 @@ async function loadOperations(){
   const webullBalances=webullResult?.balances||null;
   const webullUsd=webullBalances?.total_asset_currency==="USD";
   const webullEquity=webullUsd?verifiedWebullUsd(webullBalances.total_net_liquidation_value):null;
-  const performance=await request("/api/performance").catch(()=>null);
-  operationsHistoryPoints=Array.isArray(performance?.points)?performance.points:[];
-  opsHistoryDraw();
+  await opsHistoryLoad();
   const sourceNote=(v)=>v?"Loaded":"Unavailable / request failed";
   const worker=rh?.worker||{};
   const rhRows=Array.isArray(rh?.decision_evidence)?rh.decision_evidence:[];
