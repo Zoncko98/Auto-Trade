@@ -26,7 +26,7 @@ def observe(history,symbol,quote,now=None):
         try:
             age=(now-datetime.fromisoformat(row["at"].replace("Z","+00:00"))).total_seconds()
             mid=_decimal(row["mid"])
-            if 0<=age<=1200:fresh.append((age,mid))
+            if 0<=age<=3600:fresh.append((age,mid))
         except (ValueError,TypeError,AttributeError):continue
     mid=(bid+ask)/2
     fresh.append((0,mid))

@@ -225,6 +225,6 @@ def main():
                 "updated_at":datetime.now(timezone.utc).isoformat(),"worker":"blocked",
                 "execution_status":"NOT_ARMED","live_orders_allowed":False,
                 "last_order_confirmed":False,"reason":"Broker monitoring unavailable: "+type(exc).__name__})
-        time.sleep(180)
+        time.sleep(60)
 
 if __name__=="__main__":main()
