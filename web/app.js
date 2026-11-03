@@ -328,13 +328,34 @@ async function loadRobinhoodWorkspace(){
         if($("robinhood-holdings-stat"))$("robinhood-holdings-stat").textContent=String(holdings);
         if($("robinhood-orders-stat"))$("robinhood-orders-stat").textContent=Number.isInteger(portfolio.order_count)?String(portfolio.order_count):"—";
         const orders=Number.isInteger(portfolio.order_count)?portfolio.order_count:0;
-        positionState.textContent=holdings+" holdings · "+orders+" orders reported by Robinhood";
+        positionState.textContent=holdings+" holdings · "+orders+" broker order records";
+        const total=$("robinhood-total-stat");
+        if(total)total.textContent=portfolio.estimated_crypto_account_value_usd==null?
+          "Unavailable":money(portfolio.estimated_crypto_account_value_usd);
         if(box){
-          const detail=document.createElement("p");
-          detail.textContent="Robinhood API holdings: "+holdings+
-            " · historical/pending orders: "+orders+
-            ". Individual order records are visible in the broker's account history.";
-          box.append(detail);
+          const buying=document.createElement("p");
+          buying.textContent="USD buying power: "+(portfolio.cash_usd==null?"unavailable":money(portfolio.cash_usd))+
+            " · "+(portfolio.valuation_note||"Account valuation unavailable");
+          box.append(buying);
+          const table=document.createElement("table");
+          const head=document.createElement("thead");
+          head.innerHTML="<tr><th>Asset</th><th>Held quantity</th><th>Available to trade</th><th>Estimated USD value</th></tr>";
+          table.append(head);
+          const body=document.createElement("tbody");
+          for(const holding of (Array.isArray(portfolio.holdings)?portfolio.holdings:[])){
+            const row=document.createElement("tr");
+            for(const value of [holding.symbol,holding.quantity,
+                 holding.available_quantity??"Unavailable",
+                 holding.market_value_usd==null?"Unavailable":money(holding.market_value_usd)]){
+              const cell=document.createElement("td");cell.textContent=String(value);row.append(cell);
+            }
+            body.append(row);
+          }
+          if(!body.childNodes.length){
+            const row=document.createElement("tr"),cell=document.createElement("td");
+            cell.colSpan=4;cell.textContent="No broker-reported crypto holdings";row.append(cell);body.append(row);
+          }
+          table.append(body);box.append(table);
         }
       }).catch(()=>{positionState.textContent="Robinhood portfolio lookup unavailable";});
     }

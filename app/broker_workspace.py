@@ -252,24 +252,60 @@ def install_robinhood_credentials(state,payload):
 
 
 def robinhood_portfolio(state):
-    """Read-only portfolio overview; no credentials or order submission exposed."""
+    """Broker holdings with conservatively verified USD marks and quantities."""
+    from decimal import Decimal,InvalidOperation
     from robinhood_crypto_gateway import RobinhoodUnavailable
+    def dec(x):
+        try:
+            v=Decimal(str(x))
+            return v if v.is_finite() and v>=0 else None
+        except (ValueError,TypeError,InvalidOperation):return None
     try:
         client=_robinhood_client(state)
         accounts=client.list_accounts()
         holdings=[]
-        orders=[]
+        orders=0
+        cash=Decimal("0")
+        cash_verified=True
         for account in accounts[:6]:
-            if not isinstance(account,dict): continue
-            account_ref=account.get("account_number")
-            if not isinstance(account_ref,str):continue
-            for item in client.positions(account_ref):
-                if isinstance(item,dict): holdings.append(item)
-            for item in client.orders(account_ref):
-                if isinstance(item,dict): orders.append(item)
-        # Only counts are returned until an account-scoped holdings schema
-        # and privacy filters have been validated.
-        return {"available":True,"position_count":len(holdings),
-                "order_count":len(orders)}
+            if not isinstance(account,dict):continue
+            ref=account.get("account_number")
+            if not isinstance(ref,str):continue
+            amount=dec(account.get("buying_power"))
+            if account.get("buying_power_currency")!="USD" or amount is None:
+                cash_verified=False
+            else:cash+=amount
+            for item in client.positions(ref):
+                if not isinstance(item,dict):continue
+                code=item.get("asset_code")
+                qty=dec(item.get("total_quantity"))
+                available=dec(item.get("quantity_available_for_trading"))
+                if not isinstance(code,str) or not code.isalnum() or len(code)>12 or qty is None:
+                    continue
+                symbol=code.upper()+"-USD"
+                value=None
+                if qty==0:value=Decimal("0")
+                else:
+                    try:
+                        quote=client.quote(symbol)
+                        rows=quote.get("results",[]) if isinstance(quote,dict) else []
+                        matching=[v for v in rows if isinstance(v,dict) and v.get("symbol")==symbol]
+                        if len(matching)==1:
+                            bid=dec(matching[0].get("bid"));ask=dec(matching[0].get("ask"))
+                            if bid is not None and ask is not None and 0<bid<=ask:
+                                value=qty*(bid+ask)/2
+                    except (RobinhoodUnavailable,ValueError,TypeError,KeyError):pass
+                holdings.append({"symbol":symbol,"quantity":str(qty),
+                    "available_quantity":str(available) if available is not None else None,
+                    "market_value_usd":str(value) if value is not None else None,
+                    "valuation":"broker_bid_ask_midpoint" if value is not None else "unavailable"})
+            orders+=len(client.orders(ref))
+        total=None
+        if cash_verified and all(h["market_value_usd"] is not None for h in holdings):
+            total=cash+sum((Decimal(h["market_value_usd"]) for h in holdings),Decimal("0"))
+        return {"available":True,"position_count":len(holdings),"order_count":orders,
+            "holdings":holdings,"cash_usd":str(cash) if cash_verified else None,
+            "estimated_crypto_account_value_usd":str(total) if total is not None else None,
+            "valuation_note":"Crypto holdings marked at current broker bid/ask midpoint; not executable value. USD buying power is not necessarily total cash balance."}
     except (OSError,ValueError,KeyError,TypeError,RobinhoodUnavailable):
         return {"available":False,"reason":"Robinhood account portfolio request failed"}
