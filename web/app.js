@@ -1226,7 +1226,10 @@ let webullExecutionValidated=false;
 function webullRow(root,key,value){
   const name=document.createElement("strong"),detail=document.createElement("span");
   name.textContent=key;detail.textContent=value==null?"Unavailable":String(value);
-  root.append(name,detail);
+  const row=document.createElement("div");
+  row.className="broker-detail-row";
+  row.append(name,detail);
+  root.append(row);
 }
 function webullPrice(raw){
   if(typeof raw!=="string" && typeof raw!=="number")return null;
@@ -1243,6 +1246,11 @@ async function loadWebullTrader(){
   const data=await request("/api/webull/trader");
   const worker=data.worker||{},policy=data.policy||{};
   webullTraderPolicy=policy;
+  const armed=data.execution_validated===true&&policy.enabled===true;
+  const mode=$("webull-order-mode");
+  if(mode){mode.textContent=armed?"ARMED":"DISARMED";mode.className="mode-tag "+(armed?"running":"stopped");}
+  const orders=$("webull-orders-count");
+  if(orders)orders.textContent=Array.isArray(worker.pending_orders)?String(worker.pending_orders.length)+" pending":"Unavailable";
   const root=webullListRoot("webull-engine-fields");
   const heartbeat=$("webull-worker-updated");
   const age=Date.now()-Date.parse(worker.updated_at||"");

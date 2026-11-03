@@ -250,3 +250,36 @@
 .workspace-tile.workspace-dragging{opacity:.5}
 .workspace-tile.workspace-drop-target{outline:2px dashed #8dc7ff;outline-offset:3px}
 @media(max-width:700px){.workspace-sort-toolbar{align-items:flex-start;flex-direction:column}}
+
+
+/* Unified trader presentation: scoped to existing components; no order controls changed. */
+:root{--ui-panel-radius:13px;--ui-panel-gap:18px;--ui-control-focus:#86b9ff}
+.view .page-header,.view .hero-head{gap:20px}
+.view .panel,.view .stat-card{border-radius:var(--ui-panel-radius)}
+.view .panel-heading h2{font-size:15px;line-height:1.4}
+.view .panel-heading p,.view .panel-note{line-height:1.65}
+.view .stat-card strong,.view .rh-portfolio-metrics strong{font-variant-numeric:tabular-nums}
+.view .broker-capabilities{display:grid;gap:0;margin:12px 0 16px;min-width:0}
+.view .broker-detail-row{display:grid;grid-template-columns:minmax(155px,38%) minmax(0,1fr);align-items:start;gap:18px;padding:11px 0;border-bottom:1px solid #293a52;font-size:12px;line-height:1.6}
+.view .broker-detail-row:last-child{border-bottom:0}
+.view .broker-detail-row strong{font-weight:750;color:#a9c0df;overflow-wrap:anywhere}
+.view .broker-detail-row span{color:#e2ebf9;overflow-wrap:anywhere;white-space:normal}
+.view .table-wrap,.view .rh-holdings-table{max-width:100%;overflow-x:auto}
+.view .panel,.view .stat-card,.view .content-grid>*,.view .settings-layout>*{min-width:0}
+.view :is(button,input,select,textarea,a):focus-visible{outline:2px solid var(--ui-control-focus);outline-offset:3px}
+.view :is(input,select,textarea){max-width:100%}
+.view .mode-tag{font-weight:800}
+.view .control-buttons{flex-wrap:wrap}
+@media(max-width:900px){
+ .view .broker-detail-row{grid-template-columns:1fr;gap:3px}
+ .view .content-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:760px){
+ .view .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .view .stat-card{min-height:125px}
+ .view .panel-heading{flex-wrap:wrap}
+}
+@media(max-width:440px){
+ .view .stats-grid{grid-template-columns:minmax(0,1fr)}
+ .view .control-buttons .btn{white-space:normal}
+}
