@@ -22,6 +22,7 @@ def bars():
 class FakeBroker:
     environment="sandbox"
     def __init__(self):
+        self.previews=[]
         self.submissions=[]
         self.details={}
         self.available=[{"account_id":"stock1","account_class":"CASH"},
@@ -44,6 +45,9 @@ class FakeBroker:
     def positions(self,id):return self.holdings
     def quote(self,symbol,asset):return quote()
     def bars(self,symbol,asset):return bars()
+    def preview(self,account,order):
+        self.previews.append((account,dict(order)))
+        return {"estimated_cost":"10.00","success":True}
     def place(self,account,order):
         self.submissions.append((account,dict(order)))
         return {"orders":[{"client_order_id":order["client_order_id"],
@@ -105,6 +109,126 @@ class Tests(unittest.TestCase):
         self.assertEqual(ai.call_count,2)
         self.assertEqual(self.b.submissions,[])
         self.assertTrue(all(x.get("ai_approved") is True for x in approved))
+    def test_webull_ui_cannot_select_unverified_margin_account(self):
+        js=(Path(__file__).resolve().parent.parent/"web"/"app.js").read_text()
+        self.assertIn('a.status==="MARGIN_ACCOUNT_BLOCKED"',js)
+        self.assertIn('opt.disabled=!eligible;',js)
+        self.assertIn('a.stocks_cash_eligible===true',js)
+        self.assertIn('a.crypto_cash_eligible===true',js)
+        self.assertIn('Broker account "+suffix+" · "+type',js)
+    def test_margin_opt_in_defaults_off_and_has_private_persistence(self):
+        from webull_account_preferences import read as pref_read, save as pref_save, PreferenceError
+        self.assertEqual(pref_read(self.state),{"allow_margin_accounts":False})
+        result=pref_save(self.state,{"allow_margin_accounts":True})
+        self.assertTrue(result["allow_margin_accounts"])
+        self.assertTrue(pref_read(self.state)["allow_margin_accounts"])
+        pref_file=self.state/"webull"/"account_preferences.json"
+        self.assertEqual(pref_file.stat().st_mode & 0o077,0)
+        self.assertEqual(pref_file.parent.stat().st_mode & 0o077,0)
+        for bad in ({"allow_margin_accounts":1},{"allow_margin_accounts":"true"},
+                    {"allow_margin_accounts":True,"enabled":True},{}):
+            with self.assertRaises(PreferenceError):pref_save(self.state,bad)
+        self.assertEqual(pref_read(self.state),{"allow_margin_accounts":True})
+    def test_margin_opt_in_is_cash_funded_stocks_only_and_not_live_arm(self):
+        from webull_account_preferences import save as pref_save
+        from webull_worker import account_readiness
+        margin={"account_id":"stock1","account_type":"INDIVIDUAL_MARGIN"}
+        self.assertEqual(account_readiness(margin)["status"],"MARGIN_ACCOUNT_BLOCKED")
+        prefs=pref_save(self.state,{"allow_margin_accounts":True})
+        allowed=account_readiness(margin,prefs["allow_margin_accounts"])
+        self.assertTrue(allowed["stocks_cash_eligible"])
+        self.assertFalse(allowed["crypto_cash_eligible"])
+        self.assertFalse(allowed["margin_borrowing_enabled"])
+        self.assertEqual(allowed["status"],"MARGIN_CASH_ONLY_ELIGIBLE")
+        self.assertFalse(read_policy(self.state)["enabled"])
+        self.arm()
+        self.b.available=[margin]
+        raw=self.b.balance("stock1")
+        self.b.balance=lambda account:dict(raw,used_margin="0",margin_debit="0")
+        with patch("webull_worker.core_stock_session",return_value=True):
+            result=_live_gate(self.state,self.b,self.policy,self.risk,
+                              "stock1","EQUITY","F","BUY","1","10",self.j)
+        self.assertEqual(result["asset"],"EQUITY")
+        with self.assertRaises(WebullBlocked):
+            _live_gate(self.state,self.b,self.policy,self.risk,
+                       "stock1","CRYPTO","BTCUSD","BUY","1","10",self.j)
+        pref_save(self.state,{"allow_margin_accounts":False})
+        with patch("webull_worker.core_stock_session",return_value=True):
+            with self.assertRaises(WebullBlocked):
+                _live_gate(self.state,self.b,self.policy,self.risk,
+                           "stock1","EQUITY","F","BUY","1","10",self.j)
+        self.assertEqual(self.b.submissions,[])
+    def test_margin_opt_in_never_allows_borrowing_or_unknown_settled_cash(self):
+        from webull_account_preferences import save as pref_save
+        pref_save(self.state,{"allow_margin_accounts":True})
+        self.arm()
+        self.b.available=[{"account_id":"stock1","account_type":"INDIVIDUAL_MARGIN"}]
+        base=FakeBroker().balance("stock1")
+        for broken in (
+            dict(base), # No broker-verifiable margin figure
+            dict(base,used_margin="0.01"),
+            dict(base,used_margin="0",margin_debit="1"),
+            dict(base,used_margin="0",account_currency_assets=[
+                {"currency":"USD","buying_power":"500","cash_balance":"500"}]),
+            dict(base,used_margin="0",account_currency_assets=[
+                {"currency":"USD","buying_power":"500","cash_balance":"500","settled_cash":"0"}],
+                 total_market_value="0")):
+            # Missing settled cash is blocked. Zero cash is a valid number but
+            # cannot finance a buy under the account exposure budget.
+            self.b.balance=lambda account,result=broken:result
+            with patch("webull_worker.core_stock_session",return_value=True):
+                with self.assertRaises(WebullBlocked):
+                    _live_gate(self.state,self.b,self.policy,self.risk,
+                               "stock1","EQUITY","F","BUY","1","10",self.j)
+        self.assertEqual(self.b.submissions,[])
+    def test_profile_margin_toggle_endpoints_and_ui_are_present(self):
+        root=Path(__file__).resolve().parent.parent
+        html=(root/"web"/"index.html").read_text()
+        js=(root/"web"/"app.js").read_text()
+        server=(root/"app"/"dashboard_server.py").read_text()
+        self.assertIn('id="profile-webull-margin-form"',html)
+        self.assertIn('id="profile-webull-margin-enabled"',html)
+        self.assertIn("margin borrowing, leverage, short selling",html)
+        self.assertIn('request("/api/profile/webull-margin"',js)
+        self.assertIn('"allow_margin_accounts":False', (root/"app"/"webull_account_preferences.py").read_text())
+        self.assertIn('path == "/api/profile/webull-margin"',server)
+        self.assertIn("opt.disabled=!eligible;",js)
+    def test_account_types_make_margin_and_crypto_eligibility_explicit(self):
+        from webull_worker import account_readiness
+        margin=account_readiness({"account_id":"m","account_type":"INDIVIDUAL_MARGIN"})
+        self.assertEqual(margin["status"],"MARGIN_ACCOUNT_BLOCKED")
+        self.assertFalse(margin["stocks_cash_eligible"])
+        self.assertFalse(margin["crypto_cash_eligible"])
+        self.assertTrue(account_readiness({"account_id":"s","account_class":"CASH"})["stocks_cash_eligible"])
+        self.assertTrue(account_readiness({"account_id":"c","account_class":"CRYPTO"})["crypto_cash_eligible"])
+        self.assertFalse(account_readiness({"account_id":"x","account_type":"UNVERIFIED"})["stocks_cash_eligible"])
+    def test_stock_order_must_preview_before_journal_or_place(self):
+        self.arm()
+        self.b.preview=lambda account,order:{"success":False,"errors":[{"error":"preview blocked"}]}
+        with self.assertRaises(WebullBlocked):
+            _order(self.state,self.b,self.policy,self.risk,self.j,
+                   "stock1","F","EQUITY","BUY",self.signal(),"1","10","AI")
+        self.assertEqual(self.j.recent(),[])
+        self.assertEqual(self.b.submissions,[])
+    def test_equity_preview_is_not_an_order_and_crypto_preview_is_unsupported(self):
+        from types import SimpleNamespace
+        dummy=WebullBroker.__new__(WebullBroker)
+        dummy.verify_account=lambda account: True
+        calls=[]
+        dummy.trade=SimpleNamespace(order_v3=SimpleNamespace(
+            preview_order=lambda account,orders:(
+                calls.append("preview") or SimpleNamespace(status_code=200,json=lambda:{"estimate":"10"})),
+            place_order=lambda account,orders:(
+                calls.append("place") or SimpleNamespace(status_code=200,json=lambda:{"ok":True}))))
+        order={"combo_type":"NORMAL","client_order_id":"f"*32,"symbol":"F",
+           "instrument_type":"EQUITY","market":"US","order_type":"LIMIT",
+           "limit_price":"10","quantity":"1","side":"BUY","time_in_force":"DAY",
+           "entrust_type":"QTY","support_trading_session":"CORE"}
+        self.assertEqual(dummy.preview("stock1",order),{"estimate":"10"})
+        self.assertEqual(calls,["preview"])
+        with self.assertRaises(WebullError):dummy.preview(
+            "crypto1",dict(order,symbol="BTCUSD",instrument_type="CRYPTO"))
+        self.assertEqual(calls,["preview"])
     def test_migrates_preexisting_webull_state_to_private_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"webull"
@@ -149,6 +273,7 @@ class Tests(unittest.TestCase):
         receipt=_order(self.state,self.b,self.policy,self.risk,self.j,
                        "stock1","F","EQUITY","BUY",self.signal(),"1","10","AI")
         self.assertEqual(receipt["state"],"BROKER_ACKNOWLEDGED_UNFILLED")
+        self.assertEqual(len(self.b.previews),1)
         self.assertEqual(len(self.b.submissions),1)
         self.assertEqual(self.b.submissions[0][1]["support_trading_session"],"CORE")
         self.assertEqual(self.j.positions("stock1")[0],{})

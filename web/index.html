@@ -528,7 +528,7 @@
       </section>
       <section class="view hidden" id="view-profile">
         <div class="page-header"><div><p class="eyebrow">ACCOUNT SECURITY</p><h1>User profile</h1>
-          <p class="muted">Manage the administrator password and view the installed application version.</p></div></div>
+          <p class="muted">Manage Webull account eligibility, your administrator password and the installed application version.</p></div></div>
         <section class="panel" style="max-width:660px;margin-bottom:20px">
           <div class="panel-heading"><div><h2>Administrator</h2><p>Local single-user dashboard account</p></div>
             <span class="paper-label" id="profile-version">Checking version…</span></div>
@@ -537,6 +537,27 @@
           <p><a class="btn secondary" href="/integrations.html">⚙ Configure AI models and forecasting</a></p>
           <p class="panel-note">For Schwab authorization and real-money trading controls, open <strong>Broker Connections</strong> in the sidebar.</p>
         </section>
+        <form id="profile-webull-margin-form" class="panel"
+          style="max-width:660px;margin-bottom:20px;padding:24px">
+          <h2>Webull margin-classified accounts</h2>
+          <p class="muted">Allow an individually margin-classified Webull brokerage account to be
+            considered for <strong>cash-funded US stock trades only</strong>. Default is off.</p>
+          <div class="setting-item"><div>
+            <label for="profile-webull-margin-enabled">Include Webull individual margin accounts</label>
+            <p class="panel-note">This does not enable margin borrowing, leverage, short selling,
+              crypto on margin, or live trading. Only independently verified settled USD cash
+              can be used; an existing margin debit or unverified margin usage blocks orders.</p>
+          </div><div class="setting-control">
+            <input id="profile-webull-margin-enabled" type="checkbox" autocomplete="off">
+          </div></div>
+          <div class="settings-submit">
+            <p id="profile-webull-margin-status" role="status">Checking Webull margin preference…</p>
+            <button class="btn secondary" type="submit" id="profile-webull-margin-save">Save account eligibility</button>
+          </div>
+          <p class="panel-note">A verified account is not an authorized trading account.
+            Market-data permissions, stock session, risk limits, broker order validation
+            and separate live execution authorization still apply.</p>
+        </form>
         <form id="profile-password-form" class="panel" style="max-width:660px;padding:24px" autocomplete="off">
           <h2>Change dashboard password</h2>
           <p class="muted">Choose 10 or more characters with an uppercase letter, a number and a symbol. Longer passwords and password managers are recommended. Your current password is required.</p>

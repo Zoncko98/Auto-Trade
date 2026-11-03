@@ -1064,6 +1064,7 @@ function bindEvents(){
   $("profile-check-update").addEventListener("click",()=>checkForUpdate()
       .catch(err=>toast(err.message,true)));
   $("profile-password-form").addEventListener("submit",changeDashboardPassword);
+  $("profile-webull-margin-form")?.addEventListener("submit",saveWebullMarginPreference);
   $("logout-btn").addEventListener("click",async()=>{
     try{await request("/api/logout",{method:"POST",body:"{}"});}catch(_){}
     csrf=null;showLogin();
@@ -1263,6 +1264,18 @@ async function loadWebullTrader(){
         (item.status||"UNVERIFIED")+" · "+(item.detail||"No diagnostic")+
         " · "+(item.checked??0)+" quotes checked");
     }
+    const eligibility=Array.isArray(worker.account_readiness)?worker.account_readiness:[];
+    if(!eligibility.length){
+      webullRow(root,"Webull account order eligibility","Not yet independently verified");
+    }
+    eligibility.forEach(a=>{
+      const type=typeof a.account_type==="string"?a.account_type:"unknown";
+      const suffix=typeof a.account_id==="string"?a.account_id.slice(-6):"unknown";
+      webullRow(root,"Broker account "+suffix+" · "+type,
+        (a.status||"UNVERIFIED")+" · "+(a.reason||"No verified account classification")+
+        " · Stock cash eligible: "+(a.stocks_cash_eligible===true?"yes":"no")+
+        " · Crypto cash eligible: "+(a.crypto_cash_eligible===true?"yes":"no"));
+    });
     webullRow(root,"Webull orders unresolved",Array.isArray(worker.pending_orders)?worker.pending_orders.length:"Unavailable");
     webullRow(root,"Trading permission",data.execution_validated===true&&policy.enabled===true?
       "Operator armed · broker risk and order checks required":
@@ -1281,28 +1294,83 @@ function webullPolicyFromInputs(enabled){
     trade_stocks:$("webull-live-stocks")?.checked===true,
     trade_crypto:$("webull-live-crypto")?.checked===true};
 }
+async function loadWebullMarginPreference(){
+  const state=$("profile-webull-margin-status");
+  const checkbox=$("profile-webull-margin-enabled");
+  if(!state||!checkbox)return;
+  state.textContent="Checking saved Webull account eligibility…";
+  try{
+    const result=await request("/api/profile/webull-margin");
+    checkbox.checked=result.allow_margin_accounts===true;
+    state.textContent=checkbox.checked?
+      "Webull individual margin accounts eligible for cash-funded stocks only · live orders remain locked":
+      "Margin-classified accounts excluded (default)";
+  }catch(error){
+    checkbox.checked=false;
+    state.textContent="Webull margin setting unavailable: "+error.message;
+  }
+}
+async function saveWebullMarginPreference(event){
+  event.preventDefault();
+  const checkbox=$("profile-webull-margin-enabled");
+  const state=$("profile-webull-margin-status");
+  const button=$("profile-webull-margin-save");
+  if(!checkbox||!state||!button)return;
+  const enabled=checkbox.checked===true;
+  if(enabled&&!window.confirm("Allow individual Webull margin-classified accounts for CASH-FUNDED US stock eligibility only? Margin borrowing, leverage, shorting and live order execution remain disabled by this setting.")){
+    await loadWebullMarginPreference();
+    return;
+  }
+  button.disabled=true;
+  try{
+    const result=await request("/api/profile/webull-margin",{
+      method:"POST",body:JSON.stringify({allow_margin_accounts:enabled})});
+    state.textContent=result.allow_margin_accounts?
+      "Saved · margin-classified US stock accounts eligible for cash-only consideration · live trading locked":
+      "Saved · margin-classified accounts excluded and Webull live permission disarmed";
+  }catch(error){
+    state.textContent="Could not save Webull margin preference: "+error.message;
+    await loadWebullMarginPreference();
+  }finally{
+    button.disabled=false;
+  }
+}
 async function loadWebullPolicy(){
   const [data,accountData]=await Promise.all([request("/api/webull/trader"),request("/api/webull/status")]);
   const policy=data.policy||{};
   webullTraderPolicy=policy;
   webullExecutionValidated=data.execution_validated===true;
   const entries=Array.isArray(accountData.accounts)?accountData.accounts:[];
-  for(const field of ["webull-stock-account","webull-crypto-account"]){
+  const checked=Array.isArray(data.worker?.account_readiness)?data.worker.account_readiness:[];
+  for(const [field,eligibilityFlag] of [
+       ["webull-stock-account","stocks_cash_eligible"],
+       ["webull-crypto-account","crypto_cash_eligible"]]){
     const select=$(field);if(!select)continue;
     select.replaceChildren();
-    select.add(new Option("Choose verified Webull account",""));
+    select.add(new Option("Choose eligible Webull account",""));
     entries.forEach(a=>{
-      if(typeof a.account_id==="string"&&a.account_id)
-        select.add(new Option((a.account_type||"Webull")+" · "+a.account_id,a.account_id));
+      if(typeof a.account_id!=="string"||!a.account_id)return;
+      const readiness=checked.find(x=>x.account_id===a.account_id);
+      const eligible=readiness?.[eligibilityFlag]===true;
+      const opt=new Option((a.account_type||"Webull")+" · "+a.account_id+
+        (eligible?"":" · restricted / not verified"),a.account_id);
+      opt.disabled=!eligible;
+      select.add(opt);
     });
   }
   $("webull-stock-account").value=policy.stock_account||"";
   $("webull-crypto-account").value=policy.crypto_account||"";
   $("webull-live-stocks").checked=policy.trade_stocks===true;
   $("webull-live-crypto").checked=policy.trade_crypto===true;
+  const restricted=checked.filter(a=>a.status==="MARGIN_ACCOUNT_BLOCKED");
+  const accountNote=checked.length&&!checked.some(a=>
+     a.stocks_cash_eligible===true||a.crypto_cash_eligible===true)?
+     " · No cash-only eligible account verified"+
+       (restricted.length?" (margin-classified account blocked)":""):
+     "";
   $("webull-live-policy-state").textContent=policy.enabled===true?
     "Webull policy ARMED · the worker can place orders only after independent checks":
-    "Webull policy DISARMED · scanning only; no live orders";
+    "Webull policy DISARMED · scanning only; no live orders"+accountNote;
   $("webull-live-feedback").textContent=!data.execution_validated?
     "Live orders locked until Webull sandbox order and reconciliation validation completes":
     data.risk?.saved?"Webull risk plan saved · stock and crypto permissions are separate":
@@ -1580,6 +1648,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
     if(status) populateSettings(status.control.settings);
     loadPaperService().catch(err=>toast(err.message,true));
   }
+  if(view==="profile")loadWebullMarginPreference().catch(err=>toast(err.message,true));
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="operations") loadOperations().catch(err=>{if($("ops-updated"))$("ops-updated").textContent="Unable to load operations: "+err.message;});

@@ -14,6 +14,7 @@ from webull_broker import WebullBroker,WebullError,positive
 from webull_trade_config import read as read_policy,WebullPolicyError
 from webull_trade_config import LIVE_EXECUTION_VERIFIED
 from webull_risk import read as read_risk
+from webull_account_preferences import read as read_account_preferences
 from webull_journal import WebullJournal,JournalBlocked
 from webull_signals import evaluate,_quote,core_stock_session,WebullSignalError
 from dashboard_control import write_atomic
@@ -71,11 +72,37 @@ def _safe_public(exc):
 def _account_class(row):
     return str(row.get("account_class") or row.get("account_type") or "").upper()
 
-def _can_trade_account(account,asset):
+def _can_trade_account(account,asset,allow_margin_accounts=False):
     role=_account_class(account)
-    if "MARGIN" in role:return False
+    if "MARGIN" in role:
+        # Opt-in is only for the known US individual margin classification.
+        # It allows cash-funded equity trades, never borrowing or crypto here.
+        return bool(allow_margin_accounts) and role=="INDIVIDUAL_MARGIN" and asset=="EQUITY"
     if asset=="CRYPTO":return "CRYPTO" in role
     return any(x in role for x in ("CASH","STOCK","EQUITY")) and "CRYPTO" not in role
+
+def account_readiness(account,allow_margin_accounts=False):
+    """Account verification never implies order eligibility or live authorization."""
+    label=_account_class(account)
+    margin="MARGIN" in label
+    stock=_can_trade_account(account,"EQUITY",allow_margin_accounts)
+    crypto=_can_trade_account(account,"CRYPTO",allow_margin_accounts)
+    return {"account_id":account["account_id"],"account_type":label,
+            "stocks_cash_eligible":stock,"crypto_cash_eligible":crypto,
+            "margin_cash_only_opt_in":bool(allow_margin_accounts),
+            "margin_borrowing_enabled":False,
+            "status":("MARGIN_CASH_ONLY_ELIGIBLE" if margin and stock else
+                      "MARGIN_ACCOUNT_BLOCKED" if margin else
+                      "ACCOUNT_CLASS_ELIGIBLE" if (stock or crypto) else
+                      "ACCOUNT_CLASS_UNVERIFIED"),
+            "reason":("Margin-classified Webull stock account opted into CASH-ONLY eligibility; "
+                      "zero margin usage, verified settled cash, market data, risk and execution checks still required"
+                      if margin and stock else
+                      "Margin account opt-in is off or account type unsupported; no orders"
+                      if margin else
+                      "Account class is eligible; market data, funds, order status, risk and AI still require checks"
+                      if stock or crypto else
+                      "No verified cash-stock or spot-crypto account class; live orders blocked")}
 
 def _funds(balance):
     if not isinstance(balance,dict) or balance.get("total_asset_currency")!="USD":
@@ -111,14 +138,28 @@ def _live_gate(root,broker,policy,risk,account_id,asset,symbol,side,qty,price,jo
     if not policy[kind] or policy[selected]!=account_id:
         raise WebullBlocked("Asset class/account not explicitly enabled")
     account=broker.verify_account(account_id)
-    if not _can_trade_account(account,asset):
-        raise WebullBlocked("Selected account class not verified for asset")
+    allow_margin=read_account_preferences(root)["allow_margin_accounts"]
+    if not _can_trade_account(account,asset,allow_margin):
+        raise WebullBlocked("Selected account class not permitted by Webull cash-only profile")
     if asset=="EQUITY" and not core_stock_session(_now()):
         raise WebullBlocked("US core trading session not open")
     if journal.pending(account_id):raise WebullBlocked("Unresolved Webull order intent")
     orders=broker.open_orders(account_id)
     if orders:raise WebullBlocked("Existing open broker orders block autonomous execution")
     balance=broker.balance(account_id)
+    if "MARGIN" in _account_class(account):
+        # No leverage, cross-collateral or unsettled margin buying power.
+        # Require an explicit broker zero margin figure and settled cash.
+        if balance.get("used_margin") in (None,""):
+            raise WebullBlocked("Margin usage not independently verified as zero")
+        cash_assets=balance.get("account_currency_assets")
+        settled=[r.get("settled_cash") for r in cash_assets if isinstance(r,dict)
+                 and r.get("currency")=="USD"] if isinstance(cash_assets,list) else []
+        if len(settled)!=1 or settled[0] in (None,""):
+            raise WebullBlocked("Margin-class account requires broker-verified settled cash")
+        if balance.get("margin_debit") not in (None,""):
+            if positive(balance["margin_debit"],allow_zero=True)>0:
+                raise WebullBlocked("Margin debit detected")
     equity,cash,pnl=_funds(balance)
     if pnl<=-Decimal(str(risk["max_daily_loss_usd"])):
         raise WebullBlocked("Maximum broker-reported daily loss reached")
@@ -192,6 +233,14 @@ def _order(root,broker,policy,risk,journal,account,sym,asset,side,signal,qty,pri
              "limit_price":str(price),"quantity":str(qty),"side":side,
              "time_in_force":"DAY","entrust_type":"QTY"}
     if asset=="EQUITY":payload["support_trading_session"]="CORE"
+    if asset=="EQUITY":
+        # Webull's preview endpoint is non-executing and supports stock orders;
+        # it is explicitly NOT supported for crypto. A rejected stock preview
+        # cannot create an intent or result in a broker order.
+        result=broker.preview(account,payload)
+        if (not isinstance(result,dict) or result.get("success") is False or
+                result.get("errors") or result.get("error")):
+            raise WebullBlocked("Stock order preview was not accepted")
     journal.new_intent(account,order_id,sym,asset,side,str(qty),str(price),reason)
     # Never auto-retry this call, including timeouts; reconciliation by ID first.
     receipt=broker.place(account,payload)
@@ -294,6 +343,8 @@ def run_cycle(root,broker,rotation=0):
     accounts=broker.accounts()
     report["broker_accounts"]=[{"account_id":a["account_id"],
            "account_type":_account_class(a)} for a in accounts]
+    allow_margin=read_account_preferences(root)["allow_margin_accounts"]
+    report["account_readiness"]=[account_readiness(a,allow_margin) for a in accounts]
     account_ids={a["account_id"] for a in accounts}
     # Reconcile all journal accounts, including disabled ones and after restarts.
     found={r["account"] for r in journal.recent(100)}

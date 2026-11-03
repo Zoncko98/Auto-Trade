@@ -68,9 +68,9 @@ class WebullBroker:
         if isinstance(data,dict) and data.get("pagination_key"):
             raise WebullError("Broker open orders span pages; execution blocked")
         return rows
-    def place(self,account,order):
-        self.verify_account(account)
-        if set(order)!=set(("combo_type","client_order_id","symbol","instrument_type",
+    @staticmethod
+    def _validate_order(order):
+        if set(order)!= set(("combo_type","client_order_id","symbol","instrument_type",
                             "market","order_type","limit_price","quantity","side",
                             "time_in_force","entrust_type")) and set(order)!=set((
                             "combo_type","client_order_id","symbol","instrument_type",
@@ -90,6 +90,15 @@ class WebullBroker:
         if order.get("combo_type")!="NORMAL" or not re.fullmatch("[a-f0-9]{32}",order.get("client_order_id","")):
             raise WebullError("Unsupported combination or identifier")
         positive(order["quantity"]);positive(order["limit_price"])
+    def preview(self,account,order):
+        self.verify_account(account)
+        self._validate_order(order)
+        if order["instrument_type"]!="EQUITY":
+            raise WebullError("Webull preview is unsupported for crypto")
+        return _data(self.trade.order_v3.preview_order(account,[order]))
+    def place(self,account,order):
+        self.verify_account(account)
+        self._validate_order(order)
         return _data(self.trade.order_v3.place_order(account,[order]))
     def bars(self,symbol,asset):
         if asset=="EQUITY" and STOCK.fullmatch(symbol):

@@ -336,6 +336,15 @@ class Handler(BaseHTTPRequestHandler):
                 if cfg.get("ai_provider")=="ollama" and cfg.get("ollama_url"):
                     result.update(verify_ollama_model(cfg["ollama_url"],cfg.get("ai_model","")))
                 return self._json(200,result)
+            if UNIFIED_APP and path == "/api/profile/webull-margin":
+                from webull_account_preferences import read
+                try:
+                    setting=read(STATE_DIR)
+                    return self._json(200,dict(setting,
+                        live_orders_enabled=False,
+                        margin_borrowing_enabled=False))
+                except (ValueError,OSError):
+                    return self._json(503,{"error":"Webull margin preference unavailable"})
             if UNIFIED_APP and path == "/api/webull/trader":
                 from webull_trade_config import read
                 from webull_risk import read as read_risk
@@ -351,6 +360,13 @@ class Handler(BaseHTTPRequestHandler):
                     orders=journal.recent(30)
                 except (OSError,ValueError,TypeError):orders=[]
                 from webull_trade_config import LIVE_EXECUTION_VERIFIED
+                from webull_account_preferences import read as read_webull_account_preferences
+                from webull_worker import account_readiness
+                allow_margin=read_webull_account_preferences(STATE_DIR)["allow_margin_accounts"]
+                if isinstance(worker.get("broker_accounts"),list):
+                    worker["account_readiness"]=[
+                        account_readiness(a,allow_margin) for a in worker["broker_accounts"]
+                        if isinstance(a,dict) and isinstance(a.get("account_id"),str)]
                 return self._json(200,{"policy":policy,"risk":risk,
                     "worker":worker,"orders":orders,
                     "execution_validated":LIVE_EXECUTION_VERIFIED,
@@ -564,11 +580,23 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if UNIFIED_APP and path == "/api/profile/webull-margin":
+            from webull_account_preferences import read,save,PreferenceError
+            try:
+                setting=save(STATE_DIR,self._body())
+                if setting["allow_margin_accounts"] is False:
+                    from webull_trade_config import disarm
+                    disarm(STATE_DIR)
+                return self._json(200,dict(setting,
+                    live_orders_enabled=False,margin_borrowing_enabled=False))
+            except (PreferenceError,ValueError,TypeError,OSError):
+                return self._json(400,{"error":"Invalid Webull margin-account preference"})
         if UNIFIED_APP and path == "/api/webull/trader":
             from webull_trade_config import save,WebullPolicyError
             from webull_broker import WebullBroker,WebullError
             from webull_journal import WebullJournal
             from webull_worker import _can_trade_account
+            from webull_account_preferences import read as webull_account_preferences
             try:
                 request=self._body()
                 # When pausing, do not require reachable broker (kill-switch).
@@ -583,7 +611,8 @@ class Handler(BaseHTTPRequestHandler):
                 for id_key,flag,asset in selected:
                     if policy.get(flag):
                         row=next((r for r in accounts if r.get("account_id")==policy.get(id_key)),None)
-                        if row is None or not _can_trade_account(row,asset):
+                        allow_margin=webull_account_preferences(STATE_DIR)["allow_margin_accounts"]
+                        if row is None or not _can_trade_account(row,asset,allow_margin):
                             raise WebullPolicyError("Selected Webull cash account/asset class not verified")
                         if WebullJournal(STATE_DIR).pending(policy[id_key]):
                             raise WebullPolicyError("Unresolved Webull order intent")
