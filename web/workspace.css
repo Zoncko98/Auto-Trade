@@ -114,3 +114,14 @@
 @media(max-width:1180px){.workspace-tile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace-command-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.workspace-tile-grid{grid-template-columns:1fr}.workspace-command-strip{grid-template-columns:1fr 1fr;margin-top:0}.workspace-tile-featured{min-height:300px}.workspace-tile-head{align-items:flex-start}.workspace-kind{margin-top:2px}}
 @media(max-width:480px){.workspace-command-strip{grid-template-columns:1fr}}
+
+/* Trading operations — read-only, source-attributed evidence */
+.ops-tabs{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 16px}
+.ops-tabs .active{border-color:#65b6ff;background:#193c5d;color:#e8f4ff}
+.ops-records{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px;margin:14px 0}
+.ops-record{min-width:0;border:1px solid #30415c;background:#101d30;border-radius:12px;padding:16px}
+.ops-record h3{font-size:14px;color:#e3edfc;margin:0 0 12px}
+.ops-field{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:8px 0;border-top:1px solid #ffffff12;font-size:12px}
+.ops-field span{color:#94a9c4;flex:0 0 38%}
+.ops-field strong{font-weight:600;text-align:right;overflow-wrap:anywhere;white-space:pre-wrap;min-width:0}
+.ops-select{width:100%;max-width:750px;background:#101d30;color:#e3edfc;border:1px solid #506581;padding:12px;border-radius:9px;margin:8px 0}

@@ -62,6 +62,7 @@
         <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
       </div>
+      <button class="nav-item" data-view="operations"><span class="nav-icon">▤</span> Trading operations</button>
       <button class="nav-item" data-view="brokers"><span class="nav-icon">⌘</span> Manage broker connections</button>
     </nav>
     <div class="sidebar-footer">
@@ -89,6 +90,35 @@
     </header>
     <main class="content">
       <div id="toast" class="toast hidden" role="status"></div>
+      <section class="view hidden" id="view-operations" aria-label="Trading operations">
+        <div class="page-header"><div><p class="eyebrow">CROSS-ACCOUNT OPERATIONS</p><h1>Trading operations</h1>
+        <p class="muted">Verified broker, worker, and simulator observations. Unavailable data is not treated as zero.</p></div>
+        <button class="btn secondary" id="operations-refresh" type="button">Refresh evidence</button></div>
+        <div class="ops-tabs" role="group" aria-label="Operations sections">
+          <button class="btn secondary" data-ops-section="activity" type="button">Agent activity</button>
+          <button class="btn secondary" data-ops-section="orders" type="button">Orders &amp; reconciliation</button>
+          <button class="btn secondary" data-ops-section="portfolio" type="button">Portfolio</button>
+          <button class="btn secondary" data-ops-section="inspector" type="button">Decision inspector</button>
+        </div>
+        <p id="ops-updated" class="muted" role="status">No authenticated observations loaded.</p>
+        <section class="panel" data-ops-panel="activity"><h2>AI agent activity</h2>
+          <p class="muted">Scanner results are not broker orders. Source and time are shown where available.</p>
+          <div id="ops-activity" class="ops-records">Loading…</div></section>
+        <section class="panel hidden" data-ops-panel="orders"><h2>Order &amp; reconciliation center</h2>
+          <p class="muted">An unresolved intent remains locked until broker confirmation. Inspect details in the Robinhood AI evidence screen.</p>
+          <div id="ops-orders" class="ops-records">Loading…</div>
+          <button class="btn secondary" type="button" data-view="robinhood-decisions">Open Robinhood reconciliation controls</button></section>
+        <section class="panel hidden" data-ops-panel="portfolio"><h2>Unified portfolio</h2>
+          <p class="muted">Real brokerage and simulated equity are never combined. Values are displayed only when verified.</p>
+          <div id="ops-portfolio" class="ops-records">Loading…</div>
+          <button class="btn secondary" type="button" data-view="robinhood">Open Robinhood holdings</button></section>
+        <section class="panel hidden" data-ops-panel="inspector"><h2>AI decision inspector</h2>
+          <p class="muted">Select a recorded decision to inspect its available evidence. Missing fields are explicitly identified.</p>
+          <label for="ops-decision-select">Recorded decision</label>
+          <select id="ops-decision-select" class="ops-select"><option value="">No evidence loaded</option></select>
+          <div id="ops-decision-detail" class="ops-records">Choose a decision.</div>
+          <button class="btn secondary" type="button" data-view="robinhood-decisions">Open full Robinhood decision history</button></section>
+      </section>
       <section class="view" id="view-workspaces">
         <div class="workspace-hero">
           <div><p class="eyebrow">ACCOUNT COMMAND CENTER</p>

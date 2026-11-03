@@ -679,8 +679,105 @@ function bindEvents(){
     }
   });
 }
+let operationsDecisions=[];
+function opsRecord(title,fields){
+  return '<article class="ops-record"><h3>'+esc(title)+'</h3>'+
+    fields.map(([label,value])=>'<div class="ops-field"><span>'+esc(label)+'</span><strong>'+esc(value==null||value===""?"Unavailable":value)+'</strong></div>').join("")+'</article>';
+}
+function opsDate(value){
+  if(!value)return "Not reported";
+  const n=Date.parse(value);return Number.isFinite(n)?new Date(n).toLocaleString():"Invalid timestamp";
+}
+function opsSection(name){
+  document.querySelectorAll("[data-ops-panel]").forEach(e=>e.classList.toggle("hidden",e.dataset.opsPanel!==name));
+  document.querySelectorAll("[data-ops-section]").forEach(e=>e.classList.toggle("active",e.dataset.opsSection===name));
+}
+function opsInspect(){
+  const i=Number($("ops-decision-select")?.value);
+  const d=operationsDecisions[i];
+  const box=$("ops-decision-detail");
+  if(!box)return;
+  if(!d){box.textContent="No decision selected.";return;}
+  box.innerHTML=opsRecord(d.source+" · "+(d.symbol||d.signal||"Decision"),[
+    ["Recorded at",opsDate(d.at)],["Signal",d.signal],["AI review",d.ai_review_status||d.decision],
+    ["AI model",d.ai_model],["AI reasoning",d.ai_reason||d.summary],
+    ["Entry candidate",d.entry_candidate_symbol],["Exit candidate",d.exit_candidate_symbol],
+    ["Momentum",d.entry_momentum_pct??d.exit_momentum_pct],
+    ["Spread",d.exit_spread_pct],["Execution state",d.execution_status||"Not reported"],
+    ["Execution reason",d.execution_reason],["Broker fill","Not established by this decision record"]
+  ]);
+}
+async function loadOperations(){
+  const updated=$("ops-updated");if(updated)updated.textContent="Refreshing authenticated observations…";
+  const sources=await Promise.allSettled([
+    request("/api/status"),request("/api/live"),request("/api/robinhood/status"),request("/api/robinhood/portfolio")
+  ]);
+  const [paper,live,rh,portfolio]=sources.map(x=>x.status==="fulfilled"?x.value:null);
+  const sourceNote=(v)=>v?"Loaded":"Unavailable / request failed";
+  const worker=rh?.worker||{};
+  const rhRows=Array.isArray(rh?.decision_evidence)?rh.decision_evidence:[];
+  const liveRows=Array.isArray(live?.decisions)?live.decisions:[];
+  operationsDecisions=[
+    ...rhRows.map(x=>({...x,source:"Robinhood"})),
+    ...liveRows.map(x=>({...x,source:"Schwab"}))
+  ].sort((a,b)=>(Date.parse(b.at)||0)-(Date.parse(a.at)||0));
+  const paperDecision=paper?.runtime?.last_paper_decision;
+  const activity=[
+    opsRecord("Schwab scanner",[
+      ["Worker",live?live.worker_online===true?"Online":"Offline / not verified":"Unavailable"],
+      ["Last recorded decision",liveRows[0]?.decision],["Explanation",liveRows[0]?.summary],
+      ["Recorded decisions",live?String(liveRows.length):null]
+    ]),
+    opsRecord("Paper scanner · simulated",[
+      ["Last decision",paperDecision],["Symbol",paper?.runtime?.last_paper_symbol],
+      ["Reason",paper?.runtime?.last_paper_reason],
+      ["Feed checked",opsDate(paper?.runtime?.paper_feed_checked_at)]
+    ]),
+    opsRecord("Robinhood crypto scanner",[
+      ["Worker",worker.worker],["Last signal",worker.last_signal],
+      ["AI review",worker.ai_review_status],["Reason",worker.execution_reason],
+      ["Last update",opsDate(worker.updated_at)],["Quotes checked",worker.quotes_checked]
+    ])
+  ];
+  $("ops-activity").innerHTML=activity.join("");
+  const pending=Array.isArray(rh?.pending_orders)?rh.pending_orders:[];
+  const orderCards=pending.map((x,i)=>opsRecord("Robinhood unresolved intent "+(i+1),[
+    ["Symbol",x.symbol],["Side",x.side],["Local state",x.local_status],
+    ["Broker match",x.broker_matched?"Matched":"Not confirmed"],
+    ["Broker state",x.broker_state],["Broker lookup",x.broker_lookup_detail],
+    ["Age",Number.isFinite(x.age_seconds)?formatAge(x.age_seconds):null]
+  ]));
+  $("ops-orders").innerHTML=opsRecord("Execution & reconciliation status",[
+    ["Robinhood unresolved intents",rh?String(pending.length):null],
+    ["Robinhood execution",worker.execution_status],["Last execution reason",worker.execution_reason],
+    ["Schwab worker",live?live.worker_online===true?"Online":"Offline / unverified":null],
+    ["Paper trade count · simulated",paper?.account?.trade_count],
+    ["Broker-confirmed Robinhood bot fill",rh?worker.last_order_confirmed===true?"Reported":"Not verified":null]
+  ])+orderCards.join("");
+  const schwabAt=Date.parse(live?.account?.at||"");
+  const fresh=live?.worker_online===true&&Number.isFinite(schwabAt)&&Date.now()-schwabAt>=-60000&&Date.now()-schwabAt<=300000;
+  const schwabEquity=fresh?schwabEquityUsd(live?.account?.equity):null;
+  const paperEquity=finiteUsd(paper?.account?.equity);
+  const accounts=Array.isArray(rh?.accounts)?rh.accounts:[];
+  const bp=accounts.length===1&&accounts[0].buying_power_currency==="USD"?finiteUsd(Number(accounts[0].buying_power)):null;
+  $("ops-portfolio").innerHTML=[
+    opsRecord("Schwab · live brokerage",[["Verified current equity",schwabEquity],["Last broker snapshot",opsDate(live?.account?.at)],["Status",fresh?"Fresh worker snapshot":"Not verified as current"]]),
+    opsRecord("Robinhood · live crypto",[["USD buying power",rh?.connected?bp:null],["Broker-reported holdings",portfolio?.available?portfolio.position_count:null],["Account valuation","Open Robinhood workspace for holdings + quoted valuation"]]),
+    opsRecord("Paper Trading · simulation",[["Simulated equity",paperEquity],["Simulated trade count",paper?.account?.trade_count],["Real brokerage funds","Not included"]])
+  ].join("");
+  const selector=$("ops-decision-select");
+  if(selector){
+    selector.replaceChildren();
+    if(!operationsDecisions.length)selector.add(new Option("No recorded decisions available",""));
+    operationsDecisions.slice(0,100).forEach((d,i)=>selector.add(new Option(
+      d.source+" · "+(d.signal||d.decision||"Decision")+" · "+opsDate(d.at),String(i))));
+    opsInspect();
+  }
+  if(updated)updated.textContent="Refreshed "+new Date().toLocaleString()+" · Schwab "+sourceNote(live)+" · Paper "+sourceNote(paper)+" · Robinhood "+sourceNote(rh)+" · Holdings "+sourceNote(portfolio);
+}
+
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-models","robinhood-forecast"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-models","robinhood-forecast","operations"].includes(view))return;
   activeView=view;
   const liveViews=["live","decisions","live-risk","local","forecast"];
   const paperViews=["overview","trades","reviews","settings"];
@@ -699,7 +796,7 @@ function showView(view) {
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
     "live-risk":"Live risk settings",local:"Local AI models",forecast:"Next session forecast",
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
-settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",robinhood:"Robinhood Crypto","robinhood-risk":"Robinhood risk settings",
+settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",operations:"Trading operations",robinhood:"Robinhood Crypto","robinhood-risk":"Robinhood risk settings",
     "robinhood-decisions":"Robinhood AI evidence","robinhood-models":"Robinhood AI models",
     "robinhood-forecast":"Crypto scan forecast"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
@@ -712,6 +809,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   }
   if(view==="local") loadLocalModels().catch(err=>toast(err.message,true));
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
+  if(view==="operations") loadOperations().catch(err=>{if($("ops-updated"))$("ops-updated").textContent="Unable to load operations: "+err.message;});
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood-risk") loadRobinhoodRisk().catch(err=>toast(err.message,true));
@@ -1056,3 +1154,10 @@ async function checkForUpdate(){
     banner.removeAttribute("href");
   }
 }
+
+document.addEventListener("click",e=>{
+ const tab=e.target.closest("[data-ops-section]");
+ if(tab)opsSection(tab.dataset.opsSection);
+ if(e.target.closest("#operations-refresh"))loadOperations().catch(err=>{if($("ops-updated"))$("ops-updated").textContent=err.message;});
+});
+document.addEventListener("change",e=>{if(e.target.id==="ops-decision-select")opsInspect();});
