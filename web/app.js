@@ -11,6 +11,7 @@ let activeView = "workspaces";
 let activeWorkspace = "live";
 const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto","webull"]);
 let robinhoodTileRefreshId=0;
+let webullTileRefreshId=0;
 let verifiedBrokerRequestId=0;
 // Do not format missing numbers as $0.00, and never render stale broker
 // snapshots as current. Values are only read from authenticated APIs.
@@ -148,11 +149,15 @@ async function refreshVerifiedConnectedAccounts(){
   if(id!==verifiedBrokerRequestId||!csrf)return;
   const data=responses.map(r=>r.status==="fulfilled"?r.value:null);
   renderVerifiedConnectedAccounts(verifiedConnectedAccounts(...data));
+  if(data[2])updateWebullTile(data[2]);
+  else updateWebullTile({check_failed:true});
 }
 
 function clearWorkspaceBalances(){
   // Invalidate in-flight authenticated Robinhood portfolio responses on sign-out.
   robinhoodTileRefreshId++;
+  webullTileRefreshId++;
+  updateWebullTile({});
   const rh=$("workspace-robinhood-balance"), note=$("workspace-robinhood-value-note");
   if(rh){rh.textContent="Account value unavailable";rh.title="Sign in to view verified Robinhood holdings and USD buying power";}
   if(note)note.textContent="Holdings + USD buying power · verification required";
@@ -165,6 +170,69 @@ function selectWorkspace(workspace){
   if(!AVAILABLE_WORKSPACES.includes(workspace))return false;
   activeWorkspace=workspace;
   return true;
+}
+function webullAccountVerified(data){
+  return data?.connected===true && Array.isArray(data.accounts) &&
+    data.accounts.some(a=>typeof a?.account_id==="string" &&
+      a.account_id.trim().length>0 && a.account_id.toLowerCase()!=="unknown");
+}
+function positionWebullTile(verified){
+  const tile=document.querySelector('[data-workspace="webull"]');
+  const active=document.querySelector(".workspace-tile-grid");
+  const upcoming=document.querySelector(".workspace-upcoming-grid");
+  if(!tile||!active||!upcoming)return;
+  const target=verified?active:upcoming;
+  if(tile.parentElement!==target)target.appendChild(tile);
+  tile.classList.toggle("workspace-tile-featured",verified);
+  tile.classList.toggle("workspace-tile-compact",!verified);
+  const label=tile.querySelector(".workspace-tile-equity-label");
+  if(label)label.hidden=!verified;
+}
+function updateWebullTile(data){
+  const tile=document.querySelector('[data-workspace="webull"]');
+  const statusNode=$("workspace-webull-status");
+  const main=$("workspace-webull-balance"),detail=$("workspace-webull-detail");
+  if(!tile||!statusNode||!main||!detail)return;
+  const accounts=Array.isArray(data?.accounts)?data.accounts.filter(a=>
+    typeof a?.account_id==="string" && a.account_id.trim() &&
+    a.account_id.toLowerCase()!=="unknown"):[];
+  const verified=webullAccountVerified(data);
+  positionWebullTile(verified);
+  if(verified){
+    const sandbox=data.environment==="sandbox";
+    const types=[...new Set(accounts.map(a=>a.account_type).filter(x=>typeof x==="string" && x.trim()))];
+    main.textContent=accounts.length+" verified "+(accounts.length===1?"account":"accounts");
+    detail.textContent=(types.length?types.join(", ")+" · ":"")+
+      "View broker balances and positions in Webull · live orders disabled";
+    statusNode.textContent=sandbox?"SANDBOX · ACCOUNT VERIFIED":"ACCOUNT VERIFIED";
+    tile.title="Webull account verified; automated live orders disabled";
+    tile.setAttribute("aria-label","Open verified Webull account workspace");
+  }else{
+    main.textContent="Account access unverified";
+    detail.textContent=data?.check_failed?"Connection check unavailable · retry refresh":
+      data?.credentials_saved?"Credentials saved · complete account verification":
+      "Set up Webull API credentials";
+    statusNode.textContent=data?.check_failed?"CONNECTION CHECK FAILED":
+      data?.credentials_saved?"CREDENTIALS SAVED · VERIFY":"SET UP WEBULL";
+    tile.title="Open Webull account workspace to review connection";
+    tile.setAttribute("aria-label","Open Webull account setup and connection status");
+  }
+  const count=$("workspace-active-count");
+  if(count){
+    const configured=[...document.querySelectorAll(".workspace-tile-grid .workspace-tile:not(.is-coming-soon)")].length;
+    count.textContent="● "+configured+" available";
+  }
+}
+async function refreshWebullTile(){
+  const id=++webullTileRefreshId;
+  try{
+    const data=await request("/api/webull/status");
+    if(id!==webullTileRefreshId||!csrf)return;
+    updateWebullTile(data);
+  }catch(_){
+    if(id!==webullTileRefreshId||!csrf)return;
+    updateWebullTile({check_failed:true});
+  }
 }
 function positionRobinhoodTile(configured){
   const tile=document.querySelector('[data-workspace="robinhood_crypto"]');
@@ -264,6 +332,7 @@ async function loadWorkspaceAvailability() {
     // Schwab workspace remains navigable after a failed capability lookup.
   }
   await refreshRobinhoodTile();
+  await refreshWebullTile();
 }
 function robinhoodEffective(data){
   const state=data.effective_state||"UNVERIFIED";
@@ -1036,6 +1105,7 @@ async function loadWebullWorkspace(){
   if(!health||!accounts)return;
   health.textContent="Checking Webull account access…";
   const data=await request("/api/webull/status");
+  updateWebullTile(data);
   accounts.replaceChildren();
   const entries=Array.isArray(data.accounts)?data.accounts:[];
   if(!data.connected||!entries.length){
@@ -1154,6 +1224,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="robinhood-decisions") loadRobinhoodDecisionEvidence().catch(err=>toast(err.message,true));
   if(view==="robinhood-forecast") loadRobinhoodExtras().catch(err=>toast(err.message,true));
   if(view==="workspaces") refreshRobinhoodTile().catch(()=>{});
+  if(view==="workspaces") refreshWebullTile().catch(()=>{});
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
   if(view==="profile") request("/api/profile").then(p=>{
     $("profile-version").textContent="Installed v"+p.version;

@@ -62,7 +62,10 @@ class WorkspaceTileTests(unittest.TestCase):
         tile=self.parsed.tiles["webull"]
         self.assertNotIn("disabled",tile["attrs"])
         self.assertNotIn("is-coming-soon",tile["attrs"]["class"])
-        self.assertIn("SETUP AVAILABLE","".join(tile["text"]))
+        self.assertIn("CHECKING CONNECTION","".join(tile["text"]))
+        self.assertIn('id="workspace-webull-status"',self.html)
+        self.assertIn("function updateWebullTile(data)",self.js)
+        self.assertIn("webullAccountVerified(data)",self.js)
         self.assertIn("webull",self.js)
     def test_landing_view_and_nested_account_navigation(self):
         self.assertNotIn('id="workspace-select"',self.html)

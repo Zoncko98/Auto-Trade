@@ -70,6 +70,7 @@ function brokerCard(broker){
     setup.append(kl,key,sl,secret,el,env,submit);
     async function refresh(){
       const data=await request("/api/webull/status");
+      if(typeof updateWebullTile==="function")updateWebullTile(data);
       accounts.replaceChildren();
       health.textContent=data.connected?
         "Webull authenticated · "+data.environment+" · live automated orders disabled":
