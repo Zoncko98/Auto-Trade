@@ -367,12 +367,8 @@ async function loadRobinhoodDecisionEvidence(){
     "</td></tr>").join(""):'<tr><td colspan="6">No Robinhood worker decisions recorded yet</td></tr>';
 }
 async function loadRobinhoodExtras(){
-  const [status,ai]=await Promise.all([request("/api/robinhood/status"),
-    request("/api/ai/readiness")]);
+  const status=await request("/api/robinhood/status");
   const effective=robinhoodEffective(status);
-  $("rh-model-readiness").textContent="Provider: "+(ai.provider||"unknown")+
-    " · Verification: "+(ai.status||"unknown")+
-    " · Execution: "+effective.label;
   $("rh-forecast-status").textContent=effective.label+" · "+effective.detail+
     " · Last scan: "+(status.worker?.updated_at||"unavailable")+
     " · Last signal: "+(status.worker?.last_signal||"no signal");
@@ -854,7 +850,6 @@ function bindEvents(){
     "/api/live/export.xlsx","autotrader-live-evidence.xlsx",$("export-live-evidence")));
   $("robinhood-refresh")?.addEventListener("click",()=>loadRobinhoodWorkspace().catch(err=>toast(err.message,true)));
   $("robinhood-configure")?.addEventListener("click",()=>showView("brokers"));
-  $("robinhood-ai-models")?.addEventListener("click",()=>showView("local"));
   $("rh-pending-resolve")?.addEventListener("click",()=>resolveRobinhoodPendingOrder()
     .catch(err=>toast(err.message,true)));
   document.querySelectorAll(".workspace-tile:not(:disabled)").forEach(tile=>
@@ -987,13 +982,14 @@ async function loadOperations(){
 }
 
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-models","robinhood-forecast","operations"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-forecast","operations"].includes(view))return;
   activeView=view;
-  const liveViews=["live","decisions","live-risk","local","forecast"];
+  // Shared AI and operations views must not inherit Schwab or Robinhood context.
+  const liveViews=["live","decisions","live-risk","forecast"];
   const paperViews=["overview","trades","reviews","settings"];
   if(liveViews.includes(view))selectWorkspace("live");
   if(paperViews.includes(view))selectWorkspace("paper");
-  const rhViews=["robinhood","robinhood-risk","robinhood-decisions","robinhood-models","robinhood-forecast"];
+  const rhViews=["robinhood","robinhood-risk","robinhood-decisions","robinhood-forecast"];
   if(rhViews.includes(view))selectWorkspace("robinhood_crypto");
   const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":rhViews.includes(view)?"robinhood_crypto":null;
   $("sidebar-account-context").classList.toggle("hidden",context===null);
@@ -1004,10 +1000,10 @@ function showView(view) {
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!=="view-"+view));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
-    "live-risk":"Live risk settings",local:"Local AI models",forecast:"Next session forecast",
+     "live-risk":"Live risk settings",local:"AI workstation models",forecast:"Next session forecast",
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
 settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",operations:"Trading operations",robinhood:"Robinhood Crypto","robinhood-risk":"Robinhood risk settings",
-    "robinhood-decisions":"Robinhood AI evidence","robinhood-models":"Robinhood AI models",
+    "robinhood-decisions":"Robinhood AI evidence",
     "robinhood-forecast":"Crypto scan forecast"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
@@ -1024,7 +1020,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood-risk") loadRobinhoodRisk().catch(err=>toast(err.message,true));
   if(view==="robinhood-decisions") loadRobinhoodDecisionEvidence().catch(err=>toast(err.message,true));
-  if(view==="robinhood-models"||view==="robinhood-forecast") loadRobinhoodExtras().catch(err=>toast(err.message,true));
+  if(view==="robinhood-forecast") loadRobinhoodExtras().catch(err=>toast(err.message,true));
   if(view==="workspaces") refreshRobinhoodTile().catch(()=>{});
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
   if(view==="profile") request("/api/profile").then(p=>{

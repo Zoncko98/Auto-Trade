@@ -46,14 +46,12 @@
         <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Live overview <span id="live-nav-count" class="nav-counter">0</span></button>
         <button class="nav-item" data-view="decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
         <button class="nav-item" data-view="live-risk"><span class="nav-icon">⚙</span> Live risk settings</button>
-        <button class="nav-item" data-view="local"><span class="nav-icon">▣</span> AI workstation models</button>
         <button class="nav-item" data-view="forecast"><span class="nav-icon">◷</span> Next session forecast</button>
       </div>
       <div id="robinhood-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="robinhood"><span class="nav-icon">◈</span> Live crypto overview</button>
         <button class="nav-item" data-view="robinhood-decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
         <button class="nav-item" data-view="robinhood-risk"><span class="nav-icon">⚙</span> Live crypto risk settings</button>
-        <button class="nav-item" data-view="robinhood-models"><span class="nav-icon">▣</span> AI workstation models</button>
         <button class="nav-item" data-view="robinhood-forecast"><span class="nav-icon">◷</span> Crypto scan forecast</button>
       </div>
       <div id="paper-nav-group" class="workspace-menu hidden">
@@ -62,7 +60,6 @@
         <button class="nav-item" data-view="reviews"><span class="nav-icon">✧</span> Paper AI audit</button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span> Paper risk settings</button>
       </div>
-      <button class="nav-item" data-view="operations"><span class="nav-icon">▤</span> Trading operations</button>
       <button class="nav-item" data-view="brokers"><span class="nav-icon">⌘</span> Manage broker connections</button>
     </nav>
     <div class="sidebar-footer">
@@ -136,6 +133,32 @@
           <div class="workspace-command-stat"><span>Schwab worker</span><strong id="workspace-schwab-worker">Checking…</strong></div>
           <div class="workspace-command-stat"><span>Robinhood AI</span><strong id="workspace-robinhood-agent">Checking…</strong></div>
         </div>
+        <section class="shared-tools" aria-labelledby="shared-tools-heading">
+          <div class="workspace-section-bar shared-tools-heading">
+            <h2 id="shared-tools-heading">Shared tools</h2>
+            <p>One configuration and operations center across all accounts.</p>
+          </div>
+          <div class="shared-tools-grid" role="group" aria-label="Shared trading tools">
+            <button class="shared-tool" type="button" data-view="local"
+              aria-label="Open shared AI workstation models">
+              <span class="shared-tool-icon" aria-hidden="true">▣</span>
+              <span class="shared-tool-copy">
+                <strong>AI workstation models</strong>
+                <small>Manage the shared Ollama model selection used by trading agents.</small>
+              </span>
+              <span class="shared-tool-arrow" aria-hidden="true">↗</span>
+            </button>
+            <button class="shared-tool" type="button" data-view="operations"
+              aria-label="Open shared Trading Operations center">
+              <span class="shared-tool-icon" aria-hidden="true">▤</span>
+              <span class="shared-tool-copy">
+                <strong>Trading operations</strong>
+                <small>Review cross-account activity, orders, portfolio and decisions.</small>
+              </span>
+              <span class="shared-tool-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </section>
         <div class="workspace-section-bar"><h2>Available accounts</h2>
           <p>Real and simulated funds are always separate.</p></div>
     <div class="workspace-tile-grid" role="group" aria-label="Open a trading account">
@@ -276,7 +299,7 @@
             <div class="readiness-item"><span>Risk policy</span><strong id="robinhood-risk-status">Checking…</strong></div>
             <div class="readiness-item"><span>Trade performance</span><strong id="robinhood-trade-activity">No bot-confirmed fills verified</strong></div>
             <div class="readiness-item"><span>Current positions</span><strong id="robinhood-positions-status">Checking…</strong></div>
-            <div class="readiness-item"><span>AI model controls</span><button class="btn secondary tiny" id="robinhood-ai-models">Manage AI models</button></div>
+            <div class="readiness-item"><span>AI model controls</span><strong>Shared · Account Overview → AI workstation models</strong></div>
             <div class="readiness-item"><span>Account connectivity</span><strong>Robinhood signed API</strong></div>
           </section>
         </div>
@@ -328,12 +351,6 @@
         <div class="table-wrap"><table><thead><tr><th>Evaluated UTC</th><th>Signal</th><th>AI review</th><th>Model</th><th>Reason</th><th>Execution</th></tr></thead>
         <tbody id="rh-decision-rows"><tr><td colspan="6">No verified evaluations recorded yet</td></tr></tbody></table></div>
       </section>
-    </section>
-    <section class="view hidden" id="view-robinhood-models">
-      <div class="page-header"><div><p class="eyebrow">SHARED OLLAMA MODELS</p><h1>AI workstation models</h1>
-      <p class="muted">Robinhood uses the shared AI configuration. For news classification, an installed verified text model may be selected instead of an incompatible vision model; the AI evidence log displays the actual model used.</p></div></div>
-      <div class="panel"><h2>Shared AI configuration</h2><p id="rh-model-readiness">Checking model…</p>
-      <button class="btn secondary" data-view="local">Open shared AI model manager</button></div>
     </section>
     <section class="view hidden" id="view-robinhood-forecast">
       <div class="page-header"><div><p class="eyebrow">CRYPTO · SCAN READINESS</p><h1>Crypto scan forecast</h1>
@@ -487,7 +504,7 @@
             <div class="readiness-item"><span>Future candidates</span><strong>Live price, volume, trend and dated news</strong></div>
             <div class="readiness-item"><span>Model provider</span><strong>Your configured AI provider</strong></div>
             <div class="readiness-item"><span>Cloud inference fees</span><strong>$0 per local request</strong></div>
-            <div class="readiness-item"><span>Control center</span><button class="btn secondary tiny" data-view="local">Choose local model</button></div>
+            <div class="readiness-item"><span>AI model controls</span><strong>Shared · Account Overview → AI workstation models</strong></div>
             <p class="panel-note">The existing investment is not separated from the automated account. No forced purchase is made when the strategy lacks a qualifying signal.</p>
           </section>
         </div>
@@ -655,8 +672,8 @@
       </section>
       <section class="view hidden" id="view-local">
         <div class="page-header">
-          <div><p class="eyebrow">PRIVATE LAN AI WORKSTATION</p><h1>Installed local AI models</h1>
-          <p class="muted">Choose from Ollama models actually installed at 192.168.1.21. TrueNAS does not run model inference.</p></div>
+          <div><p class="eyebrow">SHARED SETTINGS · ALL TRADING ACCOUNTS</p><h1>AI workstation models</h1>
+          <p class="muted">Choose from Ollama models installed on your private AI workstation. This shared model configuration applies across account workspaces; TrueNAS does not run model inference.</p></div>
           <span class="paper-label">NO CLOUD API KEYS</span>
         </div>
         <div class="notice neutral"><span class="notice-icon">✧</span><div><strong>No OpenAI, Gemini, Anthropic or Copilot providers here</strong><p>Only models installed on the private GPU workstation appear here. Open WebUI cloud models are not used for automatic trading.</p></div></div>
