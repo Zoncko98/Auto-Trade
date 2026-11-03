@@ -114,22 +114,36 @@ def account_readiness(account,allow_margin_accounts=False):
                       "No verified cash-stock or spot-crypto account class; live orders blocked")}
 
 def verify_margin_cash_funding(balance):
-    """No borrowing or unsettled buying power on an opted-in margin-class account."""
-    if not isinstance(balance,dict):
-        raise WebullBlocked("Broker cash balance unavailable")
-    if balance.get("used_margin") in (None,""):
-        raise WebullBlocked("Margin usage not independently verified as zero")
-    if positive(balance["used_margin"],allow_zero=True)!=0:
-        raise WebullBlocked("Margin usage must be zero")
-    if balance.get("margin_debit") not in (None,""):
-        if positive(balance["margin_debit"],allow_zero=True)!=0:
-            raise WebullBlocked("Outstanding margin debit blocks trading")
+    """Cash-only budget for a margin-classified brokerage account.
+
+    Webull documents that margin accounts may omit settled_cash, buying_power,
+    and used_margin. Do not interpret absent used_margin as zero; instead cap
+    any new BUY by independently returned *cash balances*, never day BP.
+    Positive reported utilization, debit or margin calls always reject.
+    """
+    if not isinstance(balance,dict) or balance.get("total_asset_currency")!="USD":
+        raise WebullBlocked("Broker USD cash balance unavailable")
+    if balance.get("open_margin_calls") not in (None,"","[]",[]):
+        raise WebullBlocked("Margin call restriction")
+    for key in ("used_margin","used_margin_for_open_order","margin_debit"):
+        if balance.get(key) not in (None,""):
+            if positive(balance[key],allow_zero=True)!=0:
+                raise WebullBlocked("Reported margin usage or debit blocks cash-only trading")
     assets=balance.get("account_currency_assets")
-    settled=[a.get("settled_cash") for a in assets if isinstance(a,dict) and
-             a.get("currency")=="USD"] if isinstance(assets,list) else []
-    if len(settled)!=1 or settled[0] in (None,""):
-        raise WebullBlocked("Broker-confirmed settled USD cash required")
-    return positive(settled[0],allow_zero=True)
+    usd=[a for a in assets if isinstance(a,dict) and a.get("currency")=="USD"] if isinstance(assets,list) else []
+    if len(usd)!=1:
+        raise WebullBlocked("Unique broker USD cash record required")
+    cash=positive(usd[0].get("cash_balance"),allow_zero=True)
+    total=positive(balance.get("total_cash_balance"),allow_zero=True)
+    available=min(cash,total)
+    # If supplied, further reduce usable cash; never substitute margin buying power.
+    for key in ("settled_cash","buying_power"):
+        if usd[0].get(key) not in (None,""):
+            available=min(available,positive(usd[0][key],allow_zero=True))
+    for key in ("held_amount","frozen_amount"):
+        if usd[0].get(key) not in (None,""):
+            available=max(Decimal("0"),available-positive(usd[0][key],allow_zero=True))
+    return available
 
 def _funds(balance):
     if not isinstance(balance,dict) or balance.get("total_asset_currency")!="USD":
@@ -143,10 +157,14 @@ def _funds(balance):
     usd=[x for x in entries if isinstance(x,dict) and x.get("currency")=="USD"] if isinstance(entries,list) else []
     if len(usd)!=1:raise WebullBlocked("Unique USD cash balance missing")
     a=usd[0]
-    available=min(positive(a.get("buying_power"),allow_zero=True),
-                  positive(a.get("cash_balance"),allow_zero=True))
-    if a.get("settled_cash") not in (None,""):
-        available=min(available,positive(a.get("settled_cash"),allow_zero=True))
+    available=min(positive(a.get("cash_balance"),allow_zero=True),
+                  positive(balance.get("total_cash_balance"),allow_zero=True))
+    # Webull omits buying_power and settled_cash for margin-class accounts.
+    # Never use day_buying_power, overnight_buying_power, or option_buying_power
+    # as substitutes for actual cash.
+    for key in ("buying_power","settled_cash"):
+        if a.get(key) not in (None,""):
+            available=min(available,positive(a[key],allow_zero=True))
     day=balance.get("total_day_profit_loss")
     if day is None:raise WebullBlocked("Broker day P/L not verified")
     try:
@@ -175,11 +193,11 @@ def _live_gate(root,broker,policy,risk,account_id,asset,symbol,side,qty,price,jo
     orders=broker.open_orders(account_id)
     if orders:raise WebullBlocked("Existing open broker orders block autonomous execution")
     balance=broker.balance(account_id)
-    margin_settled=None
+    margin_cash_budget=None
     if "MARGIN" in _account_class(account):
-        margin_settled=verify_margin_cash_funding(balance)
+        margin_cash_budget=verify_margin_cash_funding(balance)
     equity,cash,pnl=_funds(balance)
-    if margin_settled is not None:cash=min(cash,margin_settled)
+    if margin_cash_budget is not None:cash=min(cash,margin_cash_budget)
     if pnl<=-Decimal(str(risk["max_daily_loss_usd"])):
         raise WebullBlocked("Maximum broker-reported daily loss reached")
     bot_positions,_=journal.positions(account_id)

@@ -248,26 +248,25 @@ class Tests(unittest.TestCase):
                 _live_gate(self.state,self.b,self.policy,self.risk,
                            "stock1","EQUITY","F","BUY","1","10",self.j)
         self.assertEqual(self.b.submissions,[])
-    def test_margin_opt_in_never_allows_borrowing_or_unknown_settled_cash(self):
+    def test_margin_opt_in_rejects_actual_borrowing_and_insufficient_cash(self):
         from webull_account_preferences import save as pref_save
         pref_save(self.state,{"allow_margin_accounts":True})
         self.arm()
         self.b.available=[{"account_id":"stock1","account_type":"INDIVIDUAL_MARGIN"}]
         base=FakeBroker().balance("stock1")
         for broken in (
-            dict(base), # No broker-verifiable margin figure
             dict(base,used_margin="0.01"),
             dict(base,used_margin="0",margin_debit="1"),
             dict(base,used_margin="0",account_currency_assets=[
-                {"currency":"USD","buying_power":"500","cash_balance":"500"}]),
+                {"currency":"USD","buying_power":"500","cash_balance":"-1"}]),
             dict(base,used_margin="0",account_currency_assets=[
                 {"currency":"USD","buying_power":"500","cash_balance":"500","settled_cash":"0"}],
                  total_market_value="0")):
-            # Missing settled cash is blocked. Zero cash is a valid number but
-            # cannot finance a buy under the account exposure budget.
+            # Reported debt or insufficient actual cash still blocks; a missing
+            # settled_cash field alone is normal for Webull margin accounts.
             self.b.balance=lambda account,result=broken:result
             with patch("webull_worker.core_stock_session",return_value=True):
-                with self.assertRaises(WebullBlocked):
+                with self.assertRaises((WebullBlocked,WebullError)):
                     _live_gate(self.state,self.b,self.policy,self.risk,
                                "stock1","EQUITY","F","BUY","1","10",self.j)
         self.assertEqual(self.b.submissions,[])
@@ -470,16 +469,26 @@ class Tests(unittest.TestCase):
             save_policy(self.state,proposed,self.accounts,"ENABLE_WEBULL_LIVE")
         self.assertFalse(read_policy(self.state)["enabled"])
     def test_live_margin_cash_funding_never_uses_borrowed_buying_power(self):
-        from webull_worker import verify_margin_cash_funding
+        from webull_worker import verify_margin_cash_funding,_funds
         baseline=FakeBroker().balance("stock1")
-        with self.assertRaises(WebullBlocked):
-            verify_margin_cash_funding(baseline)
+        # Official margin response may omit used_margin and settled_cash.
+        self.assertEqual(verify_margin_cash_funding(baseline),Decimal("500"))
         allowed=dict(baseline,used_margin="0",margin_debit="0")
         self.assertEqual(verify_margin_cash_funding(allowed),Decimal("500"))
+        # Leverage buying power is ignored; a $15 or greater order cannot
+        # use the $50,000 day-buying-power value with only $5 actual cash.
+        cash_only=dict(baseline,account_currency_assets=[{"currency":"USD",
+            "cash_balance":"5","day_buying_power":"50000",
+            "overnight_buying_power":"30000"}])
+        self.assertEqual(verify_margin_cash_funding(cash_only),Decimal("5"))
+        self.assertEqual(_funds(cash_only)[1],Decimal("5"))
         for invalid in (
             dict(allowed,used_margin="1"),dict(allowed,margin_debit="1"),
-            dict(allowed,account_currency_assets=[{"currency":"USD","cash_balance":"500","buying_power":"500"}])):
-            with self.assertRaises(WebullBlocked):
+            dict(allowed,account_currency_assets=[{"currency":"USD",
+                "day_buying_power":"50000"}]),
+            dict(allowed,total_cash_balance="-1"),
+            dict(allowed,open_margin_calls=["RM"])):
+            with self.assertRaises((WebullBlocked,WebullError)):
                 verify_margin_cash_funding(invalid)
 
     def test_open_market_exposure_cap(self):

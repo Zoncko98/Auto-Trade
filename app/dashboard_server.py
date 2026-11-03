@@ -630,7 +630,8 @@ class Handler(BaseHTTPRequestHandler):
                         if asset=="EQUITY" and "MARGIN" in str(
                                row.get("account_class") or row.get("account_type") or "").upper():
                             from webull_worker import verify_margin_cash_funding
-                            verify_margin_cash_funding(b)
+                            if verify_margin_cash_funding(b)<=0:
+                                raise WebullPolicyError("Broker cash balance is insufficient for live trading")
                 return self._json(200,save(STATE_DIR,policy,accounts,request.get("confirmation")))
             except (WebullPolicyError,WebullError,OSError,ValueError,TypeError,KeyError):
                 return self._json(400,{"error":"Webull authorization, account class, risk limits or pending orders not verified"})
