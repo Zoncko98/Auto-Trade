@@ -1534,8 +1534,12 @@ function renderWebullPortfolio(result){
   $("webull-performance-note").textContent=pnl?
     "Unrealized P/L uses Webull account figures; not realized profit or tax cost basis.":
     "Broker did not supply a verified USD unrealized P/L. No estimate is inferred.";
-  const root=$("webull-positions");root.replaceChildren();
-  if(!holdings.length){root.textContent="No holdings reported by this account.";return;}
+  const root=$("webull-positions");
+  if(!root)throw new Error("Webull holdings container is missing");
+  if(!holdings.length){
+    root.textContent="No holdings reported by this account.";
+    return;
+  }
   const table=document.createElement("table"),head=document.createElement("thead"),body=document.createElement("tbody");
   const tr=document.createElement("tr");
   ["Symbol","Asset","Quantity","Last price","Unrealized P/L"].forEach(v=>{
@@ -1548,7 +1552,10 @@ function renderWebullPortfolio(result){
       .forEach(v=>{const td=document.createElement("td");td.textContent=String(v);row.appendChild(td);});
     body.appendChild(row);
   });
-  table.appendChild(body);root.appendChild(table);
+  table.appendChild(body);
+  // Swap the complete table atomically so pending refreshes never blank a valid snapshot.
+  root.replaceChildren(table);
+  root.dataset.holdingsCount=String(holdings.length);
 }
 async function loadWebullWorkspace(){
   const health=$("webull-connectivity"),accounts=$("webull-account");
@@ -1591,12 +1598,17 @@ async function loadWebullAccount(){
   const updated=$("webull-updated"),balances=$("webull-balance-fields");
   const positions=$("webull-positions");
   if(!id||!balances||!positions)return;
-  balances.replaceChildren();positions.replaceChildren();
-  updated.textContent="Checking selected Webull balance and holdings…";
+  // Retain the last confirmed snapshot while the broker refresh is in flight.
+  updated.textContent="Refreshing selected Webull balance and holdings…";
   try{
     const result=await request("/api/webull/portfolio?account_id="+encodeURIComponent(id));
     const moneyFields=result.balances||{};
     renderWebullPortfolio(result);
+    const renderedCount=positions.querySelectorAll("tbody tr").length;
+    const expectedCount=Array.isArray(result.positions)?result.positions.length:0;
+    if(renderedCount!==expectedCount){
+      throw new Error("Holdings display mismatch: "+renderedCount+" of "+expectedCount+" positions rendered");
+    }
     balances.replaceChildren();
     webullRow(balances,"Account value (USD)",webullPrice(moneyFields.total_net_liquidation_value));
     webullRow(balances,"Cash balance (USD)",webullPrice(moneyFields.total_cash_balance));
@@ -1611,7 +1623,7 @@ async function loadWebullAccount(){
       " · read-only, not an execution authorization";
   }catch(error){
     updated.textContent="Unable to verify account data: "+error.message;
-    positions.textContent="Current positions unavailable; no values inferred.";
+    positions.textContent="Current positions unavailable: "+error.message;
     webullDashboardReset("Broker account request failed; performance is unavailable.");
   }
 }
