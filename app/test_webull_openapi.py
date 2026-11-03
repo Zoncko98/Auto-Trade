@@ -85,7 +85,7 @@ class WebullSdkInitTests(unittest.TestCase):
             self.assertEqual(env2,"sandbox")
             self.assertFalse((Path(td)/"webull_trade_sdk.log").exists())
             self.assertEqual(len(calls),2)
-            self.assertTrue(all(x["log_level"]==logging.WARNING for x in calls))
+            self.assertTrue(all(x["log_level"]==logging.CRITICAL+1 for x in calls))
             self.assertEqual(len([h for h in logging.getLogger("webull.core").handlers
                  if h is webull_openapi._sdk_stream_handler]),1)
         logger=logging.getLogger("webull.core")
@@ -112,9 +112,14 @@ class WebullRealSdkTests(unittest.TestCase):
             previous=os.getcwd()
             try:
                 os.chdir(readonly)
-                with patch.object(webull_openapi,"_load",return_value={
-                        "app_key":"test-dummy-api-key","app_secret":"test-dummy-secret","environment":"sandbox"}):
-                    client,env=webull_openapi._client(td)
+                from webull.core.http.initializer.client_initializer import ClientInitializer
+                # TradeClient calls Webull /openapi/config during initialization.
+                # Prohibit the real HTTP call: this is a filesystem/logging test,
+                # not a live credential validation test.
+                with patch.object(ClientInitializer,"initializer",return_value=None):
+                    with patch.object(webull_openapi,"_load",return_value={
+                            "app_key":"test-dummy-api-key","app_secret":"test-dummy-secret","environment":"sandbox"}):
+                        client,env=webull_openapi._client(td)
                 self.assertIsInstance(client,TradeClient)
                 self.assertEqual(env,"sandbox")
                 self.assertFalse((readonly/"webull_trade_sdk.log").exists())

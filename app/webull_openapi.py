@@ -17,7 +17,8 @@ class WebullError(RuntimeError):
 
 # Webull TradeClient otherwise initializes an implicit relative file handler for
 # webull_trade_sdk.log. The production /app filesystem is intentionally read-only.
-# Keep one SDK warning handler for this process; do not log account payloads or keys.
+# Do not expose SDK signed request headers or account data in process logs.
+# SDK logging is disabled; application status returns sanitized error categories.
 _SDK_LOG_LOCK = threading.Lock()
 _sdk_stream_handler = None
 
@@ -32,7 +33,7 @@ def _configure_sdk_logging(api):
         existing = list(logger.handlers)
         # Public SDK API; marks the client as configured, preventing the default
         # TimedRotatingFileHandler inside TradeClient._init_logger.
-        api.set_stream_logger(log_level=logging.WARNING, stream=sys.stderr)
+        api.set_stream_logger(log_level=logging.CRITICAL+1, stream=sys.stderr)
         added = [handler for handler in logger.handlers if handler not in existing]
         if added:
             _sdk_stream_handler = added[-1]
