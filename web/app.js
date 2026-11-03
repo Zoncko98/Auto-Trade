@@ -175,6 +175,10 @@ async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
   const effective=robinhoodEffective(data);
   $("rh-decision-status").textContent=effective.label+" · "+effective.detail;
+  $("rh-ai-connectivity").textContent="Shared Ollama: "+
+    (data.worker?.ai_connection_status||"not checked")+" · Model: "+
+    (data.worker?.ai_model||"unavailable")+
+    " · AI gate: "+(data.worker?.ai_review_status||"not evaluated");
   const rows=Array.isArray(data.decision_evidence)?data.decision_evidence:[];
   $("rh-decision-rows").innerHTML=rows.length?rows.slice().reverse().map(x=>
     "<tr><td>"+esc(x.at||"—")+"</td><td>"+esc(x.signal||"—")+

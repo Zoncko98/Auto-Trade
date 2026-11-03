@@ -45,7 +45,7 @@ def fetch_headlines(symbol: str, now: datetime, fetch=None) -> list[dict]:
         raise ResearchUnavailable('Unsupported symbol or naive timestamp')
     now = now.astimezone(timezone.utc)
     url = ('https://news.google.com/rss/search?q='
-           + quote_plus(COMPANIES[symbol] + ' stock when:2d')
+           + quote_plus(COMPANIES[symbol] + (' when:2d' if symbol.endswith('-USD') else ' stock when:2d'))
            + '&hl=en-US&gl=US&ceid=US%3Aen')
     try:
         if fetch is not None:

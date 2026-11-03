@@ -13,4 +13,7 @@ class WorkerTests(unittest.TestCase):
    self.assertEqual(result["quotes_checked"],4)
    self.assertFalse(result["live_orders_allowed"])
    self.assertFalse(result["last_order_confirmed"])
+   self.assertEqual(result["ai_review_status"],"NOT_INVOKED_NO_TECHNICAL_CANDIDATE")
+   self.assertIn(result["ai_connection_status"],("READY","MODEL_NOT_INSTALLED","UNAVAILABLE"))
+   self.assertIn("requires a qualified technical candidate",result["ai_reason"])
    self.assertTrue((Path(d)/"robinhood"/"worker_status.json").is_file())

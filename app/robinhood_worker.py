@@ -59,7 +59,18 @@ def run_once(state,client):
                           if signal_candidates else
                           "NO_SIGNAL" if observations else "QUOTE_UNAVAILABLE")
     result["observations"]=len(observations)
-    result["ai_review_status"]="NO_TECHNICAL_CANDIDATE"
+    result["ai_review_status"]="NOT_INVOKED_NO_TECHNICAL_CANDIDATE"
+    result["ai_reason"]="Ollama review requires a qualified technical candidate; no trade decision was requested"
+    # Read-only Ollama model catalog proves service/config availability without
+    # fabricating a trading decision or spending tokens on every quote.
+    from local_ai_gateway import installed_models, _settings, LocalAIUnavailable
+    try:
+        _, configured_model=_settings()
+        models=installed_models()
+        result["ai_connection_status"]="READY" if configured_model in models else "MODEL_NOT_INSTALLED"
+        result["ai_model"]=configured_model
+    except (LocalAIUnavailable,OSError,ValueError,TypeError):
+        result["ai_connection_status"]="UNAVAILABLE"
     approved_signal=None
     if signal_candidates:
         # The same configured AI_PROVIDER, LOCAL_AI_URL and LOCAL_AI_MODEL
@@ -71,6 +82,8 @@ def run_once(state,client):
         result["ai_review_status"]="PASS" if approved else "VETO_OR_UNAVAILABLE"
         result["ai_model"]=evidence.get("model","unavailable")
         result["ai_reason"]=reason[:500]
+        if result.get("ai_connection_status")=="READY":
+            result["ai_connection_status"]="REVIEW_PERFORMED"
         result["last_signal"]=target["symbol"]+": "+result["ai_review_status"]
         if approved:
             approved_signal=dict(target,ai_approved=True)
@@ -143,7 +156,8 @@ def run_once(state,client):
         if not isinstance(evidence,list):evidence=[]
     except (OSError,ValueError,TypeError):evidence=[]
     evidence.append({"at":result["updated_at"],"signal":result.get("last_signal"),
-        "ai_review_status":result.get("ai_review_status"),"ai_model":result.get("ai_model"),
+        "ai_review_status":result.get("ai_review_status"),"ai_connection_status":result.get("ai_connection_status"),
+        "ai_model":result.get("ai_model"),
         "ai_reason":result.get("ai_reason"),"execution_status":result.get("execution_status"),
         "risk_check":result.get("risk_check")})
     write_atomic(evidence_path,evidence[-100:])
