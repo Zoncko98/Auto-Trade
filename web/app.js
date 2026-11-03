@@ -265,6 +265,8 @@ async function loadRobinhoodWorkspace(){
     if(orderPermission)orderPermission.textContent=effective.label;
     if(executionPill)executionPill.textContent=effective.label.toUpperCase();
     const scanEl=$("robinhood-scanner-state");
+    const diag=$("robinhood-signal-diagnostics");
+    if(diag)diag.textContent=worker.signal_diagnostics||"No per-pair diagnostics recorded";
     const orderEl=$("robinhood-order-state");
     const executionEl=$("robinhood-execution-state");
     const when=worker.updated_at?new Date(worker.updated_at):null;
@@ -330,8 +332,15 @@ async function loadRobinhoodWorkspace(){
         const orders=Number.isInteger(portfolio.order_count)?portfolio.order_count:0;
         positionState.textContent=holdings+" holdings · "+orders+" broker order records";
         const total=$("robinhood-total-stat");
-        if(total)total.textContent=portfolio.estimated_crypto_account_value_usd==null?
-          "Unavailable":money(portfolio.estimated_crypto_account_value_usd);
+        if(total)total.textContent=portfolio.estimated_crypto_account_value_usd!=null?
+          money(portfolio.estimated_crypto_account_value_usd):
+          portfolio.known_holdings_value_usd!=null&&portfolio.cash_usd!=null?
+          money(Number(portfolio.known_holdings_value_usd)+Number(portfolio.cash_usd))+"+":
+          "Unavailable";
+        const totalNote=$("robinhood-total-note");
+        if(totalNote)totalNote.textContent=(portfolio.unpriced_holdings?.length?
+          "Partial estimate · unpriced: "+portfolio.unpriced_holdings.join(", "):
+          "Holdings + USD buying power; indicative quotes, not liquidation proceeds");
         if(box){
           const buying=document.createElement("p");
           buying.textContent="USD buying power: "+(portfolio.cash_usd==null?"unavailable":money(portfolio.cash_usd))+

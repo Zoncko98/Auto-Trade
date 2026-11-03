@@ -198,7 +198,7 @@ def robinhood_status(state):
         return {"effective_state":effective,"effective_detail":detail,"worker_fresh":fresh,
                 "decision_evidence":history,"policy_enabled":armed,"worker":{k:worker.get(k) for k in
                     ("updated_at","worker","quotes_checked","pairs_checked",
-                     "pending_order_intents","risk_check","last_signal","observations","ai_review_status","ai_connection_status","ai_model","ai_reason","execution_status","live_orders_allowed",
+                     "pending_order_intents","risk_check", "last_signal","observations","signal_diagnostics","ai_review_status","ai_connection_status","ai_model","ai_reason","execution_status","live_orders_allowed",
                      "last_order_confirmed","reason")},
                 "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,
                 "order_execution_enabled":armed,
@@ -300,12 +300,15 @@ def robinhood_portfolio(state):
                     "market_value_usd":str(value) if value is not None else None,
                     "valuation":"broker_bid_ask_midpoint" if value is not None else "unavailable"})
             orders+=len(client.orders(ref))
-        total=None
-        if cash_verified and all(h["market_value_usd"] is not None for h in holdings):
-            total=cash+sum((Decimal(h["market_value_usd"]) for h in holdings),Decimal("0"))
+        priced=[h for h in holdings if h["market_value_usd"] is not None]
+        unpriced=[h["symbol"] for h in holdings if h["market_value_usd"] is None]
+        known_value=sum((Decimal(h["market_value_usd"]) for h in priced),Decimal("0"))
+        total=cash+known_value if cash_verified and not unpriced else None
         return {"available":True,"position_count":len(holdings),"order_count":orders,
             "holdings":holdings,"cash_usd":str(cash) if cash_verified else None,
             "estimated_crypto_account_value_usd":str(total) if total is not None else None,
-            "valuation_note":"Crypto holdings marked at current broker bid/ask midpoint; not executable value. USD buying power is not necessarily total cash balance."}
+            "known_holdings_value_usd":str(known_value),
+            "unpriced_holdings":unpriced,
+            "valuation_note":"Broker bid/ask midpoint estimates, not executable prices. Partial totals exclude unpriced positions. USD buying power may differ from cash balance."}
     except (OSError,ValueError,KeyError,TypeError,RobinhoodUnavailable):
         return {"available":False,"reason":"Robinhood account portfolio request failed"}

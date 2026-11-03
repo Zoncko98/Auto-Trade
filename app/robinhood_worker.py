@@ -58,6 +58,10 @@ def run_once(state,client):
     result["last_signal"]=(signal_candidates[0]["symbol"]+": MOMENTUM_CANDIDATE"
                           if signal_candidates else
                           "NO_SIGNAL" if observations else "QUOTE_UNAVAILABLE")
+    result["signal_diagnostics"]=" · ".join(
+        r["symbol"]+": "+r["signal"]+
+        (" ("+str(r["momentum_pct"])+"% momentum, "+str(r["spread_pct"])+"% spread)" if r.get("momentum_pct") is not None else "")
+        for r in observations) or "No valid broker quotes"
     result["observations"]=len(observations)
     result["ai_review_status"]="NOT_INVOKED_NO_TECHNICAL_CANDIDATE"
     result["ai_reason"]="Ollama review requires a qualified technical candidate; no trade decision was requested"
