@@ -125,3 +125,29 @@
 .ops-field span{color:#94a9c4;flex:0 0 38%}
 .ops-field strong{font-weight:600;text-align:right;overflow-wrap:anywhere;white-space:pre-wrap;min-width:0}
 .ops-select{width:100%;max-width:750px;background:#101d30;color:#e3edfc;border:1px solid #506581;padding:12px;border-radius:9px;margin:8px 0}
+
+
+/* Robinhood holdings performance; visual-only, never authorizes orders. */
+.rh-portfolio-performance{margin:20px 0 18px;background:linear-gradient(125deg,#14253d,#0f1b2e);border-color:#355574}
+.rh-portfolio-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:22px 0 12px}
+.rh-portfolio-metrics>div{display:flex;flex-direction:column;gap:7px;min-width:0;padding:3px 24px;border-right:1px solid #3b536d}
+.rh-portfolio-metrics>div:first-child{padding-left:0}
+.rh-portfolio-metrics>div:last-child{border:0}
+.rh-portfolio-metrics span{color:#9db5d0;font-size:11px;font-weight:750;letter-spacing:.4px}
+.rh-portfolio-metrics strong{color:#f1f7ff;font-size:clamp(20px,2.5vw,31px);font-weight:850;letter-spacing:-.7px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rh-portfolio-metrics small{color:#97a9c1;font-size:11px;line-height:1.5}
+.rh-holdings-panel{margin:0 0 19px}
+.rh-holdings-table{width:100%;border-collapse:collapse;font-size:12px;min-width:790px}
+.rh-holdings-table th{color:#9db2cd;font-size:10px;text-transform:uppercase;letter-spacing:.6px;text-align:right;background:#172940;padding:13px 10px;white-space:nowrap}
+.rh-holdings-table th:first-child,.rh-holdings-table td:first-child{text-align:left}
+.rh-holdings-table td{text-align:right;border-top:1px solid #2a405b;padding:14px 10px;color:#ddeaff;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rh-holdings-table .rh-asset-name{font-weight:850;font-size:14px;color:#f2f8ff}
+.rh-holdings-table .rh-subnote{display:block;font-size:10px;color:#8ca2bb;margin-top:5px;white-space:normal;max-width:180px}
+.rh-holdings-table .rh-unavailable{color:#98aabd;font-size:11px}
+.pnl-up,.rh-holdings-table td.pnl-up,.rh-portfolio-metrics strong.pnl-up{color:#79e8af}
+.pnl-down,.rh-holdings-table td.pnl-down,.rh-portfolio-metrics strong.pnl-down{color:#ff8798}
+.pnl-flat,.rh-holdings-table td.pnl-flat{color:#becfe4}
+.rh-change-pill{display:inline-flex;align-items:center;border:1px solid #355772;background:#19334b;border-radius:9px;padding:5px 8px}
+.rh-change-pill.pnl-up{background:#14392e;border-color:#28624c}
+.rh-change-pill.pnl-down{background:#392534;border-color:#664052}
+@media(max-width:850px){.rh-portfolio-metrics{grid-template-columns:1fr;gap:13px}.rh-portfolio-metrics>div{border-right:0;border-bottom:1px solid #3b536d;padding:0 0 12px!important}.rh-portfolio-metrics>div:last-child{border-bottom:0}}

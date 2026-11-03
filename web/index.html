@@ -227,6 +227,27 @@
           <strong id="robinhood-workspace-status">Checking Robinhood execution state…</strong>
           <p id="robinhood-execution-state">Retrieving account-specific broker and risk permissions…</p>
         </div></div>
+        <section class="panel rh-portfolio-performance" aria-label="Robinhood open holdings performance">
+          <div class="panel-heading"><div>
+            <h2>Portfolio performance · Robinhood Crypto</h2>
+            <p>Real holdings and indicative prices; unrealized profit/loss requires reconciled purchase history.</p>
+          </div><span class="time-label" id="rh-pnl-coverage">Loading holdings…</span></div>
+          <div class="rh-portfolio-metrics">
+            <div><span>Crypto holdings value</span><strong id="rh-performance-value">—</strong>
+              <small>Excludes buying power · indicative midpoint</small></div>
+            <div><span>Estimated unrealized P/L</span><strong id="rh-performance-pnl">—</strong>
+              <small id="rh-performance-pnl-label">Broker order cost history required</small></div>
+            <div><span>Estimated return on holdings</span><strong id="rh-performance-pct">—</strong>
+              <small>Since purchase · not today's return</small></div>
+          </div>
+          <p class="panel-note" id="rh-performance-disclosure">Robinhood Crypto v2 holdings do not report official average cost. Estimates are shown only when filled-order history matches held quantity. No tax-basis claim.</p>
+        </section>
+        <section class="panel rh-holdings-panel" aria-label="Robinhood holdings and profit or loss">
+          <div class="panel-heading"><div><h2>Current crypto holdings</h2>
+            <p>Green = estimated gain since purchase; red = estimated loss. Unverified costs remain unavailable.</p></div>
+            <span class="time-label" id="rh-holdings-summary">Loading holdings…</span></div>
+          <div id="robinhood-positions-list" class="table-wrap" aria-live="polite">Loading Robinhood holdings…</div>
+        </section>
         <div class="stats-grid">
           <div class="stat-card"><div class="stat-top">EST. CRYPTO ACCOUNT VALUE <span class="stat-icon">◈</span></div><strong id="robinhood-total-stat">—</strong><small id="robinhood-total-note">Holdings + USD buying power; quoted mark, not liquidation proceeds</small></div>
           <div class="stat-card"><div class="stat-top">ACTIVE ACCOUNT <span class="stat-icon">◉</span></div><strong id="robinhood-account-stat">—</strong><small>Verified Robinhood API status</small></div>
@@ -262,7 +283,6 @@
           <div class="panel-heading"><div><h2>Robinhood account and order journal</h2>
             <p>Broker-reported holdings and orders; bot order confirmation is tracked separately</p></div></div>
           <div id="robinhood-workspace-accounts" aria-live="polite" class="broker-grid"></div>
-          <div id="robinhood-positions-list" class="table-wrap"></div>
         </section>
       </section>
     <section class="view hidden" id="view-robinhood-decisions">

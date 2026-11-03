@@ -369,6 +369,7 @@ def robinhood_portfolio(state):
     """Broker holdings with conservatively verified USD marks and quantities."""
     from decimal import Decimal,InvalidOperation
     from robinhood_crypto_gateway import RobinhoodUnavailable
+    from robinhood_portfolio_pnl import estimated_acquisition_cost,position_return
     def dec(x):
         try:
             v=Decimal(str(x))
@@ -389,6 +390,8 @@ def robinhood_portfolio(state):
             if account.get("buying_power_currency")!="USD" or amount is None:
                 cash_verified=False
             else:cash+=amount
+            broker_orders=client.orders(ref)
+            orders+=len(broker_orders)
             for item in client.positions(ref):
                 if not isinstance(item,dict):continue
                 code=item.get("asset_code")
@@ -398,6 +401,7 @@ def robinhood_portfolio(state):
                     continue
                 symbol=code.upper()+"-USD"
                 value=None
+                midpoint=None
                 if qty==0:value=Decimal("0")
                 else:
                     try:
@@ -407,22 +411,44 @@ def robinhood_portfolio(state):
                         if len(matching)==1:
                             bid=dec(matching[0].get("bid"));ask=dec(matching[0].get("ask"))
                             if bid is not None and ask is not None and 0<bid<=ask:
-                                value=qty*(bid+ask)/2
+                                midpoint=(bid+ask)/2
+                                value=qty*midpoint
                     except (RobinhoodUnavailable,ValueError,TypeError,KeyError):pass
+                average_cost,basis_issue=estimated_acquisition_cost(symbol,qty,broker_orders)
+                pnl,pnl_pct=position_return(qty,midpoint,average_cost)
                 holdings.append({"symbol":symbol,"quantity":str(qty),
                     "available_quantity":str(available) if available is not None else None,
+                    "current_price_usd":str(midpoint) if midpoint is not None else None,
+                    "average_cost_usd":str(average_cost) if average_cost is not None else None,
                     "market_value_usd":str(value) if value is not None else None,
+                    "unrealized_pnl_usd":str(pnl) if pnl is not None else None,
+                    "unrealized_pnl_pct":str(pnl_pct) if pnl_pct is not None else None,
+                    "cost_basis_source":"estimated_broker_fill_history" if average_cost is not None else "unavailable",
+                    "cost_basis_note":basis_issue if basis_issue is not None else
+                        "Estimated from accessible Robinhood filled orders; excludes purchase fees and transfers",
                     "valuation":"broker_bid_ask_midpoint" if value is not None else "unavailable"})
-            orders+=len(client.orders(ref))
         priced=[h for h in holdings if h["market_value_usd"] is not None]
         unpriced=[h["symbol"] for h in holdings if h["market_value_usd"] is None]
         known_value=sum((Decimal(h["market_value_usd"]) for h in priced),Decimal("0"))
         total=cash+known_value if cash_verified and not unpriced else None
+        priced_basis=[h for h in holdings if h["unrealized_pnl_usd"] is not None]
+        known_pnl=sum((Decimal(h["unrealized_pnl_usd"]) for h in priced_basis),Decimal("0"))
+        known_cost=sum((Decimal(h["average_cost_usd"])*Decimal(h["quantity"])
+                         for h in priced_basis),Decimal("0"))
+        all_covered=bool(holdings) and len(priced_basis)==len(holdings)
+        known_pnl_pct=known_pnl/known_cost*100 if known_cost>0 else None
         return {"available":True,"position_count":len(holdings),"order_count":orders,
             "holdings":holdings,"cash_usd":str(cash) if cash_verified else None,
             "estimated_crypto_account_value_usd":str(total) if total is not None else None,
             "known_holdings_value_usd":str(known_value),
             "unpriced_holdings":unpriced,
-            "valuation_note":"Broker bid/ask midpoint estimates, not executable prices. Partial totals exclude unpriced positions. USD buying power may differ from cash balance."}
+            "known_unrealized_pnl_usd":str(known_pnl) if priced_basis else None,
+            "known_unrealized_pnl_pct":str(known_pnl_pct) if known_pnl_pct is not None else None,
+            "unrealized_pnl_usd":str(known_pnl) if all_covered else None,
+            "unrealized_pnl_pct":str(known_pnl_pct) if all_covered and known_pnl_pct is not None else None,
+            "pnl_covered_holdings":len(priced_basis),
+            "pnl_total_holdings":len(holdings),
+            "pnl_completeness":"complete_estimate" if all_covered else "partial_or_unavailable",
+            "valuation_note":"Broker bid/ask midpoint estimates, not executable prices. Estimated P/L uses available filled-order history, not Robinhood's official average cost. Transfers, rewards, missing history and fees can change results. USD buying power may differ from cash balance."}
     except (OSError,ValueError,KeyError,TypeError,RobinhoodUnavailable):
         return {"available":False,"reason":"Robinhood account portfolio request failed"}

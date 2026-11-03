@@ -365,6 +365,143 @@ async function saveRobinhoodRisk(event){
   }catch(error){$("robinhood-risk-feedback").textContent=error.message;toast(error.message,true);}
   finally{button.disabled=false;}
 }
+function robinhoodNumber(value){
+  if(value==null||value==="")return null;
+  const n=Number(value);
+  return Number.isFinite(n)?n:null;
+}
+function robinhoodCryptoPrice(value){
+  const n=robinhoodNumber(value);
+  if(n===null)return "Unavailable";
+  if(n!==0&&Math.abs(n)<1e-12)return "$"+String(value);
+  return "$"+new Intl.NumberFormat("en-US",{maximumFractionDigits:12,minimumFractionDigits:2}).format(n);
+}
+function robinhoodQuantity(value){
+  const n=robinhoodNumber(value);
+  return n===null?"Unavailable":
+    new Intl.NumberFormat("en-US",{maximumFractionDigits:12}).format(n);
+}
+function robinhoodReturnUsd(value){
+  const n=robinhoodNumber(value);
+  if(n===null)return "Unavailable";
+  const sign=n>0?"+":n<0?"−":"";
+  const abs=Math.abs(n);
+  const formatted=abs!==0&&abs<0.01?
+    "$"+abs.toLocaleString("en-US",{minimumFractionDigits:4,maximumFractionDigits:8}):
+    money(abs);
+  return sign+formatted;
+}
+function robinhoodReturnPct(value){
+  const n=robinhoodNumber(value);
+  if(n===null)return "Unavailable";
+  return (n>0?"+":n<0?"−":"")+Math.abs(n).toFixed(2)+"%";
+}
+function robinhoodDirection(value){
+  const n=robinhoodNumber(value);
+  return n===null?"":n>0?"pnl-up":n<0?"pnl-down":"pnl-flat";
+}
+function renderRobinhoodPortfolio(portfolio){
+  const box=$("robinhood-positions-list");
+  const status=$( "robinhood-positions-status");
+  if(box)box.replaceChildren();
+  if(!portfolio?.available){
+    const message=portfolio?.reason||"Robinhood portfolio request unavailable";
+    if(status)status.textContent=message;
+    for(const id of ["rh-performance-value","rh-performance-pnl","rh-performance-pct","rh-pnl-coverage","rh-holdings-summary"]){
+      const el=$(id);if(el)el.textContent="Unavailable";
+    }
+    if($("rh-performance-pnl-label"))$("rh-performance-pnl-label").textContent="Broker portfolio lookup failed";
+    if($("rh-performance-disclosure"))$("rh-performance-disclosure").textContent=message;
+    if(box)box.textContent=message;
+    return;
+  }
+  const holdings=Array.isArray(portfolio.holdings)?portfolio.holdings:[];
+  const covered=Number.isInteger(portfolio.pnl_covered_holdings)?portfolio.pnl_covered_holdings:0;
+  const complete=portfolio.pnl_completeness==="complete_estimate";
+  const amount=complete?portfolio.unrealized_pnl_usd:portfolio.known_unrealized_pnl_usd;
+  const percent=complete?portfolio.unrealized_pnl_pct:portfolio.known_unrealized_pnl_pct;
+  const value=$("rh-performance-value");
+  if(value)value.textContent=portfolio.known_holdings_value_usd==null?
+    "Unavailable":(portfolio.unpriced_holdings?.length?"Partial ":"")+
+    money(portfolio.known_holdings_value_usd);
+  for(const [id,raw,format] of [
+    ["rh-performance-pnl",amount,robinhoodReturnUsd],
+    ["rh-performance-pct",percent,robinhoodReturnPct]]){
+    const el=$(id);
+    if(!el)continue;
+    el.textContent=raw==null?"Unavailable":format(raw);
+    el.classList.remove("pnl-up","pnl-down","pnl-flat");
+    const direction=robinhoodDirection(raw);
+    if(direction)el.classList.add(direction);
+  }
+  const coverage=covered+" of "+holdings.length+" holdings have estimated P/L";
+  if($("rh-pnl-coverage"))$("rh-pnl-coverage").textContent=coverage;
+  if($("rh-holdings-summary"))$("rh-holdings-summary").textContent=
+    holdings.length+" open holdings · "+covered+" with basis";
+  if($("rh-performance-pnl-label"))$("rh-performance-pnl-label").textContent=
+    complete?"Estimated on all holdings":"PARTIAL · "+coverage;
+  if($("rh-performance-disclosure"))$("rh-performance-disclosure").textContent=
+    "Estimated P/L is based on accessible broker fills reconciled to quantity, not Robinhood's official app average cost. "+
+    "Fees, rewards, transfers, and missing history can affect results. This is since-purchase return, not today's move.";
+  if(status)status.textContent=holdings.length+" holdings · "+covered+
+    " estimated cost bases · "+(portfolio.order_count??"unknown")+" broker order records";
+  if(!box)return;
+  const intro=document.createElement("p");
+  intro.className="panel-note";
+  intro.textContent="USD buying power: "+(portfolio.cash_usd==null?"unavailable":money(portfolio.cash_usd))+
+    " · Quotes are indicative midpoints, not executable sale prices.";
+  box.append(intro);
+  const table=document.createElement("table");
+  table.className="rh-holdings-table";
+  const head=document.createElement("thead");
+  head.innerHTML="<tr><th>Asset</th><th>Quantity</th><th>Current price</th><th>Avg acquisition cost*</th><th>Market value</th><th>Unrealized P/L</th><th>P/L %</th></tr>";
+  table.append(head);
+  const body=document.createElement("tbody");
+  for(const holding of holdings){
+    const row=document.createElement("tr");
+    const asset=document.createElement("td");
+    const title=document.createElement("span");
+    title.className="rh-asset-name";
+    title.textContent=String(holding.symbol||"Unknown").replace(/-USD$/,"");
+    const note=document.createElement("span");
+    note.className="rh-subnote";
+    note.textContent=holding.cost_basis_source==="estimated_broker_fill_history"?
+      "Estimated fill-history basis":
+      (holding.cost_basis_note||"Cost basis unavailable");
+    asset.append(title,note);row.append(asset);
+    const values=[
+      robinhoodQuantity(holding.quantity),
+      robinhoodCryptoPrice(holding.current_price_usd),
+      holding.average_cost_usd==null?"Unavailable":robinhoodCryptoPrice(holding.average_cost_usd),
+      holding.market_value_usd==null?"Unavailable":money(holding.market_value_usd),
+      holding.unrealized_pnl_usd==null?"Unavailable":robinhoodReturnUsd(holding.unrealized_pnl_usd),
+      holding.unrealized_pnl_pct==null?"Unavailable":
+        (robinhoodNumber(holding.unrealized_pnl_pct)>0?"▲ ":
+         robinhoodNumber(holding.unrealized_pnl_pct)<0?"▼ ":"")+
+        robinhoodReturnPct(holding.unrealized_pnl_pct)
+    ];
+    values.forEach((value,i)=>{
+      const cell=document.createElement("td");
+      cell.textContent=value;
+      if(i===2&&holding.average_cost_usd==null)cell.classList.add("rh-unavailable");
+      if(i>=4){
+        const cls=robinhoodDirection(holding.unrealized_pnl_usd);
+        if(cls)cell.classList.add(cls);
+        if(value==="Unavailable")cell.classList.add("rh-unavailable");
+      }
+      if(i===2)cell.title=holding.cost_basis_note||"Estimated from order fills";
+      row.append(cell);
+    });
+    body.append(row);
+  }
+  if(!holdings.length){
+    const row=document.createElement("tr");
+    const cell=document.createElement("td");
+    cell.colSpan=7;cell.textContent="No Robinhood Crypto holdings reported";
+    row.append(cell);body.append(row);
+  }
+  table.append(body);box.append(table);
+}
 async function loadRobinhoodWorkspace(){
   const statusNode=$("robinhood-workspace-status");
   const accountsNode=$("robinhood-workspace-accounts");
@@ -466,55 +603,26 @@ async function loadRobinhoodWorkspace(){
     }
     const positionState=$("robinhood-positions-status");
     if(positionState){
-      positionState.textContent="Fetching Robinhood holdings and order history…";
+      positionState.textContent="Fetching Robinhood holdings and reconciled fill history…";
       request("/api/robinhood/portfolio").then(portfolio=>{
-        const box=$("robinhood-positions-list");
-        if(box)box.replaceChildren();
-        if(!portfolio.available){
-          positionState.textContent=portfolio.reason||"Robinhood holdings unavailable";
-          return;
+        renderRobinhoodPortfolio(portfolio);
+        if(portfolio.available){
+          const holdings=Number.isInteger(portfolio.position_count)?portfolio.position_count:0;
+          if($("robinhood-holdings-stat"))$("robinhood-holdings-stat").textContent=String(holdings);
+          if($("robinhood-orders-stat"))$("robinhood-orders-stat").textContent=
+            Number.isInteger(portfolio.order_count)?String(portfolio.order_count):"—";
+          const total=$("robinhood-total-stat");
+          if(total)total.textContent=portfolio.estimated_crypto_account_value_usd!=null?
+            money(portfolio.estimated_crypto_account_value_usd):
+            portfolio.known_holdings_value_usd!=null&&portfolio.cash_usd!=null?
+            money(Number(portfolio.known_holdings_value_usd)+Number(portfolio.cash_usd))+"+":"Unavailable";
+          const note=$("robinhood-total-note");
+          if(note)note.textContent=portfolio.unpriced_holdings?.length?
+            "Partial estimate · unpriced: "+portfolio.unpriced_holdings.join(", "):
+            "Holdings + USD buying power; indicative quotes, not liquidation proceeds";
         }
-        const holdings=Number.isInteger(portfolio.position_count)?portfolio.position_count:0;
-        if($("robinhood-holdings-stat"))$("robinhood-holdings-stat").textContent=String(holdings);
-        if($("robinhood-orders-stat"))$("robinhood-orders-stat").textContent=Number.isInteger(portfolio.order_count)?String(portfolio.order_count):"—";
-        const orders=Number.isInteger(portfolio.order_count)?portfolio.order_count:0;
-        positionState.textContent=holdings+" holdings · "+orders+" broker order records";
-        const total=$("robinhood-total-stat");
-        if(total)total.textContent=portfolio.estimated_crypto_account_value_usd!=null?
-          money(portfolio.estimated_crypto_account_value_usd):
-          portfolio.known_holdings_value_usd!=null&&portfolio.cash_usd!=null?
-          money(Number(portfolio.known_holdings_value_usd)+Number(portfolio.cash_usd))+"+":
-          "Unavailable";
-        const totalNote=$("robinhood-total-note");
-        if(totalNote)totalNote.textContent=(portfolio.unpriced_holdings?.length?
-          "Partial estimate · unpriced: "+portfolio.unpriced_holdings.join(", "):
-          "Holdings + USD buying power; indicative quotes, not liquidation proceeds");
-        if(box){
-          const buying=document.createElement("p");
-          buying.textContent="USD buying power: "+(portfolio.cash_usd==null?"unavailable":money(portfolio.cash_usd))+
-            " · "+(portfolio.valuation_note||"Account valuation unavailable");
-          box.append(buying);
-          const table=document.createElement("table");
-          const head=document.createElement("thead");
-          head.innerHTML="<tr><th>Asset</th><th>Held quantity</th><th>Available to trade</th><th>Estimated USD value</th></tr>";
-          table.append(head);
-          const body=document.createElement("tbody");
-          for(const holding of (Array.isArray(portfolio.holdings)?portfolio.holdings:[])){
-            const row=document.createElement("tr");
-            for(const value of [holding.symbol,holding.quantity,
-                 holding.available_quantity??"Unavailable",
-                 holding.market_value_usd==null?"Unavailable":money(holding.market_value_usd)]){
-              const cell=document.createElement("td");cell.textContent=String(value);row.append(cell);
-            }
-            body.append(row);
-          }
-          if(!body.childNodes.length){
-            const row=document.createElement("tr"),cell=document.createElement("td");
-            cell.colSpan=4;cell.textContent="No broker-reported crypto holdings";row.append(cell);body.append(row);
-          }
-          table.append(body);box.append(table);
-        }
-      }).catch(()=>{positionState.textContent="Robinhood portfolio lookup unavailable";});
+      }).catch(error=>renderRobinhoodPortfolio({
+        available:false,reason:"Robinhood portfolio lookup unavailable: "+error.message}));
     }
     const eligible=accounts.some(a=>a.is_api_tradable===true);
     statusNode.title="Robinhood account eligibility and execution permission are reported independently.";
