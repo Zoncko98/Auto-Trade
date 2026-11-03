@@ -190,6 +190,9 @@ function robinhoodEffective(data){
   const descriptions={PAUSED:"Paused",WORKER_OFFLINE:"Worker offline",
     RECONCILIATION_PENDING:"Reconciliation pending",ORDER_PENDING:"Order pending",
     RISK_BLOCKED:"Risk blocked",AI_VETO:"AI veto",
+    NEWS_EVIDENCE_MISSING:"Relevant news missing",
+    AI_UNAVAILABLE:"AI service unavailable",
+    AI_REVIEW_BLOCKED:"AI/news review blocked",
     ARMED_WAITING_SIGNAL:"Armed · waiting for signal"};
   return {label:descriptions[state]||state.replaceAll("_"," "),
     detail:data.effective_detail||"Latest worker status unavailable",
@@ -275,6 +278,25 @@ async function resolveRobinhoodPendingOrder(){
     button.disabled=false;
   }
 }
+function renderRobinhoodAIReview(data){
+  const worker=data?.worker||{};
+  const outcomes=Array.isArray(worker.ai_candidate_reviews)?worker.ai_candidate_reviews:[];
+  const outcome=$("rh-ai-outcome"),duration=$("rh-ai-duration"),
+        classifier=$("rh-ai-classifier"),details=$("rh-ai-candidate-explanations");
+  if(outcome)outcome.textContent=worker.ai_review_status||"No AI review recorded";
+  if(duration)duration.textContent=worker.ai_review_duration_seconds==null?
+    "No review timed":"Total "+Number(worker.ai_review_duration_seconds).toFixed(1)+" seconds"+
+    " · Ollama request timeout 150 s · technical signal TTL 90 s, refreshed if needed";
+  const withModel=outcomes.find(x=>x.model);
+  if(classifier)classifier.textContent=withModel?
+    (withModel.model+" · "+(withModel.classifier_model_source||"selected")):
+    "Model not invoked on this scan";
+  if(details)details.textContent=outcomes.length?
+    outcomes.map(x=>(x.symbol||"Unknown")+" · "+(x.outcome||"unknown")+" · "+
+      (Number(x.elapsed_seconds)||0).toFixed(1)+" s · "+
+      (x.model||"no model invoked")+" · "+(x.reason||"No reason")).join(" | "):
+    "No qualified technical entry candidate required news review in this scan.";
+}
 async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
   const effective=robinhoodEffective(data);
@@ -283,12 +305,15 @@ async function loadRobinhoodDecisionEvidence(){
     (data.worker?.ai_connection_status||"not checked")+" · Model: "+
     (data.worker?.ai_model||"unavailable")+
     " · AI gate: "+(data.worker?.ai_review_status||"not evaluated");
+  renderRobinhoodAIReview(data);
   renderRobinhoodScanDiagnostics(data);
   renderRobinhoodPendingOrder(data);
   const rows=Array.isArray(data.decision_evidence)?data.decision_evidence:[];
   $("rh-decision-rows").innerHTML=rows.length?rows.slice().reverse().map(x=>
     "<tr><td>"+esc(x.at||"—")+"</td><td>"+esc(x.signal||"—")+
-    "</td><td>"+esc(x.ai_review_status||"—")+"</td><td>"+esc(x.ai_model||"—")+
+    "</td><td>"+esc(x.ai_review_status||"—")+
+    (x.ai_review_duration_seconds==null?"":" · "+esc(Number(x.ai_review_duration_seconds).toFixed(1))+" s")+
+    "</td><td>"+esc(x.ai_model||"—")+
     "</td><td>"+esc(x.ai_reason||"—")+"</td><td>"+esc(x.execution_status||"—")+
     (x.execution_reason?" · "+esc(x.execution_reason):"")+
     (x.exit_candidate_symbol?" · Exit "+esc(x.exit_candidate_symbol)+
@@ -827,6 +852,11 @@ function opsInspect(){
   box.innerHTML=opsRecord(d.source+" · "+(d.symbol||d.signal||"Decision"),[
     ["Recorded at",opsDate(d.at)],["Signal",d.signal],["AI review",d.ai_review_status||d.decision],
     ["AI model",d.ai_model],["AI reasoning",d.ai_reason||d.summary],
+    ["AI review seconds",d.ai_review_duration_seconds],
+    ["Per-candidate AI evidence",Array.isArray(d.ai_candidate_reviews)?
+      d.ai_candidate_reviews.map(x=>(x.symbol||"?")+": "+x.outcome+" / "+
+        x.elapsed_seconds+"s / "+(x.model||"not invoked")+" / "+x.reason).join(" | "):null],
+    ["Fresh signal revalidated after AI",d.entry_signal_revalidated],
     ["Entry candidate",d.entry_candidate_symbol],["Exit candidate",d.exit_candidate_symbol],
     ["Momentum",d.entry_momentum_pct??d.exit_momentum_pct],
     ["Spread",d.exit_spread_pct],["Market data",d.market_data_source],

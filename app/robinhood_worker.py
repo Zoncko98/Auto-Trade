@@ -10,6 +10,67 @@ from robinhood_crypto_gateway import RobinhoodCryptoAdapter,RobinhoodUnavailable
 from dashboard_control import write_atomic
 
 PAIRS=("BTC-USD","ETH-USD","SOL-USD","DOGE-USD")
+
+def ai_review_category(approved,reason):
+    """Never conflate a missing news source, a model failure and an AI veto."""
+    if approved:return "PASS"
+    if not isinstance(reason,str):return "AI_UNAVAILABLE"
+    if "No headlines explicitly tied" in reason or "No independently timestamped news" in reason:
+        return "NEWS_EVIDENCE_MISSING"
+    if "Recent news unavailable" in reason or "News feed exceeds size" in reason:
+        return "NEWS_FEED_UNAVAILABLE"
+    if "AI news gate NO TRADE" in reason:return "AI_NO_TRADE"
+    if "AI research unavailable" in reason:return "AI_UNAVAILABLE"
+    return "AI_REVIEW_BLOCKED"
+
+def revalidate_buy_signal(state,client,signal,now=None):
+    """Re-check price trend and venue after slow AI; never renew a stale signal blindly."""
+    from robinhood_crypto_signals import observe
+    from robinhood_order_pass import OrderPassBlocked,_quote_prices
+    from coinbase_market_feed import read_snapshot
+    now=now or datetime.now(timezone.utc)
+    symbol=signal.get("symbol")
+    if not isinstance(symbol,str):
+        raise OrderPassBlocked("AI-approved signal missing symbol")
+    try:
+        age=(now-datetime.fromisoformat(signal["at"].replace("Z","+00:00"))).total_seconds()
+    except (ValueError,KeyError,TypeError,AttributeError):
+        raise OrderPassBlocked("AI-approved signal timestamp invalid") from None
+    if age<0:raise OrderPassBlocked("AI-approved signal timestamp is in the future")
+    if age<=60:return signal
+    broker_quote=client.quote(symbol)
+    broker_bid,broker_ask=_quote_prices(broker_quote,symbol)
+    if (broker_ask-broker_bid)/broker_ask*100>Decimal("0.5"):
+        raise OrderPassBlocked("Fresh broker spread exceeds 0.5%")
+    original=Decimal(str(signal.get("mid")))
+    refreshed=None
+    if str(signal.get("source","")).startswith("COINBASE_"):
+        feed=read_snapshot(state,now)
+        if symbol not in feed["quotes"]:
+            raise OrderPassBlocked("Fresh Coinbase candidate quote unavailable after AI review")
+        refreshed=observe(feed["history"].get(symbol,[]),symbol,feed["quotes"][symbol],now)
+        candidate=Decimal(str(refreshed["mid"]))
+        broker_mid=(broker_bid+broker_ask)/2
+        if abs(broker_mid/candidate-1)*100>Decimal("0.75"):
+            raise OrderPassBlocked("Coinbase and Robinhood prices diverged after AI review")
+    else:
+        try:
+            history=json.loads((Path(state)/"robinhood"/"quote_history.json").read_text())
+        except (OSError,ValueError,TypeError):
+            raise OrderPassBlocked("Cannot revalidate signal without price history") from None
+        if not isinstance(history,list):
+            raise OrderPassBlocked("Price history invalid for AI revalidation")
+        refreshed=observe(history,symbol,broker_quote,now)
+    if refreshed.get("technical_approved") is not True:
+        raise OrderPassBlocked("Signal expired during AI review; refreshed technical check: "+
+                               str(refreshed.get("signal_reason","not qualified"))[:110])
+    refreshed_mid=Decimal(str(refreshed["mid"]))
+    if original<=0 or abs(refreshed_mid/original-1)*100>Decimal("0.75"):
+        raise OrderPassBlocked("Signal price drift exceeded 0.75% during AI review")
+    refreshed.update(ai_approved=True,ai_revalidated=True,
+                     revalidated_after_ai_seconds=round(age,2))
+    return refreshed
+
 def snapshot(client):
     accounts=client.list_accounts()
     out=[]
@@ -277,11 +338,27 @@ def run_once(state,client,feed=None):
     if not exit_candidates and signal_candidates:
         from ai_research import approve_entry,research_evidence
         reviews=[]
+        outcomes=[]
+        result["ai_candidate_reviews"]=[]
         for target in signal_candidates[:3]:
+            began=time.monotonic()
             approved,reason=approve_entry(target["symbol"],datetime.now(timezone.utc))
+            elapsed=round(time.monotonic()-began,3)
             evidence=research_evidence(target["symbol"],datetime.now(timezone.utc))
+            category=ai_review_category(approved,reason)
+            outcomes.append(category)
             reviews.append(target["symbol"]+": "+reason[:220])
-            result["ai_model"]=evidence.get("model",result.get("ai_model","unavailable"))
+            result["ai_candidate_reviews"].append({
+                "symbol":target["symbol"],"outcome":category,
+                "elapsed_seconds":elapsed,
+                "model":evidence.get("model"),
+                "model_inference_seconds":evidence.get("inference_seconds"),
+                "classifier_model_source":evidence.get("classifier_model_source"),
+                "reason":reason[:240]})
+            if evidence.get("model"):
+                result["ai_model"]=evidence["model"]
+            result["ai_review_duration_seconds"]=round(
+                sum(r["elapsed_seconds"] for r in result["ai_candidate_reviews"]),3)
             if approved:
                 approved_signal=dict(target,ai_approved=True)
                 result["ai_review_status"]="PASS"
@@ -291,12 +368,19 @@ def run_once(state,client,feed=None):
                 result["last_signal"]=target["symbol"]+": PASS"
                 break
         if approved_signal is None:
-            result["ai_review_status"]="VETO_OR_UNAVAILABLE"
+            result["ai_review_status"]=(outcomes[0] if len(set(outcomes))==1
+                else "MIXED_AI_REJECTIONS")
             result["ai_reason"]=" | ".join(reviews)[:500]
             result["entry_candidate_symbol"]=signal_candidates[0]["symbol"]
             result["entry_momentum_pct"]=signal_candidates[0].get("momentum_pct")
-        if result.get("ai_connection_status")=="READY":
-            result["ai_connection_status"]="REVIEW_PERFORMED"
+        if any(x=="AI_UNAVAILABLE" for x in outcomes):
+            result["ai_connection_status"]="MODEL_RESPONSE_UNAVAILABLE"
+        elif any(x not in ("NEWS_EVIDENCE_MISSING","NEWS_FEED_UNAVAILABLE")
+                 for x in outcomes):
+            if result.get("ai_connection_status")=="READY":
+                result["ai_connection_status"]="REVIEW_PERFORMED"
+        elif result.get("ai_connection_status")=="READY":
+            result["ai_connection_status"]="NOT_INVOKED_NO_RELEVANT_NEWS"
 
     if execution=="NOT_ARMED" and approved_signal is not None:
         try:
@@ -305,6 +389,8 @@ def run_once(state,client,feed=None):
             if policy.get("enabled") is not True:
                 raise OrderPassBlocked("Account live trading policy not enabled")
             trader=RobinhoodCryptoTradingAdapter.from_state_authorized(state,policy)
+            approved_signal=revalidate_buy_signal(state,trader,approved_signal)
+            result["entry_signal_revalidated"]=approved_signal.get("ai_revalidated",False)
             receipt=submit_approved(state,trader,policy,approved_signal)
             execution="ORDER_ACCEPTED" if receipt["broker_acknowledged"] else "SUBMITTED_UNCONFIRMED"
             prepared=receipt.get("prepared",{})
@@ -375,7 +461,10 @@ def run_once(state,client,feed=None):
         "quotes_checked":result.get("quotes_checked"),
         "signal_diagnostics":result.get("signal_diagnostics"),
         "top_entry_observations":result.get("top_entry_observations"),
-        "ranked_entry_candidates":result.get("ranked_entry_candidates")})
+        "ranked_entry_candidates":result.get("ranked_entry_candidates"),
+        "ai_candidate_reviews":result.get("ai_candidate_reviews",[]),
+        "ai_review_duration_seconds":result.get("ai_review_duration_seconds"),
+        "entry_signal_revalidated":result.get("entry_signal_revalidated")})
     write_atomic(evidence_path,evidence[-100:])
     return result
 

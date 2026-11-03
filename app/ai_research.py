@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
+import os
 import re
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
@@ -36,6 +37,17 @@ NEWS_WINDOW = timedelta(hours=36)
 _MODEL_CACHE = {}
 _EVIDENCE_CACHE = {}
 CACHE_WINDOW = timedelta(minutes=15)
+
+def _model_identity():
+    provider=os.getenv("AI_PROVIDER","cloud").lower()
+    if provider in ("local","ollama"):
+        try:
+            from local_ai_gateway import _settings
+            return (provider,_settings()[1],os.getenv("LOCAL_AI_NEWS_MODEL",""))
+        except Exception:
+            return (provider,"unavailable","")
+    return (provider,os.getenv("AI_API_MODEL",""),"")
+
 
 class ResearchUnavailable(Exception):
     """The evidence or AI service cannot support an entry decision."""
@@ -121,7 +133,7 @@ def approve_entry(symbol: str, now: datetime,
     Technical and liquidity signals must have selected a candidate already.
     Any missing or invalid news evidence fails closed.
     """
-    key = symbol
+    key = (symbol,_model_identity())
     if get_headlines is fetch_headlines and classifier is classify_news:
         cached = _MODEL_CACHE.get(key)
         if cached is not None:
@@ -160,6 +172,9 @@ def approve_entry(symbol: str, now: datetime,
     answer = (approved, evidence)
     _EVIDENCE_CACHE[symbol] = (now, {
         'model':str(result.get('model','local model'))[:96],
+        'cache_identity':_model_identity(),
+        'classifier_model_source':str(result.get('classifier_model_source','selected'))[:48],
+        'inference_seconds':result.get('inference_seconds'),
         'headlines':news,'sentiment':sentiment,'impact':impact,
         'catalyst':catalyst,'downside_risk':risk,'approved':approved})
     if get_headlines is fetch_headlines and classifier is classify_news:
@@ -174,6 +189,8 @@ def research_evidence(symbol, now):
     row=_EVIDENCE_CACHE.get(symbol)
     if row is None:return {}
     when,data=row
-    if now.tzinfo and when<=now<=when+CACHE_WINDOW:
-        return dict(data)
+    if now.tzinfo and when<=now<=when+CACHE_WINDOW and data.get("cache_identity")==_model_identity():
+        out=dict(data)
+        out.pop("cache_identity",None)
+        return out
     return {}

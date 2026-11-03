@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
-import ipaddress
+import time
 import ipaddress
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -79,7 +79,13 @@ def _call(method,route,payload=None,opener=urlopen):
         raise
     except HTTPError as exc:
         raise LocalAIUnavailable("Local model HTTP "+str(int(exc.code))) from None
-    except (URLError,TimeoutError,OSError,ValueError,TypeError):
+    except TimeoutError:
+        raise LocalAIUnavailable("Local model timed out after 150 seconds") from None
+    except URLError as exc:
+        if isinstance(exc.reason,TimeoutError):
+            raise LocalAIUnavailable("Local model timed out after 150 seconds") from None
+        raise LocalAIUnavailable("Local model network connection unavailable") from None
+    except (OSError,ValueError,TypeError):
         raise LocalAIUnavailable("Local model unavailable or invalid response") from None
 
 
@@ -91,8 +97,27 @@ def installed_models(opener=urlopen):
             if isinstance(row,dict) and isinstance(row.get("name"),str)]
 
 
+def _classifier_model(selected, opener=urlopen):
+    """Use a verified text model when the UI-selected vision model fails as a classifier.
+
+    Only the news classifier is affected, not the operator's shared AI workstation
+    selection. Prefer the proven local text model if installed; otherwise fail closed.
+    """
+    preferred=os.getenv("LOCAL_AI_NEWS_MODEL","").strip()
+    vision=bool(re.search(r"(?:-vl[:/]|vision)",selected,re.I))
+    if not preferred and not vision:
+        return selected,"selected"
+    candidate=preferred or "qwen3.5:9b"
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}",candidate):
+        raise LocalAIUnavailable("Invalid trading news classifier model")
+    available=installed_models(opener=opener)
+    if candidate not in available:
+        raise LocalAIUnavailable("Trading news classifier model is not installed")
+    return candidate,("dedicated" if preferred else "verified_text_fallback")
+
 def classify_local_news(symbol,headlines,opener=urlopen):
-    _,model=_settings()
+    _,selected_model=_settings()
+    model,selection_reason=_classifier_model(selected_model,opener=opener)
     from robinhood_crypto_gateway import PAIR
     if not isinstance(symbol,str) or not ((symbol.isupper() and len(symbol)<=10) or PAIR.fullmatch(symbol)):
         raise LocalAIUnavailable("Invalid symbol")
@@ -112,7 +137,7 @@ def classify_local_news(symbol,headlines,opener=urlopen):
         "stream":False,
         "think":False,
         "format":OUTPUT_SCHEMA,
-        "keep_alive":0,
+        "keep_alive":"5m",
         "options":{"temperature":0,"num_predict":512,"num_ctx":2048,
                    "num_thread":2,"seed":42},
         "messages":[
@@ -124,9 +149,13 @@ def classify_local_news(symbol,headlines,opener=urlopen):
               "Do not invent price forecasts, trading orders or odds."},
             {"role":"user","content":prompt}
         ]}
+    started=time.monotonic()
     response=_call("POST","/api/chat",payload,opener=opener)
+    inference_seconds=round(time.monotonic()-started,3)
     try:
         raw=response["message"]["content"]
+        if not isinstance(raw,str) or not raw.strip():
+            raise LocalAIUnavailable("Local model returned no classification JSON")
         result=json.loads(raw)
         sentiment=result["sentiment"]
         impact=result["impact"]
@@ -137,10 +166,15 @@ def classify_local_news(symbol,headlines,opener=urlopen):
         if not all(isinstance(result.get(key),str) and 0<len(result[key])<300
                    for key in ("catalyst","downside_risk")):
             raise ValueError
+    except LocalAIUnavailable:
+        raise
     except (KeyError,TypeError,IndexError,ValueError):
         raise LocalAIUnavailable("Local model did not return validated classification") from None
     return {
         "ticker":symbol,"model":"local:"+model,
+        "selected_workstation_model":selected_model,
+        "classifier_model_source":selection_reason,
+        "inference_seconds":inference_seconds,
         "sentiment":sentiment,"impact":impact,
         "catalyst":result["catalyst"],
         "downside_risk":result["downside_risk"],

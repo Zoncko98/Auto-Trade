@@ -314,6 +314,14 @@
           <button class="btn danger hidden" type="button" id="rh-pending-resolve">Resolve verified orphan intent</button>
         </div>
       </section>
+      <section class="panel list-panel" id="rh-ai-review-diagnostics">
+        <div class="panel-heading"><div><h2>AI review timing & evidence gates</h2>
+          <p>News missing means the model was not called; an actual model veto is reported separately. New orders require a fresh technical signal.</p></div></div>
+        <div class="readiness-item"><span>Latest AI gate result</span><strong id="rh-ai-outcome">Loading…</strong></div>
+        <div class="readiness-item"><span>Total review time</span><strong id="rh-ai-duration">Loading…</strong></div>
+        <div class="readiness-item"><span>Verified classifier model</span><strong id="rh-ai-classifier">Loading…</strong></div>
+        <p class="panel-note" id="rh-ai-candidate-explanations">Loading candidate-specific evidence…</p>
+      </section>
       <section class="panel list-panel"><div class="panel-heading"><div><h2>Robinhood scan evidence</h2>
         <p>Most recent 100 worker evaluations</p></div><button class="btn secondary" id="rh-evidence-refresh">Refresh evidence</button></div>
         <div class="table-wrap"><table><thead><tr><th>Evaluated UTC</th><th>Signal</th><th>AI review</th><th>Model</th><th>Reason</th><th>Execution</th></tr></thead>
@@ -322,7 +330,7 @@
     </section>
     <section class="view hidden" id="view-robinhood-models">
       <div class="page-header"><div><p class="eyebrow">SHARED OLLAMA MODELS</p><h1>AI workstation models</h1>
-      <p class="muted">Robinhood uses the same configured model as Schwab and Paper Trading.</p></div></div>
+      <p class="muted">Robinhood uses the shared AI configuration. For news classification, an installed verified text model may be selected instead of an incompatible vision model; the AI evidence log displays the actual model used.</p></div></div>
       <div class="panel"><h2>Shared AI configuration</h2><p id="rh-model-readiness">Checking model…</p>
       <button class="btn secondary" data-view="local">Open shared AI model manager</button></div>
     </section>
