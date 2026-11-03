@@ -2198,6 +2198,14 @@ async function checkForUpdate(){
 }
 
 document.addEventListener("click",e=>{
+ const shortcut=e.target.closest("[data-ops-target]");
+ if(shortcut){
+   const target=shortcut.dataset.opsTarget;
+   if(["orders","exits","portfolio","activity","inspector"].includes(target)){
+     showView("operations");
+     opsSection(target);
+   }
+ }
  const tab=e.target.closest("[data-ops-section]");
  if(tab)opsSection(tab.dataset.opsSection);
  if(e.target.closest("#operations-refresh"))loadOperations().catch(err=>{if($("ops-updated"))$("ops-updated").textContent=err.message;});

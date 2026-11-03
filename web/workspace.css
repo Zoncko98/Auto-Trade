@@ -326,3 +326,7 @@
 .ops-history-chart{width:100%;min-height:180px;overflow:hidden}
 .ops-history-chart svg{display:block;width:100%;height:180px}
 @media(max-width:680px){.ops-history-toolbar{align-items:stretch}.ops-history-toolbar h3{flex-basis:100%}.ops-history-toolbar select{flex:1;min-width:95px}.ops-history{padding:10px}}
+
+/* Shared navigation affordances across broker workspaces */
+.nav-item[data-ops-target]{width:100%;text-align:left;cursor:pointer}.nav-item[data-ops-target]:focus-visible,.ops-tabs .btn:focus-visible{outline:2px solid #76baff;outline-offset:2px}
+@media(max-width:720px){.ops-account-links{display:flex;flex-wrap:wrap;gap:8px}.ops-account-links .btn{min-height:40px}.ops-history-toolbar select{max-width:100%}}

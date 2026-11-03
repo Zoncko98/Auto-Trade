@@ -9,6 +9,17 @@ class OperationsUiTests(unittest.TestCase):
    self.assertIn(token,html)
   for token in ('loadOperations()','opsInspect()','/api/robinhood/status','/api/robinhood/portfolio','/api/live','/api/status'):
    self.assertIn(token,js)
+ def test_consistent_broker_navigation(self):
+  html=(root/'web/index.html').read_text()
+  js=(root/'web/app.js').read_text()
+  for group in ('live','robinhood','webull','paper'):
+   section=html.split('id="'+group+'-nav-group"',1)[1].split('</div>',1)[0]
+   self.assertIn('data-ops-target="exits"',section)
+  for group in ('live','robinhood'):
+   section=html.split('id="'+group+'-nav-group"',1)[1].split('</div>',1)[0]
+   self.assertIn('data-ops-target="orders"',section)
+  self.assertIn('showView("operations")',js)
+  self.assertIn('opsSection(target)',js)
  def test_read_only_and_safety_labels(self):
   html=(root/'web/index.html').read_text()
   js=(root/'web/app.js').read_text()
