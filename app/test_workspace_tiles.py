@@ -49,7 +49,7 @@ class WorkspaceTileTests(unittest.TestCase):
         self.assertNotIn('aria-pressed="true"',self.html)
 
     def test_unimplemented_providers_are_grey_disabled_coming_soon(self):
-        for name in ("webull","alpaca","interactive_brokers"):
+        for name in ("alpaca","interactive_brokers"):
             with self.subTest(name=name):
                 tile=self.parsed.tiles[name]
                 self.assertIn("disabled",tile["attrs"])
@@ -58,6 +58,12 @@ class WorkspaceTileTests(unittest.TestCase):
                 self.assertIn("coming soon",tile["attrs"]["aria-label"].lower())
         self.assertIn(".workspace-tile.is-coming-soon",self.css)
         self.assertIn("cursor:not-allowed",self.css)
+    def test_webull_connection_tile_open(self):
+        tile=self.parsed.tiles["webull"]
+        self.assertNotIn("disabled",tile["attrs"])
+        self.assertNotIn("is-coming-soon",tile["attrs"]["class"])
+        self.assertIn("SETUP AVAILABLE","".join(tile["text"]))
+        self.assertIn("webull",self.js)
     def test_landing_view_and_nested_account_navigation(self):
         self.assertNotIn('id="workspace-select"',self.html)
         self.assertNotIn('$("workspace-select")',self.js)
@@ -65,7 +71,8 @@ class WorkspaceTileTests(unittest.TestCase):
         self.assertIn('showView("workspaces");',self.js)
         self.assertIn('id="live-nav-group" class="workspace-menu hidden"',self.html)
         self.assertIn('id="paper-nav-group" class="workspace-menu hidden"',self.html)
-        self.assertIn('tile.dataset.workspace==="robinhood_crypto"?"robinhood":"live"',self.js)
+        self.assertIn('tile.dataset.workspace==="robinhood_crypto"?"robinhood":',self.js)
+        self.assertIn('tile.dataset.workspace==="webull"?"brokers":"live"',self.js)
         self.assertIn('if(!AVAILABLE_WORKSPACES.includes(workspace))return false;',self.js)
         self.assertIn('rhViews.includes(view)?"robinhood_crypto":null;',self.js)
         self.assertIn('view==="workspaces"',self.js)

@@ -9,7 +9,7 @@ let csrf = null;
 let status = null;
 let activeView = "workspaces";
 let activeWorkspace = "live";
-const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto"]);
+const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto","webull"]);
 let robinhoodTileRefreshId=0;
 // Do not format missing numbers as $0.00, and never render stale broker
 // snapshots as current. Values are only read from authenticated APIs.
@@ -856,7 +856,8 @@ function bindEvents(){
     tile.addEventListener("click",()=>{
       if(!AVAILABLE_WORKSPACES.includes(tile.dataset.workspace))return;
       showView(tile.dataset.workspace==="paper"?"overview":
-        tile.dataset.workspace==="robinhood_crypto"?"robinhood":"live");
+        tile.dataset.workspace==="robinhood_crypto"?"robinhood":
+        tile.dataset.workspace==="webull"?"brokers":"live");
     }));
   document.addEventListener("click",event=>{
     const live=event.target.closest("[data-export-live-index]");

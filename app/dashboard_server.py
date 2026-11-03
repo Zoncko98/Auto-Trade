@@ -336,6 +336,15 @@ class Handler(BaseHTTPRequestHandler):
                 if cfg.get("ai_provider")=="ollama" and cfg.get("ollama_url"):
                     result.update(verify_ollama_model(cfg["ollama_url"],cfg.get("ai_model","")))
                 return self._json(200,result)
+            if UNIFIED_APP and path == "/api/webull/status":
+                from webull_openapi import status
+                return self._json(200,status(STATE_DIR))
+            if UNIFIED_APP and path == "/api/webull/portfolio":
+                from webull_openapi import portfolio,WebullError
+                account_id=parse_qs(urlparse(self.path).query).get("account_id",[""])[0]
+                try:return self._json(200,portfolio(STATE_DIR,account_id))
+                except (WebullError,OSError,ValueError) as exc:
+                    return self._json(503,{"error":str(exc)[:160]})
             if UNIFIED_APP and path == "/api/robinhood/status":
                 return self._json(200,robinhood_status(STATE_DIR))
             if UNIFIED_APP and path == "/api/robinhood/risk":
@@ -526,6 +535,11 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if UNIFIED_APP and path == "/api/webull/connect":
+            from webull_openapi import store_credentials,WebullError
+            try:return self._json(200,store_credentials(STATE_DIR,self._body()))
+            except (ValueError,TypeError,WebullError,OSError):
+                return self._json(400,{"error":"Invalid Webull credentials or unsafe storage"})
         if UNIFIED_APP and path == "/api/robinhood/connect":
             try:
                 return self._json(200,install_robinhood_credentials(STATE_DIR,self._body()))

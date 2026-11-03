@@ -83,16 +83,18 @@ def providers(state):
         setup_requirement="Virtual account uses a configured read-only market data source",
         description="One strategy engine, simulated fills and isolated account balances; no real orders.",
         docs_url="https://github.com/Zoncko98/Auto-Trade",phase="active")
+    from webull_openapi import saved as webull_saved
+    webull_configured=webull_saved(state)
     webull=BrokerCapability(
-        id="webull",name="Webull",integration_status="approval_required",
-        auth_method="Connect API OAuth 2.0 (third-party); individual OpenAPI uses approved app keys",
-        assets=("US stocks","ETFs","options","futures","crypto"),
+        id="webull",name="Webull",integration_status="configuration_saved" if webull_configured else "credentials_required",
+        auth_method="Webull individual OpenAPI App Key and App Secret (signed SDK)",
+        assets=("US stocks","ETFs","crypto"),
         official_account_access=True,official_market_data=True,official_order_execution=True,
         app_account_connected=False,app_orders_supported=False,
-        setup_requirement="Webull Connect API application/partner approval, credentials and sandbox testing are required before connecting users",
-        description="Official Webull APIs support account access, data and trading. Auto Trader's account linking and order adapter are being developed; no Webull credentials are requested yet.",
-        docs_url="https://developer.webull.com/apis/docs/connect-api/about-connect-api/",
-        phase="planned")
+        setup_requirement=("Credentials stored; verify Webull account access below." if webull_configured
+                           else "Request Webull API approval, then enter your App Key and App Secret below."),
+        description="Official SDK-backed connection supports account verification. Autonomous orders remain disabled until broker execution and reconciliation validation.",
+        docs_url="https://developer.webull.com/apis/docs/getting-started/",phase="integration")
     alpaca=BrokerCapability(
         id="alpaca",name="Alpaca",integration_status="approval_required",
         auth_method="OAuth 2.0 for third-party account connection; personal API keys for own accounts",

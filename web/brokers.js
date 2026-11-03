@@ -52,6 +52,44 @@ function brokerCard(broker){
     "Existing Schwab worker only; live permission is a separate step":
     "Not implemented / disabled");
   card.appendChild(brokerEl("p",broker.setup_requirement,"broker-note"));
+  if(broker.id==="webull"){
+    const health=brokerEl("p","Webull connection: checking…","broker-note");
+    const accounts=brokerEl("div",null,"broker-capabilities");
+    const setup=brokerEl("form",null,"broker-actions");
+    setup.autocomplete="off";
+    const kl=brokerEl("label","Webull App Key");
+    const key=document.createElement("input");key.type="text";key.required=true;key.autocomplete="off";
+    const sl=brokerEl("label","Webull App Secret");
+    const secret=document.createElement("input");secret.type="password";secret.required=true;secret.autocomplete="new-password";
+    const el=brokerEl("label","API environment");
+    const env=document.createElement("select");
+    [["sandbox","Sandbox (testing)"],["production","Production (read-only until verified)"]].forEach(([v,t])=>{
+      const opt=brokerEl("option",t);opt.value=v;env.appendChild(opt);
+    });
+    const submit=brokerEl("button","Save Webull API credentials");submit.type="submit";
+    setup.append(kl,key,sl,secret,el,env,submit);
+    async function refresh(){
+      const data=await request("/api/webull/status");
+      accounts.replaceChildren();
+      health.textContent=data.connected?
+        "Webull authenticated · "+data.environment+" · live automated orders disabled":
+        "Webull not connected · "+(data.reason||"Credentials required");
+      if(data.connected){
+        (data.accounts||[]).forEach(a=>brokerRow(accounts,"Account "+a.account_id,a.account_type||"Type unavailable"));
+      }
+    }
+    setup.addEventListener("submit",async e=>{
+      e.preventDefault();submit.disabled=true;
+      try{
+        await request("/api/webull/connect",{method:"POST",body:JSON.stringify({
+          app_key:key.value.trim(),app_secret:secret.value.trim(),environment:env.value})});
+        await refresh();
+      }catch(error){health.textContent="Webull setup error: "+error.message;}
+      finally{key.value="";secret.value="";submit.disabled=false;}
+    });
+    card.append(health,accounts,setup);
+    refresh().catch(()=>{health.textContent="Webull status unavailable";});
+  }
   if(broker.id==="robinhood_crypto"){
     const health=brokerEl("p","Robinhood connection: checking…","broker-note");
     const accountDetails=brokerEl("div",null,"broker-capabilities");
