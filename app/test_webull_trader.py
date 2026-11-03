@@ -351,16 +351,18 @@ class Tests(unittest.TestCase):
         self.arm()
         signal=self.signal()
         self.b.place=lambda account,order: (_ for _ in ()).throw(OSError("timeout"))
-        with self.assertRaises(OSError):_order(self.state,self.b,self.policy,self.risk,
-                                self.j,"stock1","F","EQUITY","BUY",signal,"1","10","AI")
+        with patch("webull_worker.core_stock_session",return_value=True):
+            with self.assertRaises(OSError):_order(self.state,self.b,self.policy,self.risk,
+                                    self.j,"stock1","F","EQUITY","BUY",signal,"1","10","AI")
         self.assertEqual(len(self.j.pending("stock1")),1)
         with self.assertRaises((JournalBlocked,WebullBlocked)):
             _order(self.state,self.b,self.policy,self.risk,self.j,
                    "stock1","F","EQUITY","BUY",signal,"1","10","AI")
     def test_approved_entry_receipt_not_fill(self):
         self.arm()
-        receipt=_order(self.state,self.b,self.policy,self.risk,self.j,
-                       "stock1","F","EQUITY","BUY",self.signal(),"1","10","AI")
+        with patch("webull_worker.core_stock_session",return_value=True):
+            receipt=_order(self.state,self.b,self.policy,self.risk,self.j,
+                           "stock1","F","EQUITY","BUY",self.signal(),"1","10","AI")
         self.assertEqual(receipt["state"],"BROKER_ACKNOWLEDGED_UNFILLED")
         self.assertEqual(len(self.b.previews),1)
         self.assertEqual(len(self.b.submissions),1)
