@@ -138,6 +138,18 @@ def crypto_headline_relevant(symbol: str, headline: dict) -> bool:
     return (bool(re.search(r"(?<![a-zA-Z])"+re.escape(base)+r"(?![a-zA-Z])", title))
             and bool(CRYPTO_CONTEXT.search(title)))
 
+CRYPTO_ADVERSE_CATALYST = re.compile(
+    r"\b(?:hackers?|attackers?)\s+(?:dump(?:s|ed|ing)?|sell(?:s|ing)?|sold|offload(?:s|ed|ing)?)\b"
+    r"|\b(?:rug\s+pull|security\s+breach|token\s+dump|exchange\s+delisting)\b",re.I)
+
+def crypto_adverse_catalyst(catalyst: str) -> bool:
+    """Fail closed on an explicitly adverse *catalyst*, not a generic risk list.
+
+    A model's optimistic scalar must not override a plainly negative
+    stated event. Avoid attempting general sentiment from arbitrary headlines.
+    """
+    return isinstance(catalyst,str) and bool(CRYPTO_ADVERSE_CATALYST.search(catalyst))
+
 def approve_entry(symbol: str, now: datetime,
                   get_headlines=fetch_headlines,
                   classifier=classify_news) -> tuple[bool, str]:
@@ -177,11 +189,13 @@ def approve_entry(symbol: str, now: datetime,
     except (ResearchUnavailable, GatewayUnavailable) as exc:
         _EVIDENCE_CACHE.pop(symbol,None)
         return False, 'AI research unavailable: ' + str(exc)
-    approved = sentiment >= 1 and impact >= 1
+    adverse=bool(symbol.endswith("-USD") and crypto_adverse_catalyst(catalyst))
+    approved = sentiment >= 1 and impact >= 1 and not adverse
     evidence = (f'AI news gate {"PASS" if approved else "NO TRADE"}; '
-                f'sentiment={sentiment}, impact={impact}, dated_news={len(news)}; '
-                f'catalyst={catalyst}; risk={risk}; '
-                'AI score is NOT a calibrated win probability')
+                +('material adverse crypto catalyst overrides model sentiment; ' if adverse else '')
+                +f'sentiment={sentiment}, impact={impact}, dated_news={len(news)}; '
+                +f'catalyst={catalyst}; risk={risk}; '
+                +'AI score is NOT a calibrated win probability')
     answer = (approved, evidence)
     _EVIDENCE_CACHE[symbol] = (now, {
         'model':str(result.get('model','local model'))[:96],

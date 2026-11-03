@@ -10,8 +10,13 @@ DEFAULTS={
  "max_total_exposure_usd":"25",
  "max_daily_loss_usd":"5",
  "max_open_positions":3,
+ "max_single_asset_exposure_pct":"60",
+ "min_add_interval_minutes":30,
  "min_hold_minutes":15,
  "min_profit_pct":"1.0",
+ "take_profit_pct":"3.0",
+ "trailing_activation_pct":"2.0",
+ "trailing_drawdown_pct":"0.75",
  "stop_loss_pct":"2.0",
  "fee_buffer_pct":"0.25",
  "reentry_cooldown_minutes":30,
@@ -36,8 +41,13 @@ def _policy_view(doc,configured=True):
             "max_total_exposure_usd":str(doc.get("max_total_exposure_usd",DEFAULTS["max_total_exposure_usd"])),
             "max_daily_loss_usd":str(doc.get("max_daily_loss_usd",DEFAULTS["max_daily_loss_usd"])),
             "max_open_positions":int(doc.get("max_open_positions",DEFAULTS["max_open_positions"])),
+            "max_single_asset_exposure_pct":str(doc.get("max_single_asset_exposure_pct",DEFAULTS["max_single_asset_exposure_pct"])),
+            "min_add_interval_minutes":int(doc.get("min_add_interval_minutes",DEFAULTS["min_add_interval_minutes"])),
             "min_hold_minutes":int(doc.get("min_hold_minutes",DEFAULTS["min_hold_minutes"])),
             "min_profit_pct":str(doc.get("min_profit_pct",DEFAULTS["min_profit_pct"])),
+            "take_profit_pct":str(doc.get("take_profit_pct",DEFAULTS["take_profit_pct"])),
+            "trailing_activation_pct":str(doc.get("trailing_activation_pct",DEFAULTS["trailing_activation_pct"])),
+            "trailing_drawdown_pct":str(doc.get("trailing_drawdown_pct",DEFAULTS["trailing_drawdown_pct"])),
             "stop_loss_pct":str(doc.get("stop_loss_pct",DEFAULTS["stop_loss_pct"])),
             "fee_buffer_pct":str(doc.get("fee_buffer_pct",DEFAULTS["fee_buffer_pct"])),
             "reentry_cooldown_minutes":int(doc.get("reentry_cooldown_minutes",DEFAULTS["reentry_cooldown_minutes"])),
@@ -69,8 +79,17 @@ def save_policy(root,payload,accounts,pairs):
     daily_loss=_amount(payload.get("max_daily_loss_usd",current["max_daily_loss_usd"]),
                        Decimal("0.10"),Decimal("100"))
     open_positions=_integer(payload.get("max_open_positions",current["max_open_positions"]),1,10,"Open-position limit")
+    asset_cap=_amount(payload.get("max_single_asset_exposure_pct",current["max_single_asset_exposure_pct"]),Decimal("10"),Decimal("100"))
+    add_interval=_integer(payload.get("min_add_interval_minutes",current["min_add_interval_minutes"]),0,1440,"Add-on buy cooldown")
     min_hold=_integer(payload.get("min_hold_minutes",current["min_hold_minutes"]),1,1440,"Minimum hold")
     min_profit=_amount(payload.get("min_profit_pct",current["min_profit_pct"]),Decimal("0.10"),Decimal("10"))
+    take_profit=_amount(payload.get("take_profit_pct",current["take_profit_pct"]),Decimal("0.50"),Decimal("20"))
+    trailing_activation=_amount(payload.get("trailing_activation_pct",current["trailing_activation_pct"]),Decimal("0.50"),Decimal("20"))
+    trailing_drawdown=_amount(payload.get("trailing_drawdown_pct",current["trailing_drawdown_pct"]),Decimal("0.10"),Decimal("5"))
+    if take_profit<min_profit:
+        raise PolicyError("Take-profit target must not be below minimum net profit")
+    if trailing_activation<min_profit+trailing_drawdown:
+        raise PolicyError("Trailing activation must exceed minimum profit plus retracement")
     stop_loss=_amount(payload.get("stop_loss_pct",current["stop_loss_pct"]),Decimal("0.50"),Decimal("15"))
     fee_buffer=_amount(payload.get("fee_buffer_pct",current["fee_buffer_pct"]),Decimal("0"),Decimal("2"))
     cooldown=_integer(payload.get("reentry_cooldown_minutes",current["reentry_cooldown_minutes"]),0,1440,"Re-entry cooldown")
@@ -94,8 +113,11 @@ def save_policy(root,payload,accounts,pairs):
         raise PolicyError("Buying power below verified Robinhood minimum at 25% cash allocation")
     doc={"account":account,"enabled":enabled,"max_order_usd":str(maximum),
          "max_total_exposure_usd":str(total_exposure),"max_daily_loss_usd":str(daily_loss),
-         "max_open_positions":open_positions,"min_hold_minutes":min_hold,
-         "min_profit_pct":str(min_profit),"stop_loss_pct":str(stop_loss),
+         "max_open_positions":open_positions,"max_single_asset_exposure_pct":str(asset_cap),
+         "min_add_interval_minutes":add_interval,"min_hold_minutes":min_hold,
+         "min_profit_pct":str(min_profit),"take_profit_pct":str(take_profit),
+         "trailing_activation_pct":str(trailing_activation),
+         "trailing_drawdown_pct":str(trailing_drawdown),"stop_loss_pct":str(stop_loss),
          "fee_buffer_pct":str(fee_buffer),"reentry_cooldown_minutes":cooldown,
          "verified_broker_minimum_usd":str(broker_min)}
     path=Path(root)/"robinhood"/"risk_policy.json"

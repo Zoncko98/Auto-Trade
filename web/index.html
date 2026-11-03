@@ -286,6 +286,7 @@
             <div class="readiness-item"><span>Last scanner activity</span><strong id="robinhood-scanner-state">Checking…</strong></div>
             <div class="readiness-item"><span>Markets</span><strong>Broker-supported USD crypto pairs (rotating batch)</strong></div>
             <div class="readiness-item"><span>Entry and exit support</span><strong>Automated BUY and holdings-limited SELL candidates · verified limits apply</strong></div>
+            <div class="readiness-item"><span>Managed profit protection</span><strong id="robinhood-profit-protection">Checking sell-side risk…</strong></div>
             <div class="readiness-item"><span>Market intelligence feed</span><strong id="robinhood-market-feed">Checking Coinbase WebSocket…</strong></div>
             <div class="readiness-item"><span>Technical qualification</span><strong id="robinhood-signal-diagnostics">Awaiting scan diagnostics</strong></div>
             <div class="readiness-item"><span>Duplicate and reconciliation safeguards</span><strong id="robinhood-order-state">Checking…</strong></div>
@@ -343,6 +344,11 @@
           <p>Bot journal inventory is reconciled against confirmed Robinhood holdings and externally executed broker sells. External sales are not attributed to bot performance.</p></div></div>
         <p class="panel-note" id="rh-external-holdings-status">Loading broker reconciliation evidence…</p>
       </section>
+      <section class="panel list-panel" id="rh-exit-diagnostics">
+        <div class="panel-heading"><div><h2>Managed position exit diagnostics</h2>
+          <p>Persisted Robinhood bid peaks, estimated net P/L after verified fee reserve, and exact take-profit, trailing, reversal, or stop-loss eligibility. Broker orders are not fills until reconciled.</p></div></div>
+        <p class="panel-note" id="rh-exit-position-status">Waiting for managed position status…</p>
+      </section>
       <section class="panel list-panel" id="rh-ai-review-diagnostics">
         <div class="panel-heading"><div><h2>AI review timing & evidence gates</h2>
           <p>News missing means the model was not called; an actual model veto is reported separately. New orders require a fresh technical signal.</p></div></div>
@@ -384,13 +390,23 @@
             <div class="setting-control"><span>$</span><input type="number" id="robinhood-risk-daily-loss" min=".10" max="100" step=".01" required></div></div>
           <div class="setting-item"><div><label for="robinhood-risk-positions">Maximum bot open positions</label><p>Counts only positions established by Auto Trader and reconciled to broker fills.</p></div>
             <div class="setting-control"><input type="number" id="robinhood-risk-positions" min="1" max="10" step="1" required></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-asset-cap">Maximum exposure in one cryptocurrency</label><p>Percent of the total bot exposure cap. Default 60%, preventing multiple buys from concentrating the whole account in one asset.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-asset-cap" min="10" max="100" step="1" required><span>%</span></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-add-interval">Cooldown between additional buys of the same asset</label><p>Requires a fresh approval and at least this many minutes between filled buys of an already-held symbol. Default 30 minutes.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-add-interval" min="0" max="1440" step="1" required><span>min</span></div></div>
           <div class="setting-item"><div><label for="robinhood-risk-hold">Minimum hold before profit exit</label><p>Ordinary reversal exits cannot churn a new position before this time. Stop-loss exits can act sooner.</p></div>
             <div class="setting-control"><input type="number" id="robinhood-risk-hold" min="1" max="1440" step="1" required><span>min</span></div></div>
           <div class="setting-item"><div><label for="robinhood-risk-profit">Minimum estimated profit for reversal exit</label><p>A technical reversal only sells when estimated net P/L clears this threshold.</p></div>
             <div class="setting-control"><input type="number" id="robinhood-risk-profit" min=".10" max="10" step=".05" required><span>%</span></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-take-profit">Estimated net take-profit target</label><p>After minimum hold, take profit without requiring a technical reversal. Default +3% net of recorded buy costs and estimated exit fees.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-take-profit" min=".5" max="20" step=".05" required><span>%</span></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-trailing-activation">Trailing protection activation</label><p>Arms gain protection after peak estimated net gain reaches this level. Default +2%.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-trailing-activation" min=".5" max="20" step=".05" required><span>%</span></div></div>
+          <div class="setting-item"><div><label for="robinhood-risk-trailing-retreat">Retreat from persisted peak</label><p>Take profit after a 0.75% fall from the highest observed Robinhood bid, provided the remaining estimated net gain still clears the minimum profitable-exit rule.</p></div>
+            <div class="setting-control"><input type="number" id="robinhood-risk-trailing-retreat" min=".1" max="5" step=".05" required><span>%</span></div></div>
           <div class="setting-item"><div><label for="robinhood-risk-stop">Cost-basis stop loss</label><p>Allows a protective exit when broker-confirmed cost basis falls by this amount.</p></div>
             <div class="setting-control"><input type="number" id="robinhood-risk-stop" min=".50" max="15" step=".05" required><span>%</span></div></div>
-          <div class="setting-item"><div><label for="robinhood-risk-fee-buffer">Exit fee/slippage buffer</label><p>Conservative haircut applied before deciding whether an exit is profitable.</p></div>
+          <div class="setting-item"><div><label for="robinhood-risk-fee-buffer">Minimum exit fee/slippage buffer</label><p>Minimum reserve; actual verified Robinhood fill fees automatically raise the profit-check estimate when greater. The original protective stop-loss trigger remains unchanged.</p></div>
             <div class="setting-control"><input type="number" id="robinhood-risk-fee-buffer" min="0" max="2" step=".05" required><span>%</span></div></div>
           <div class="setting-item"><div><label for="robinhood-risk-cooldown">Re-entry cooldown after a bot sell</label><p>Prevents immediate buy-back churn in the same crypto after an exit.</p></div>
             <div class="setting-control"><input type="number" id="robinhood-risk-cooldown" min="0" max="1440" step="1" required><span>min</span></div></div>

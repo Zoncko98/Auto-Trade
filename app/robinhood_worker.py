@@ -246,9 +246,11 @@ def run_once(state,client,feed=None):
             except (OSError,ValueError,TypeError,RobinhoodUnavailable):
                 pass
         journal.reconcile(account_ref,broker_rows)
-        # An external broker sale can close a bot-acquired position without
-        # appearing among the bot's own client order identifiers. Require
-        # both authoritative holdings AND actual filled external sell evidence.
+        # A broker-confirmed external sell can close holdings acquired by this
+        # bot without appearing among the bot's own client order identifiers.
+        # Reconcile only when full broker holdings AND actual filled external
+        # sell records corroborate the missing quantity. Never fabricate a bot
+        # sale, ignore cost basis, or assume a failed broker read means zero.
         try:
             verified=journal.reconcile_external_sells(
                 account_ref,broker_rows,client.positions(account_ref))
@@ -286,34 +288,114 @@ def run_once(state,client,feed=None):
     except (RiskDenied,ValueError,TypeError,KeyError,StopIteration) as exc:
         risk_check="BLOCKED_"+type(exc).__name__
 
-    # Existing bot positions are managed before any new entry. A technical
-    # reversal can only take profit after the configured hold/profit floor;
-    # a cost-basis stop-loss may exit independently to reduce risk.
-    stop_pct=Decimal(str(policy.get("stop_loss_pct","2"))) if isinstance(policy,dict) else Decimal("2")
-    exit_candidates=[]
-    seen=set()
-    for row in observations:
-        pos=positions.get(row.get("symbol"))
-        if not pos:continue
-        protective=False
+    # Profit protection uses fresh Robinhood executable-side bids, not
+    # Coinbase midpoints. The broker fill journal is the only source of
+    # bot-owned position quantity and average cost.
+    from robinhood_exit_tracker import ExitTracker,ExitTrackerError
+    from robinhood_order_pass import _quote_prices
+    managed_bids={}
+    managed_spread_blocks={}
+    for symbol,pos in positions.items():
+        if pos.get("cost_basis_verified") is not True:
+            managed_spread_blocks[symbol]="Broker-verified cost basis missing"
+            continue
         try:
-            mid=Decimal(str(row.get("mid")))
+            bid,ask=_quote_prices(client.quote(symbol),symbol)
+            if (ask-bid)/ask*Decimal("100")>Decimal("0.5"):
+                managed_spread_blocks[symbol]="Robinhood sell spread exceeds 0.5%"
+                continue
+            managed_bids[symbol]=bid
+        except (RobinhoodUnavailable,ValueError,TypeError,KeyError,ArithmeticError):
+            managed_spread_blocks[symbol]="Fresh Robinhood bid unavailable"
+    account_ref=policy.get("account") if isinstance(policy,dict) else None
+    peaks={}
+    if isinstance(account_ref,str) and account_ref and managed_bids:
+        try:
+            peaks=ExitTracker(state).update(account_ref,positions,managed_bids)
+            result["exit_peak_state"]="PERSISTED"
+        except (ExitTrackerError,OSError,ValueError,TypeError):
+            result["exit_peak_state"]="UNAVAILABLE"
+    elif managed_bids:
+        result["exit_peak_state"]="ACCOUNT_NOT_CONFIGURED"
+    else:
+        result["exit_peak_state"]="NO_FRESH_BROKER_BIDS"
+    now_exit=datetime.now(timezone.utc)
+    from robinhood_fee_estimates import effective_sell_fee_pct
+    try:
+        fee_buffer,fee_source=effective_sell_fee_pct(policy,journal)
+    except ValueError:
+        fee_buffer=Decimal("2")
+        fee_source="invalid_policy_estimate"
+    result["exit_fee_buffer_pct"]=str(fee_buffer)
+    result["exit_fee_buffer_source"]=fee_source
+    legacy_stop_buffer=Decimal(str(policy.get("fee_buffer_pct","0.25")))
+    stop_pct=Decimal(str(policy.get("stop_loss_pct","2")))
+    min_profit=Decimal(str(policy.get("min_profit_pct","1")))
+    take_profit=Decimal(str(policy.get("take_profit_pct","3.0")))
+    trail_activation=Decimal(str(policy.get("trailing_activation_pct","2.0")))
+    trail_drawdown=Decimal(str(policy.get("trailing_drawdown_pct","0.75")))
+    min_hold=int(policy.get("min_hold_minutes",15))
+    observed_by_symbol={r["symbol"]:r for r in observations}
+    exit_candidates=[]
+    exit_details=[]
+    for symbol,pos in positions.items():
+        bid=managed_bids.get(symbol)
+        if bid is None:
+            exit_details.append({"symbol":symbol,"status":"QUOTE_OR_COST_UNAVAILABLE",
+                                 "reason":managed_spread_blocks.get(symbol,"No broker bid")})
+            continue
+        try:
             cost=Decimal(str(pos["average_unit_cost"]))
-            protective=cost>0 and (mid/cost-1)*100<=-stop_pct
-        except (InvalidOperation,ValueError,TypeError,KeyError):
-            protective=False
-        if protective or row.get("technical_exit") is True:
-            candidate=dict(row)
-            candidate["protective_stop_hint"]=protective
-            exit_candidates.append(candidate);seen.add(row["symbol"])
-    exit_candidates.sort(key=lambda r:(not r.get("protective_stop_hint",False),
-                                       -(abs(float(r.get("momentum_pct") or 0)))))
+            if cost<=0:raise ValueError("Invalid cost basis")
+            pnl_pct=(bid*(Decimal("1")-fee_buffer/Decimal("100"))/cost-1)*100
+            opened=datetime.fromisoformat(pos["opened_at"].replace("Z","+00:00"))
+            held_minutes=max(Decimal("0"),Decimal(str((now_exit-opened.astimezone(timezone.utc)).total_seconds()/60)))
+            hold_met=held_minutes>=min_hold
+            peak=peaks.get(symbol)
+            peak_net_pct=((peak*(Decimal("1")-fee_buffer/Decimal("100"))/cost-1)*100
+                          if peak is not None else None)
+            retreat=max(Decimal("0"),(1-bid/peak)*100) if peak is not None else None
+            # Preserve the existing stop-loss trigger instead of making it
+            # fire earlier solely because our fee estimate was corrected.
+            stop_reference=(bid*(Decimal("1")-legacy_stop_buffer/Decimal("100"))/cost-1)*100
+            stop_hit=stop_reference<=-stop_pct
+            target_hit=hold_met and pnl_pct>=take_profit
+            trail_hit=(hold_met and peak_net_pct is not None and retreat is not None
+                       and peak_net_pct>=trail_activation and retreat>=trail_drawdown
+                       and pnl_pct>=min_profit)
+            technical=observed_by_symbol.get(symbol,{}).get("technical_exit") is True
+            reversal=hold_met and pnl_pct>=min_profit and technical
+            cause=("STOP_LOSS" if stop_hit else "TAKE_PROFIT" if target_hit else
+                   "TRAILING_PROFIT" if trail_hit else "PROFIT_REVERSAL" if reversal else None)
+            exit_details.append({
+                "symbol":symbol,"status":cause or "HOLD","bid":str(bid),
+                "estimated_net_pnl_pct":str(pnl_pct.quantize(Decimal("0.01"))),
+                "held_minutes":str(held_minutes.quantize(Decimal("0.1"))),
+                "peak_bid":str(peak) if peak is not None else None,
+                "estimated_sell_fee_pct":str(fee_buffer),
+                "estimated_sell_fee_source":fee_source,
+                "peak_estimated_net_pnl_pct":str(peak_net_pct.quantize(Decimal("0.01"))) if peak_net_pct is not None else None,
+                "retreat_from_peak_pct":str(retreat.quantize(Decimal("0.01"))) if retreat is not None else None,
+            })
+            if cause:
+                candidate=dict(observed_by_symbol.get(symbol,{}))
+                candidate.update({"symbol":symbol,"at":now_exit.isoformat(),
+                                  "technical_exit":technical,"exit_hint":cause,
+                                  "broker_bid":str(bid)})
+                candidate["exit_priority"]={"STOP_LOSS":0,"TAKE_PROFIT":1,
+                       "TRAILING_PROFIT":2,"PROFIT_REVERSAL":3}[cause]
+                exit_candidates.append(candidate)
+        except (InvalidOperation,ValueError,TypeError,KeyError,OverflowError,ArithmeticError) as exc:
+            exit_details.append({"symbol":symbol,"status":"EXIT_CHECK_FAILED",
+                                 "reason":type(exc).__name__})
+    exit_candidates.sort(key=lambda r:r["exit_priority"])
+    result["exit_position_status"]=exit_details
     result["exit_candidate_symbol"]=exit_candidates[0]["symbol"] if exit_candidates else None
     result["exit_momentum_pct"]=exit_candidates[0].get("momentum_pct") if exit_candidates else None
     result["exit_spread_pct"]=exit_candidates[0].get("spread_pct") if exit_candidates else None
     result["exit_signal_reason"]=(
-        "Position-management candidate: technical reversal or configured cost-basis stop-loss"
-        if exit_candidates else "No managed position exit")
+        exit_candidates[0]["exit_hint"]+" (verified Robinhood bid)"
+        if exit_candidates else "No managed position meets an exit trigger")
     result["execution_reason"]="No order evaluated"
     execution="NOT_ARMED"
     order_confirmed=False
@@ -495,6 +577,10 @@ def run_once(state,client,feed=None):
         "ai_candidate_reviews":result.get("ai_candidate_reviews",[]),
         "ai_review_duration_seconds":result.get("ai_review_duration_seconds"),
         "ai_selected_model":result.get("ai_selected_model"),
+        "exit_position_status":result.get("exit_position_status",[]),
+        "exit_peak_state":result.get("exit_peak_state"),
+        "exit_fee_buffer_pct":result.get("exit_fee_buffer_pct"),
+        "exit_fee_buffer_source":result.get("exit_fee_buffer_source"),
         "entry_signal_revalidated":result.get("entry_signal_revalidated"),
         "external_holding_reconciliation":result.get("external_holding_reconciliation",[]),
         "external_closed_positions":result.get("external_closed_positions",[])})

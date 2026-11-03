@@ -567,6 +567,22 @@ async function resolveRobinhoodPendingOrder(){
     button.disabled=false;
   }
 }
+function renderRobinhoodExitDiagnostics(data){
+  const worker=data?.worker||{};
+  const rows=Array.isArray(worker.exit_position_status)?worker.exit_position_status:[];
+  const el=$("rh-exit-position-status");
+  if(!el)return;
+  el.textContent="Peak state: "+(worker.exit_peak_state||"unavailable")+
+    " · Estimated sell fee reserve: "+(worker.exit_fee_buffer_pct??"unavailable")+"% "+
+    "("+(worker.exit_fee_buffer_source||"source unavailable")+") · "+
+    (rows.length?rows.map(x=>(x.symbol||"?")+" · "+(x.status||"unknown")+
+      (x.estimated_net_pnl_pct==null?"":" · net "+x.estimated_net_pnl_pct+"%")+
+      (x.held_minutes==null?"":" · held "+x.held_minutes+" min")+
+      (x.peak_estimated_net_pnl_pct==null?"":" · peak net "+x.peak_estimated_net_pnl_pct+"%")+
+      (x.retreat_from_peak_pct==null?"":" · retreat "+x.retreat_from_peak_pct+"%")+
+      (x.reason?" · "+x.reason:"")).join(" | "):
+      "No verified managed-position bid available.");
+}
 function renderRobinhoodAIReview(data){
   const worker=data?.worker||{};
   const outcomes=Array.isArray(worker.ai_candidate_reviews)?worker.ai_candidate_reviews:[];
@@ -597,6 +613,7 @@ async function loadRobinhoodDecisionEvidence(){
     (data.worker?.ai_model||"not invoked")+
     " · Workstation selection: "+(data.worker?.ai_selected_model||"unavailable")+
     " · AI gate: "+(data.worker?.ai_review_status||"not evaluated");
+  renderRobinhoodExitDiagnostics(data);
   renderRobinhoodAIReview(data);
   renderRobinhoodExternalHoldings(data);
   renderRobinhoodScanDiagnostics(data);
@@ -640,8 +657,13 @@ async function loadRobinhoodRisk(){
   $("robinhood-risk-exposure").value=policy.max_total_exposure_usd||"25";
   $("robinhood-risk-daily-loss").value=policy.max_daily_loss_usd||"5";
   $("robinhood-risk-positions").value=policy.max_open_positions??3;
+  $("robinhood-risk-asset-cap").value=policy.max_single_asset_exposure_pct??"60";
+  $("robinhood-risk-add-interval").value=policy.min_add_interval_minutes??30;
   $("robinhood-risk-hold").value=policy.min_hold_minutes??15;
   $("robinhood-risk-profit").value=policy.min_profit_pct||"1";
+  $("robinhood-risk-take-profit").value=policy.take_profit_pct||"3";
+  $("robinhood-risk-trailing-activation").value=policy.trailing_activation_pct||"2";
+  $("robinhood-risk-trailing-retreat").value=policy.trailing_drawdown_pct||"0.75";
   $("robinhood-risk-stop").value=policy.stop_loss_pct||"2";
   $("robinhood-risk-fee-buffer").value=policy.fee_buffer_pct||"0.25";
   $("robinhood-risk-cooldown").value=policy.reentry_cooldown_minutes??30;
@@ -666,8 +688,13 @@ async function saveRobinhoodRisk(event){
       max_total_exposure_usd:$("robinhood-risk-exposure").value,
       max_daily_loss_usd:$("robinhood-risk-daily-loss").value,
       max_open_positions:Number($("robinhood-risk-positions").value),
+      max_single_asset_exposure_pct:$("robinhood-risk-asset-cap").value,
+      min_add_interval_minutes:Number($("robinhood-risk-add-interval").value),
       min_hold_minutes:Number($("robinhood-risk-hold").value),
       min_profit_pct:$("robinhood-risk-profit").value,
+      take_profit_pct:$("robinhood-risk-take-profit").value,
+      trailing_activation_pct:$("robinhood-risk-trailing-activation").value,
+      trailing_drawdown_pct:$("robinhood-risk-trailing-retreat").value,
       stop_loss_pct:$("robinhood-risk-stop").value,
       fee_buffer_pct:$("robinhood-risk-fee-buffer").value,
       reentry_cooldown_minutes:Number($("robinhood-risk-cooldown").value),
@@ -885,6 +912,15 @@ async function loadRobinhoodWorkspace(){
     if(activityEl)activityEl.textContent=worker.last_order_confirmed?
       "Broker-confirmed bot fill recorded; inspect broker order history for details.":
       "No autonomous Robinhood fill verified. Broker historical orders do not prove bot execution.";
+    const protection=$("robinhood-profit-protection");
+    if(protection){
+      const rows=Array.isArray(worker.exit_position_status)?worker.exit_position_status:[];
+      protection.textContent="Peak tracking: "+(worker.exit_peak_state||"unavailable")+
+        " · Estimated exit fee: "+(worker.exit_fee_buffer_pct??"unavailable")+"%"+
+        " · "+(rows.length?rows.map(x=>(x.symbol||"?")+": "+(x.status||"unknown")+
+        (x.estimated_net_pnl_pct==null?"":" / "+x.estimated_net_pnl_pct+"% net")).join(" | "):
+        "No bot-owned positions evaluated");
+    }
     const strategyEl=$("robinhood-strategy-status");
     if(strategyEl)strategyEl.textContent=
       "Scan: "+(worker.worker||"unavailable")+
