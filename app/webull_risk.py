@@ -37,7 +37,11 @@ def save(state,payload):
     plan=validate(payload)
     target=_path(state)
     target.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
-    if target.parent.stat().st_mode & 0o077:raise ValueError("Unsafe Webull storage permissions")
+    if target.parent.is_symlink() or not target.parent.is_dir():
+        raise ValueError("Unsafe Webull storage directory")
+    if target.parent.stat().st_mode & 0o077:os.chmod(target.parent,0o700)
+    if target.parent.stat().st_mode & 0o077:
+        raise ValueError("Unsafe Webull storage permissions")
     tmp=target.parent/(".webull-risk-"+secrets.token_hex(8))
     fd=os.open(str(tmp),os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
     try:

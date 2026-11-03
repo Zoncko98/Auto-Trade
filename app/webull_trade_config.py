@@ -63,7 +63,11 @@ def save(state,payload,accounts,confirmation=None):
         if not (obj["trade_stocks"] or obj["trade_crypto"]):
             raise WebullPolicyError("No assets enabled")
     path=_path(state);path.parent.mkdir(parents=True,mode=0o700,exist_ok=True)
-    if path.parent.stat().st_mode & 0o077:raise WebullPolicyError("Unsafe trading policy directory")
+    if path.parent.is_symlink() or not path.parent.is_dir():
+        raise WebullPolicyError("Unsafe trading policy directory")
+    if path.parent.stat().st_mode & 0o077:os.chmod(path.parent,0o700)
+    if path.parent.stat().st_mode & 0o077:
+        raise WebullPolicyError("Unsafe trading policy directory")
     temp=path.parent/(".trading-"+secrets.token_hex(8))
     fd=os.open(str(temp),os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     try:

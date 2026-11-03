@@ -75,6 +75,14 @@ class Tests(unittest.TestCase):
     def signal(self):
         return {"at":NOW().isoformat(),"symbol":"F","asset":"EQUITY",
                 "bid":"9.99","ask":"10","technical_approved":True,"ai_approved":True}
+    def test_migrates_preexisting_webull_state_to_private_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"webull"
+            path.mkdir()
+            path.chmod(0o755)
+            journal=WebullJournal(tmp)
+            self.assertEqual(path.stat().st_mode & 0o077,0)
+            self.assertTrue(journal.path.exists())
     def test_journal_duplicate_crash_and_broker_fill(self):
         client_id="a"*32
         self.j.new_intent("stock1",client_id,"F","EQUITY","BUY","1","10","AI approved")

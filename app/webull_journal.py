@@ -24,7 +24,14 @@ class WebullJournal:
     def __init__(self,state):
         self.folder=Path(state)/"webull"
         self.folder.mkdir(parents=True,exist_ok=True,mode=0o700)
-        if self.folder.stat().st_mode & 0o077:raise JournalBlocked("Unsafe journal directory permissions")
+        if self.folder.is_symlink() or not self.folder.is_dir():
+            raise JournalBlocked("Unsafe Webull state directory")
+        if self.folder.stat().st_mode & 0o077:
+            # Older Webull integration created /state/webull with 0755.
+            # Tighten the existing directory, never relax access.
+            os.chmod(self.folder,0o700)
+        if self.folder.stat().st_mode & 0o077:
+            raise JournalBlocked("Unsafe journal directory permissions")
         self.path=self.folder/"orders.sqlite3"
         # Creating via sqlite uses the process umask, enforce mode on every open.
         with self._db() as db:
