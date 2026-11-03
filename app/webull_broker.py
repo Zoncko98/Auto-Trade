@@ -116,6 +116,34 @@ class WebullBroker:
                 if isinstance(code,int) and 100<=code<=599:
                     result[label]={"http_status":code,
                                    "status":"OK" if code==200 else "HTTP_"+str(code)}
+                    if code==200:
+                        # Only a shape summary for public market data.
+                        # Never persist Webull response bodies or signed headers.
+                        try:
+                            body=response.json()
+                            shape={"container":type(body).__name__}
+                            safe={"symbol","result","data","items","list","bids","asks",
+                                  "quote_time","time","bid","ask","price","code","msg"}
+                            if isinstance(body,dict):
+                                shape["fields"]=sorted(safe.intersection(body))
+                                child=body.get("data")
+                                if isinstance(child,dict):
+                                    shape["data_container"]="dict"
+                                    shape["data_fields"]=sorted(safe.intersection(child))
+                                elif isinstance(child,list):
+                                    shape["data_container"]="list"
+                                    shape["data_rows"]=len(child)
+                                    if child and isinstance(child[0],dict):
+                                        shape["data_fields"]=sorted(safe.intersection(child[0]))
+                                if isinstance(body.get("result"),list):
+                                    shape["result_rows"]=len(body["result"])
+                            elif isinstance(body,list):
+                                shape["rows"]=len(body)
+                                if body and isinstance(body[0],dict):
+                                    shape["first_fields"]=sorted(safe.intersection(body[0]))
+                            result[label]["schema"]=shape
+                        except (ValueError,TypeError,AttributeError):
+                            result[label]["schema"]={"container":"unavailable"}
                 else:
                     result[label]={"status":"UNEXPECTED_HTTP_RESPONSE"}
             except Exception as exc:

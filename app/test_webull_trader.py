@@ -102,6 +102,23 @@ class Tests(unittest.TestCase):
         self.assertEqual([r[0] for r in calls],["snapshot","quote","bars"])
         self.assertEqual(calls[1][2]["depth"],1)
         self.assertEqual(calls[0][1],("AAPL","US_STOCK"))
+    def test_stock_data_schema_probe_never_copies_raw_payload_or_credentials(self):
+        from types import SimpleNamespace
+        broker=WebullBroker.__new__(WebullBroker)
+        secret="DO_NOT_ECHO_SIGNED_HEADERS_OR_KEYS"
+        response=lambda:SimpleNamespace(status_code=200,json=lambda:{
+            "data":[{"symbol":"AAPL","quote_time":"2026-11-03T18:00:00Z",
+                     "bids":[{"price":"100"}],"sensitive":secret}],
+            "access_token":secret,"signature":secret})
+        broker.data=SimpleNamespace(market_data=SimpleNamespace(
+            get_snapshot=lambda *a,**k:response(),
+            get_quotes=lambda *a,**k:response(),
+            get_history_bar=lambda *a,**k:response()))
+        summary=broker.stock_api_probe()
+        self.assertEqual(summary["state"],"ALL_STOCK_ENDPOINTS_AUTHORIZED")
+        self.assertEqual(summary["endpoints"]["best_bid_ask"]["schema"]["data_container"],"list")
+        self.assertIn("symbol",summary["endpoints"]["best_bid_ask"]["schema"]["data_fields"])
+        self.assertNotIn(secret,json.dumps(summary))
     def test_readonly_stock_data_probe_sanitizes_403_and_signed_sdk_errors(self):
         from types import SimpleNamespace
         broker=WebullBroker.__new__(WebullBroker)

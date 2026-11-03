@@ -68,6 +68,14 @@ def _safe_public(exc):
     if isinstance(exc,WebullError) or type(exc).__name__=="ServerException":
         status=re.search(r"HTTP (?:Status: )?([45]\d\d)",str(exc))
         if status:return "WEBULL_HTTP_"+status.group(1)
+    if isinstance(exc,WebullError):
+        static={
+            "Broker quote ambiguous":"WEBULL_QUOTE_AMBIGUOUS",
+            "Broker quote unavailable":"WEBULL_QUOTE_FORMAT_UNEXPECTED",
+            "Missing symbol-specific market bars":"WEBULL_BARS_FORMAT_UNEXPECTED",
+            "No executable broker bid/ask":"WEBULL_BID_ASK_UNAVAILABLE",
+            "Unexpected broker list response":"WEBULL_LIST_FORMAT_UNEXPECTED"}
+        if str(exc) in static:return static[str(exc)]
     return type(exc).__name__
 
 def _account_class(row):
