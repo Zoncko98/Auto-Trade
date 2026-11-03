@@ -10,6 +10,7 @@ let status = null;
 let activeView = "workspaces";
 let activeWorkspace = "live";
 const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto"]);
+let robinhoodTileRefreshId=0;
 // Do not format missing numbers as $0.00, and never render stale broker
 // snapshots as current. Values are only read from authenticated APIs.
 function finiteUsd(value){
@@ -104,6 +105,11 @@ function updateWorkspaceCommandStrip(paper,live){
 }
 
 function clearWorkspaceBalances(){
+  // Invalidate in-flight authenticated Robinhood portfolio responses on sign-out.
+  robinhoodTileRefreshId++;
+  const rh=$("workspace-robinhood-balance"), note=$("workspace-robinhood-value-note");
+  if(rh){rh.textContent="Account value unavailable";rh.title="Sign in to view verified Robinhood holdings and USD buying power";}
+  if(note)note.textContent="Holdings + USD buying power · verification required";
   for(const name of ["paper","schwab"]){
     const el=$("workspace-"+name+"-balance");
     if(el){el.textContent="Balance unavailable";el.title="Sign in and refresh to view available equity";}
@@ -126,18 +132,34 @@ function positionRobinhoodTile(configured){
   const label=tile.querySelector(".workspace-tile-equity-label");
   if(label)label.hidden=!configured;
 }
-function robinhoodBuyingPower(accounts){
-  const values=[];
-  for(const account of accounts){
-    const currency=account.buying_power_currency;
-    const raw=account.buying_power;
-    if(currency!=="USD" || typeof raw!=="string" ||
-       !/^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(raw))return null;
-    const value=Number(raw);
-    if(!Number.isFinite(value)||value>1e12)return null;
-    values.push(value);
+// Never equate buying power with account value. The portfolio endpoint
+// includes all account USD buying power plus priced broker-reported holdings.
+function robinhoodAccountValueUsd(raw){
+  if(typeof raw!=="string" ||
+     !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(raw))return null;
+  const value=Number(raw);
+  return Number.isFinite(value)&&value<=1e12?money(value):null;
+}
+function updateRobinhoodTilePortfolio(portfolio){
+  const amount=$("workspace-robinhood-balance");
+  const note=$("workspace-robinhood-value-note");
+  if(!amount)return;
+  const formatted=portfolio?.available===true?
+    robinhoodAccountValueUsd(portfolio.estimated_crypto_account_value_usd):null;
+  if(formatted!==null){
+    amount.textContent=formatted;
+    amount.title="Estimated Robinhood Crypto account value: priced holdings + verified USD buying power. Indicative bid/ask marks, not liquidation proceeds.";
+    if(note)note.textContent="Holdings + USD buying power · indicative estimate";
+  }else{
+    amount.textContent="Account value unavailable";
+    const unpriced=Array.isArray(portfolio?.unpriced_holdings)?portfolio.unpriced_holdings:[];
+    const reason=unpriced.length?
+      "Unpriced Robinhood holdings: "+unpriced.join(", "):
+      "Complete verified Robinhood holdings, prices or USD buying power unavailable";
+    amount.title=reason+"; no total account value asserted.";
+    if(note)note.textContent=unpriced.length?
+      "Some holdings lack verified quotes":"Unable to verify complete holdings + USD balance";
   }
-  return values.length?values.reduce((a,b)=>a+b,0):null;
 }
 function updateRobinhoodTile(result){
   const accounts=Array.isArray(result.accounts)?result.accounts:[];
@@ -145,29 +167,41 @@ function updateRobinhoodTile(result){
   positionRobinhoodTile(configured);
   const statusNode=$("workspace-robinhood-status");
   const amountNode=$("workspace-robinhood-balance");
+  const note=$("workspace-robinhood-value-note");
   if(!statusNode||!amountNode)return;
   const verified=result.connected===true && accounts.length>0;
   statusNode.textContent=verified?
     (accounts.some(a=>a.is_api_tradable===true)?"ACCOUNT VERIFIED":"CONNECTED · RESTRICTED"):
     (configured?"CREDENTIALS SAVED · CHECK CONNECTION":"SET UP ROBINHOOD");
-  const buyingPower=verified?robinhoodBuyingPower(accounts):null;
-  amountNode.textContent=buyingPower===null?"Buying power unavailable":money(buyingPower);
+  amountNode.textContent=verified?"Checking account value…":"Account value unavailable";
+  amountNode.title=verified?"Fetching verified holdings and USD buying power from Robinhood":
+    "A verified Robinhood Crypto connection is required for an account valuation";
+  if(note)note.textContent=verified?
+    "Holdings + USD buying power · verifying quotes":
+    "Holdings + USD buying power · verification required";
   setWorkspaceHealth("workspace-robinhood-agent",verified?"CONNECTED":"NOT READY",verified?"good":"warn");
   const count=$("workspace-active-count");
   if(count){
     const configuredCount=[...document.querySelectorAll(".workspace-tile-grid .workspace-tile:not(.is-coming-soon)")].length;
     count.textContent="● "+configuredCount+" available";
   }
-  amountNode.title=buyingPower===null?
-    "No verified USD buying power was returned by the Robinhood Crypto API":
-    "Verified Robinhood Crypto USD buying power; this is not total portfolio equity";
 }
 async function refreshRobinhoodTile(){
+  const refreshId=++robinhoodTileRefreshId;
   try{
-    updateRobinhoodTile(await request("/api/robinhood/status"));
+    const result=await request("/api/robinhood/status");
+    if(refreshId!==robinhoodTileRefreshId)return;
+    updateRobinhoodTile(result);
+    if(result.connected===true&&Array.isArray(result.accounts)&&result.accounts.length){
+      const portfolio=await request("/api/robinhood/portfolio");
+      if(refreshId!==robinhoodTileRefreshId)return;
+      updateRobinhoodTilePortfolio(portfolio);
+    }
   }catch(_){
+    if(refreshId!==robinhoodTileRefreshId)return;
     const statusNode=$("workspace-robinhood-status");
     if(statusNode)statusNode.textContent="CONNECTION CHECK FAILED";
+    updateRobinhoodTilePortfolio({available:false});
   }
 }
 async function loadWorkspaceAvailability() {
@@ -634,6 +668,7 @@ async function loadRobinhoodWorkspace(){
       positionState.textContent="Fetching Robinhood holdings and reconciled fill history…";
       request("/api/robinhood/portfolio").then(portfolio=>{
         renderRobinhoodPortfolio(portfolio);
+        updateRobinhoodTilePortfolio(portfolio);
         if(portfolio.available){
           const holdings=Number.isInteger(portfolio.position_count)?portfolio.position_count:0;
           if($("robinhood-holdings-stat"))$("robinhood-holdings-stat").textContent=String(holdings);
@@ -649,8 +684,11 @@ async function loadRobinhoodWorkspace(){
             "Partial estimate · unpriced: "+portfolio.unpriced_holdings.join(", "):
             "Holdings + USD buying power; indicative quotes, not liquidation proceeds";
         }
-      }).catch(error=>renderRobinhoodPortfolio({
-        available:false,reason:"Robinhood portfolio lookup unavailable: "+error.message}));
+      }).catch(error=>{
+        updateRobinhoodTilePortfolio({available:false});
+        renderRobinhoodPortfolio({
+          available:false,reason:"Robinhood portfolio lookup unavailable: "+error.message});
+      });
     }
     const eligible=accounts.some(a=>a.is_api_tradable===true);
     statusNode.title="Robinhood account eligibility and execution permission are reported independently.";

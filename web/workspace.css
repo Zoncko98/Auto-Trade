@@ -206,3 +206,9 @@
  .ops-field{flex-direction:column;gap:4px}
  .ops-field strong{text-align:left}
 }
+
+/* Robinhood overview uses the broker portfolio valuation, never just buying power. */
+.workspace-tile-value-note{display:block;color:#96b5d4;font-size:11px;line-height:1.45;
+  margin:-2px 0 12px;overflow-wrap:anywhere}
+[data-workspace="robinhood_crypto"] .workspace-tile-balance{max-width:100%}
+[data-workspace="robinhood_crypto"] .workspace-tile-balance:not([title^="Estimated"]){font-size:21px;letter-spacing:-.3px}
