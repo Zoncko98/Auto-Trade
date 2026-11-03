@@ -550,8 +550,10 @@
           <div class="setting-item"><div>
             <label for="profile-webull-margin-enabled">Include Webull individual margin accounts</label>
             <p class="panel-note">This does not enable margin borrowing, leverage, short selling,
-              crypto on margin, or live trading. Only independently verified settled USD cash
-              can be used; an existing margin debit or unverified margin usage blocks orders.</p>
+              crypto on margin, or live trading. Only broker-reported USD cash balances
+              may fund orders; leveraged buying power is never used. Reported margin
+              debt, margin calls, and insufficient cash block orders. Webull may omit
+              margin-use or settlement fields, so these cannot be independently confirmed.</p>
           </div><div class="setting-control">
             <input id="profile-webull-margin-enabled" type="checkbox" autocomplete="off">
           </div></div>

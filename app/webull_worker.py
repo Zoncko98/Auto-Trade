@@ -105,7 +105,7 @@ def account_readiness(account,allow_margin_accounts=False):
                       "ACCOUNT_CLASS_ELIGIBLE" if (stock or crypto) else
                       "ACCOUNT_CLASS_UNVERIFIED"),
             "reason":("Margin-classified Webull stock account opted into CASH-ONLY eligibility; "
-                      "zero margin usage, verified settled cash, market data, risk and execution checks still required"
+                      "broker-reported positive cash, no reported margin debt or calls, market data, risk and execution checks required; absence of optional margin/settlement fields is not proof of zero borrowing"
                       if margin and stock else
                       "Margin account opt-in is off or account type unsupported; no orders"
                       if margin else
