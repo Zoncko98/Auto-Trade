@@ -136,6 +136,17 @@ def run_once(state,client):
        "last_order_confirmed":order_confirmed,
        "reason":"Order submission requires explicit account risk approval and broker-confirmed reconciliation"})
     write_atomic(Path(state)/"robinhood"/"worker_status.json",result)
+    # Bounded, broker-specific evidence. Never invent a model decision or fill.
+    evidence_path=Path(state)/"robinhood"/"decision_history.json"
+    try:
+        evidence=json.loads(evidence_path.read_text())
+        if not isinstance(evidence,list):evidence=[]
+    except (OSError,ValueError,TypeError):evidence=[]
+    evidence.append({"at":result["updated_at"],"signal":result.get("last_signal"),
+        "ai_review_status":result.get("ai_review_status"),"ai_model":result.get("ai_model"),
+        "ai_reason":result.get("ai_reason"),"execution_status":result.get("execution_status"),
+        "risk_check":result.get("risk_check")})
+    write_atomic(evidence_path,evidence[-100:])
     return result
 
 def main():

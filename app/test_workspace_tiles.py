@@ -67,7 +67,7 @@ class WorkspaceTileTests(unittest.TestCase):
         self.assertIn('id="paper-nav-group" class="workspace-menu hidden"',self.html)
         self.assertIn('tile.dataset.workspace==="robinhood_crypto"?"robinhood":"live"',self.js)
         self.assertIn('if(!AVAILABLE_WORKSPACES.includes(workspace))return false;',self.js)
-        self.assertIn('(view==="robinhood"||view==="robinhood-risk")?"robinhood_crypto":null;',self.js)
+        self.assertIn('rhViews.includes(view)?"robinhood_crypto":null;',self.js)
         self.assertIn('view==="workspaces"',self.js)
         self.assertIn('id="view-live"',self.html)
         self.assertIn('id="view-overview"',self.html)

@@ -161,6 +161,38 @@ async function loadWorkspaceAvailability() {
   }
   await refreshRobinhoodTile();
 }
+function robinhoodEffective(data){
+  const state=data.effective_state||"UNVERIFIED";
+  const descriptions={PAUSED:"Paused",WORKER_OFFLINE:"Worker offline",
+    RECONCILIATION_PENDING:"Reconciliation pending",ORDER_PENDING:"Order pending",
+    RISK_BLOCKED:"Risk blocked",AI_VETO:"AI veto",
+    ARMED_WAITING_SIGNAL:"Armed · waiting for signal"};
+  return {label:descriptions[state]||state.replaceAll("_"," "),
+    detail:data.effective_detail||"Latest worker status unavailable",
+    armed:data.policy_enabled===true,state};
+}
+async function loadRobinhoodDecisionEvidence(){
+  const data=await request("/api/robinhood/status");
+  const effective=robinhoodEffective(data);
+  $("rh-decision-status").textContent=effective.label+" · "+effective.detail;
+  const rows=Array.isArray(data.decision_evidence)?data.decision_evidence:[];
+  $("rh-decision-rows").innerHTML=rows.length?rows.slice().reverse().map(x=>
+    "<tr><td>"+esc(x.at||"—")+"</td><td>"+esc(x.signal||"—")+
+    "</td><td>"+esc(x.ai_review_status||"—")+"</td><td>"+esc(x.ai_model||"—")+
+    "</td><td>"+esc(x.ai_reason||"—")+"</td><td>"+esc(x.execution_status||"—")+
+    "</td></tr>").join(""):'<tr><td colspan="6">No Robinhood worker decisions recorded yet</td></tr>';
+}
+async function loadRobinhoodExtras(){
+  const [status,ai]=await Promise.all([request("/api/robinhood/status"),
+    request("/api/ai/readiness")]);
+  const effective=robinhoodEffective(status);
+  $("rh-model-readiness").textContent="Provider: "+(ai.provider||"unknown")+
+    " · Verification: "+(ai.status||"unknown")+
+    " · Execution: "+effective.label;
+  $("rh-forecast-status").textContent=effective.label+" · "+effective.detail+
+    " · Last scan: "+(status.worker?.updated_at||"unavailable")+
+    " · Last signal: "+(status.worker?.last_signal||"no signal");
+}
 async function loadRobinhoodRisk(){
   const [policy,broker]=await Promise.all([
     request("/api/robinhood/risk"),request("/api/robinhood/status")]);
@@ -180,8 +212,11 @@ async function loadRobinhoodRisk(){
     money(Number(policy.verified_broker_minimum_usd)):"Not verified";
   $("robinhood-risk-enabled").textContent=policy.enabled===true?"ON":"OFF";
   $("robinhood-risk-activate").checked=policy.enabled===true;
-  $("robinhood-risk-feedback").textContent=policy.configured?
-    "Saved settings loaded. Live execution authorization is separate.":"No Robinhood risk policy saved.";
+  const effective=robinhoodEffective(broker);
+  $("robinhood-risk-feedback").textContent=effective.label+" · "+effective.detail+" · "+
+    (policy.configured?"Saved risk settings loaded":"No risk policy saved");
+  $("robinhood-risk-form").dataset.effectiveState=effective.state;
+
 }
 async function saveRobinhoodRisk(event){
   event.preventDefault();
@@ -194,7 +229,7 @@ async function saveRobinhoodRisk(event){
     if(payload.enabled&&!window.confirm("Enable REAL-MONEY autonomous Robinhood crypto orders under these limits?"))return;
     await request("/api/robinhood/risk",{method:"POST",body:JSON.stringify(payload)});
     await loadRobinhoodRisk();
-    toast("Robinhood risk policy saved. Check the execution status for verified live readiness.");
+    toast("Robinhood trading permission updated: "+$("robinhood-risk-feedback").textContent);
   }catch(error){$("robinhood-risk-feedback").textContent=error.message;toast(error.message,true);}
   finally{button.disabled=false;}
 }
@@ -220,11 +255,11 @@ async function loadRobinhoodWorkspace(){
     const executionMode=$("robinhood-execution-mode");
     const orderPermission=$("robinhood-order-permission");
     const executionPill=$("robinhood-execution-pill");
-    const permitted=result.order_execution_enabled===true;
-    const executing=permitted&&worker.live_orders_allowed===true;
-    if(executionMode)executionMode.textContent=permitted?"Armed":"Not armed";
-    if(orderPermission)orderPermission.textContent=permitted?"Armed · risk checks required":"Disabled";
-    if(executionPill)executionPill.textContent=permitted?"LIVE · ARMED":"NOT ARMED";
+    const effective=robinhoodEffective(result);
+    const permitted=effective.armed;
+    if(executionMode)executionMode.textContent=effective.label;
+    if(orderPermission)orderPermission.textContent=effective.label;
+    if(executionPill)executionPill.textContent=effective.label.toUpperCase();
     const scanEl=$("robinhood-scanner-state");
     const orderEl=$("robinhood-order-state");
     const executionEl=$("robinhood-execution-state");
@@ -238,11 +273,9 @@ async function loadRobinhoodWorkspace(){
     if(orderEl)orderEl.textContent="Unreconciled Auto Trader intents: "+
       (Number.isInteger(worker.pending_order_intents)?worker.pending_order_intents:"unavailable")+
       ". Broker historical orders are separate from bot-confirmed fills.";
-    if(executionEl)executionEl.textContent="Live trading: "+
-      (result.order_execution_enabled&&worker.live_orders_allowed?"enabled":"disabled")+
-      " · Risk check: "+(worker.risk_check||"not reported")+
-      " · Execution: "+(worker.execution_status||result.execution_status||"unknown")+
-      ". "+(worker.reason||result.execution_reason||"");
+    if(executionEl)executionEl.textContent=effective.detail+
+      " · Worker status: "+(worker.execution_status||"unavailable")+
+      " · Risk: "+(worker.risk_check||"unavailable");
     const activityEl=$("robinhood-trade-activity");
     if(activityEl)activityEl.textContent=worker.last_order_confirmed?
       "Broker-confirmed bot fill recorded; inspect broker order history for details.":
@@ -251,7 +284,7 @@ async function loadRobinhoodWorkspace(){
     if(strategyEl)strategyEl.textContent=
       "Scan: "+(worker.worker||"unavailable")+
       " · Signal: "+(worker.last_signal||"NOT_VERIFIED")+
-      " · Automated order execution: "+(worker.live_orders_allowed?"enabled":"disabled");
+      " · Trading permission: "+effective.label;
     const riskEl=$("robinhood-risk-status");
     if(riskEl)riskEl.textContent="Account preflight: "+(worker.risk_check||"not reported")+
       " · Unreconciled intents: "+(Number.isInteger(worker.pending_order_intents)?worker.pending_order_intents:"unavailable")+
@@ -309,7 +342,7 @@ async function loadRobinhoodWorkspace(){
       (worker.ai_model?" · "+worker.ai_model:"")+
       (worker.ai_reason?" · "+worker.ai_reason:"");
     statusNode.textContent=eligible?
-      "Robinhood API account verified · "+(permitted?"live execution available":"execution not armed"):
+      "Robinhood API account verified · "+effective.label+": "+effective.detail:
       "Robinhood account connected · API trading eligibility not confirmed";
 
     for(const a of accounts){
@@ -481,14 +514,15 @@ function bindEvents(){
   });
 }
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-models","robinhood-forecast"].includes(view))return;
   activeView=view;
   const liveViews=["live","decisions","live-risk","local","forecast"];
   const paperViews=["overview","trades","reviews","settings"];
   if(liveViews.includes(view))selectWorkspace("live");
   if(paperViews.includes(view))selectWorkspace("paper");
-  if(view==="robinhood"||view==="robinhood-risk")selectWorkspace("robinhood_crypto");
-  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":(view==="robinhood"||view==="robinhood-risk")?"robinhood_crypto":null;
+  const rhViews=["robinhood","robinhood-risk","robinhood-decisions","robinhood-models","robinhood-forecast"];
+  if(rhViews.includes(view))selectWorkspace("robinhood_crypto");
+  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":rhViews.includes(view)?"robinhood_crypto":null;
   $("sidebar-account-context").classList.toggle("hidden",context===null);
   if(context)$("sidebar-current-account").textContent=context==="live"?"Schwab live":context==="paper"?"Paper Trading":"Robinhood Crypto";
   $("live-nav-group").classList.toggle("hidden",context!=="live");
@@ -499,7 +533,9 @@ function showView(view) {
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
     "live-risk":"Live risk settings",local:"Local AI models",forecast:"Next session forecast",
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
-settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",robinhood:"Robinhood Crypto","robinhood-risk":"Robinhood risk settings"};
+settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",robinhood:"Robinhood Crypto","robinhood-risk":"Robinhood risk settings",
+    "robinhood-decisions":"Robinhood AI evidence","robinhood-models":"Robinhood AI models",
+    "robinhood-forecast":"Crypto scan forecast"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
   $("live-mode-banner").classList.toggle("hidden",!liveViews.includes(view));
@@ -513,6 +549,8 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood-risk") loadRobinhoodRisk().catch(err=>toast(err.message,true));
+  if(view==="robinhood-decisions") loadRobinhoodDecisionEvidence().catch(err=>toast(err.message,true));
+  if(view==="robinhood-models"||view==="robinhood-forecast") loadRobinhoodExtras().catch(err=>toast(err.message,true));
   if(view==="workspaces") refreshRobinhoodTile().catch(()=>{});
   if(view==="live-risk"&&lastLive) populateLiveRisk(lastLive);
   if(view==="profile") request("/api/profile").then(p=>{
@@ -790,6 +828,7 @@ async function exportTrades(){
 }
 document.addEventListener("DOMContentLoaded",()=>{
   $("robinhood-risk-form")?.addEventListener("submit",saveRobinhoodRisk);
+  $("rh-evidence-refresh")?.addEventListener("click",()=>loadRobinhoodDecisionEvidence().catch(err=>toast(err.message,true)));
   $("robinhood-overview-start")?.addEventListener("click",()=>showView("robinhood-risk"));
   $("robinhood-overview-pause")?.addEventListener("click",()=>showView("robinhood-risk"));
   $("robinhood-live-start")?.addEventListener("click",()=>{

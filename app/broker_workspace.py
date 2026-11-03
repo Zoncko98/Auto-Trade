@@ -169,7 +169,34 @@ def robinhood_status(state):
         try:policy=read_policy(state)
         except (ValueError,OSError):policy={"enabled":False}
         armed=policy.get("enabled") is True
-        return {"worker":{k:worker.get(k) for k in
+        from datetime import datetime,timezone
+        try:
+            last=datetime.fromisoformat(worker.get("updated_at","").replace("Z","+00:00"))
+            fresh=last.tzinfo is not None and 0<=(datetime.now(timezone.utc)-last).total_seconds()<600
+        except (ValueError,TypeError,AttributeError):fresh=False
+        pending=int(worker.get("pending_order_intents") or 0)
+        if not armed:
+            effective="PAUSED"; detail="Live order permission is off"
+        elif not fresh or worker.get("worker")!="monitoring":
+            effective="WORKER_OFFLINE"; detail="Trading policy armed, but a fresh crypto worker heartbeat is missing"
+        elif pending>0:
+            effective="RECONCILIATION_PENDING"; detail="Unresolved bot order intent requires broker reconciliation"
+        elif worker.get("execution_status") in ("ORDER_ACCEPTED","SUBMITTED_UNCONFIRMED"):
+            effective="ORDER_PENDING"; detail="Broker order submitted; confirm fill separately"
+        elif worker.get("risk_check")!="ACCOUNT_PREFLIGHT_PASSED_SIGNAL_NOT_CHECKED":
+            effective="RISK_BLOCKED"; detail="Risk preflight: "+str(worker.get("risk_check") or "unknown")
+        elif worker.get("ai_review_status")=="VETO_OR_UNAVAILABLE":
+            effective="AI_VETO"; detail="Latest AI review did not approve a buy"
+        else:
+            effective="ARMED_WAITING_SIGNAL"; detail="Live permission enabled; scanning for a qualifying technical and AI-approved opportunity"
+        try:
+            history=json.loads((state/"robinhood"/"decision_history.json").read_text())
+            if not isinstance(history,list):history=[]
+        except (OSError,ValueError,TypeError):history=[]
+        history=[{k:row.get(k) for k in ("at","signal","ai_review_status","ai_model","ai_reason","execution_status","risk_check")}
+                 for row in history[-100:] if isinstance(row,dict)]
+        return {"effective_state":effective,"effective_detail":detail,"worker_fresh":fresh,
+                "decision_evidence":history,"policy_enabled":armed,"worker":{k:worker.get(k) for k in
                     ("updated_at","worker","quotes_checked","pairs_checked",
                      "pending_order_intents","risk_check","last_signal","observations","ai_review_status","ai_model","ai_reason","execution_status","live_orders_allowed",
                      "last_order_confirmed","reason")},

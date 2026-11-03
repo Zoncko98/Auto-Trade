@@ -51,7 +51,10 @@
       </div>
       <div id="robinhood-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="robinhood"><span class="nav-icon">◈</span> Live crypto overview</button>
+        <button class="nav-item" data-view="robinhood-decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
         <button class="nav-item" data-view="robinhood-risk"><span class="nav-icon">⚙</span> Live crypto risk settings</button>
+        <button class="nav-item" data-view="robinhood-models"><span class="nav-icon">▣</span> AI workstation models</button>
+        <button class="nav-item" data-view="robinhood-forecast"><span class="nav-icon">◷</span> Crypto scan forecast</button>
       </div>
       <div id="paper-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper overview</button>
@@ -222,6 +225,29 @@
           <div id="robinhood-positions-list" class="table-wrap"></div>
         </section>
       </section>
+    <section class="view hidden" id="view-robinhood-decisions">
+      <div class="page-header"><div><p class="eyebrow">ROBINHOOD CRYPTO · DECISION AUDIT</p>
+        <h1>AI decision evidence</h1><p class="muted">Actual scan and AI review records, including rejected candidates. Broker fills are reported separately.</p></div></div>
+      <div class="notice neutral"><span class="notice-icon">ⓘ</span><div>
+        <strong id="rh-decision-status">Loading recorded crypto decisions…</strong>
+        <p>Technical scan observations do not by themselves authorize orders.</p></div></div>
+      <section class="panel list-panel"><div class="panel-heading"><div><h2>Robinhood scan evidence</h2>
+        <p>Most recent 100 worker evaluations</p></div><button class="btn secondary" id="rh-evidence-refresh">Refresh evidence</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Evaluated UTC</th><th>Signal</th><th>AI review</th><th>Model</th><th>Reason</th><th>Execution</th></tr></thead>
+        <tbody id="rh-decision-rows"><tr><td colspan="6">No verified evaluations recorded yet</td></tr></tbody></table></div>
+      </section>
+    </section>
+    <section class="view hidden" id="view-robinhood-models">
+      <div class="page-header"><div><p class="eyebrow">SHARED OLLAMA MODELS</p><h1>AI workstation models</h1>
+      <p class="muted">Robinhood uses the same configured model as Schwab and Paper Trading.</p></div></div>
+      <div class="panel"><h2>Shared AI configuration</h2><p id="rh-model-readiness">Checking model…</p>
+      <button class="btn secondary" data-view="local">Open shared AI model manager</button></div>
+    </section>
+    <section class="view hidden" id="view-robinhood-forecast">
+      <div class="page-header"><div><p class="eyebrow">CRYPTO · SCAN READINESS</p><h1>Crypto scan forecast</h1>
+      <p class="muted">Unlike equities, cryptocurrency trades continuously. This view reports observed signal readiness, not a profit forecast.</p></div></div>
+      <div class="panel"><h2>Next eligible trade</h2><p id="rh-forecast-status">Checking crypto scanner…</p></div>
+    </section>
     <section class="view hidden" id="view-robinhood-risk">
       <div class="page-header"><div><p class="eyebrow">ROBINHOOD · REAL-MONEY CRYPTO</p>
         <h1>Live crypto risk settings</h1>
