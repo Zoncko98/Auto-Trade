@@ -1,6 +1,7 @@
 import tempfile,unittest
 from datetime import datetime,timezone,timedelta
 from robinhood_order_pass import review_order,submit_approved,OrderPassBlocked
+from robinhood_crypto_execution import RobinhoodWriteRejected,RobinhoodWriteUncertain
 from robinhood_order_journal import OrderJournal
 from uuid import uuid4
 
@@ -34,6 +35,32 @@ class OrderPassTests(unittest.TestCase):
    self.assertEqual(len(f.writes),1)
    with self.assertRaises(OrderPassBlocked):
     submit_approved(d,f,self.policy,self.signal,self.now)
+ def test_successful_submission_persists_broker_order_id(self):
+  with tempfile.TemporaryDirectory() as d:
+   result=submit_approved(d,Fake(),self.policy,self.signal,self.now)
+   row=OrderJournal(d).pending()[0]
+   self.assertEqual(row["broker_order_id"],"broker-ack")
+   self.assertEqual(row["status"],"submitted_unconfirmed")
+   self.assertEqual(result["broker_order_id"],"broker-ack")
+ def test_definitive_broker_rejection_releases_lock(self):
+  class Rejected(Fake):
+   def submit_order(self,account,intent):
+    raise RobinhoodWriteRejected(400)
+  with tempfile.TemporaryDirectory() as d:
+   with self.assertRaises(RobinhoodWriteRejected):
+    submit_approved(d,Rejected(),self.policy,self.signal,self.now)
+   self.assertFalse(OrderJournal(d).pending())
+   row=OrderJournal(d).load()["orders"][0]
+   self.assertEqual(row["status"],"rejected")
+   self.assertIn("HTTP 400",row["submission_error"])
+ def test_uncertain_write_retains_lock(self):
+  class Uncertain(Fake):
+   def submit_order(self,account,intent):
+    raise RobinhoodWriteUncertain("timeout")
+  with tempfile.TemporaryDirectory() as d:
+   with self.assertRaises(RobinhoodWriteUncertain):
+    submit_approved(d,Uncertain(),self.policy,self.signal,self.now)
+   self.assertEqual(len(OrderJournal(d).pending()),1)
  def fill(self,journal,side,symbol,qty,price,when):
   oid=str(uuid4())
   journal.record_intent("a",oid,symbol,str(qty),str(price),side=side)

@@ -59,6 +59,29 @@ class OrderJournal:
             "status":"intent_unconfirmed","created_at":datetime.now(timezone.utc).isoformat()})
         self._save(doc)
 
+    def mark_submission_ack(self,client_id,response):
+        doc=self.load()
+        rows=[row for row in doc["orders"] if row.get("client_order_id")==client_id]
+        if len(rows)!=1:raise UnreconciledOrder("Order intent not uniquely found")
+        row=rows[0]
+        if isinstance(response,dict):
+            if response.get("id"):row["broker_order_id"]=str(response["id"])
+            if response.get("state"):row["broker_state"]=str(response["state"])
+            if response.get("created_at") and not row.get("created_at"):
+                row["created_at"]=response["created_at"]
+        row["status"]="submitted_unconfirmed"
+        self._save(doc)
+
+    def mark_submission_rejected(self,client_id,reason):
+        doc=self.load()
+        rows=[row for row in doc["orders"] if row.get("client_order_id")==client_id]
+        if len(rows)!=1:raise UnreconciledOrder("Order intent not uniquely found")
+        row=rows[0]
+        row["status"]="rejected"
+        row["submission_error"]=str(reason)[:160]
+        row["resolved_at"]=datetime.now(timezone.utc).isoformat()
+        self._save(doc)
+
     @staticmethod
     def _fill_details(match):
         executions=match.get("executions") if isinstance(match.get("executions"),list) else []
@@ -124,11 +147,29 @@ class OrderJournal:
         if not isinstance(broker_rows,list):raise UnreconciledOrder("Broker order list missing")
         doc=self.load()
         by_id={row.get("client_order_id"):row for row in broker_rows if isinstance(row,dict)}
+        now=datetime.now(timezone.utc)
         for row in doc["orders"]:
             if row["account"]!=account:continue
             match=by_id.get(row["client_order_id"])
-            if match is None:continue
+            if match is None:
+                if row.get("status") not in FINAL:
+                    row["reconcile_miss_count"]=int(row.get("reconcile_miss_count") or 0)+1
+                    row["last_reconcile_check_at"]=now.isoformat()
+                    created=_timestamp(row.get("created_at"))
+                    age=(now-created.astimezone(timezone.utc)).total_seconds() if created else None
+                    # The full broker order list is authoritative. Require both
+                    # repeated successful misses and a substantial grace period
+                    # before resolving a legacy local intent that has no broker record.
+                    if age is not None and age>=600 and row["reconcile_miss_count"]>=10:
+                        row["status"]="rejected"
+                        row["submission_error"]="No Robinhood order found after 10+ successful reconciliation checks over 10+ minutes"
+                        row["resolved_at"]=now.isoformat()
+                continue
+            row["reconcile_miss_count"]=0
+            row["last_reconcile_check_at"]=now.isoformat()
+            if match.get("id"):row["broker_order_id"]=str(match["id"])
             status=str(match.get("state",match.get("status",""))).lower()
+            if status:row["broker_state"]=status
             if status=="filled":
                 qty,price,fee,filled_at=self._fill_details(match)
                 if qty is None or price is None:continue

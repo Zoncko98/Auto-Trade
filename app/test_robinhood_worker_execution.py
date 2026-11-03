@@ -19,6 +19,12 @@ class SimulatedBroker:
  def quote(self,symbol):
   return {"results":[{"symbol":symbol,"bid":"9.99","ask":"10.00"}]}
  def orders(self,account):return []
+ def order(self,account,order_ref):
+  if not self.submissions:
+   return {"id":order_ref,"state":"open"}
+  latest=self.submissions[-1]
+  return {"id":order_ref,"client_order_id":latest.get("client_order_id"),
+          "symbol":latest.get("symbol"),"side":latest.get("side"),"state":"open"}
  def positions(self,account):
   return [{"asset_code":"BTC","total_quantity":"2",
            "quantity_available_for_trading":"2"}]

@@ -1,5 +1,6 @@
 import base64
 import unittest
+import uuid
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
 from robinhood_crypto_gateway import RobinhoodCryptoAdapter, RobinhoodUnavailable
@@ -30,6 +31,19 @@ class RobinhoodTests(unittest.TestCase):
             self.adapter.submit_order("12345", {"symbol": "BTC-USD"})
         with self.assertRaises(RobinhoodUnavailable):
             self.adapter.cancel_order("12345", "order")
+
+    def test_get_single_order_is_account_scoped(self):
+        oid=str(uuid.uuid4())
+        calls=[]
+        def transport(path,headers):
+            calls.append(path)
+            if "/accounts/" in path:
+                return {"results":[{"account_number":"abc","status":"active","is_api_tradable":True}]}
+            return {"id":oid,"client_order_id":str(uuid.uuid4()),"state":"open"}
+        client=RobinhoodCryptoAdapter("api-id",sample_key(),transport=transport,clock=lambda:100)
+        row=client.order("abc",oid)
+        self.assertEqual(row["id"],oid)
+        self.assertIn("/orders/"+oid+"/?account_number=abc",calls[-1])
 
     def test_account_scoped_requests(self):
         self.adapter.positions("12345")

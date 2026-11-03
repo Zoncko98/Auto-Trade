@@ -148,6 +148,19 @@ class RobinhoodCryptoAdapter:
         self.balances(account_ref)
         return self._pages("/api/v2/crypto/trading/orders/", {"account_number": account_ref})
 
+    def order(self, account_ref, order_ref):
+        """Fetch one Robinhood order by broker order UUID for exact reconciliation."""
+        if not isinstance(account_ref, str) or not ACCOUNT.fullmatch(account_ref):
+            raise ValueError("Invalid account")
+        import uuid
+        try:
+            order_ref=str(uuid.UUID(order_ref))
+        except (ValueError,TypeError,AttributeError):
+            raise ValueError("Invalid order UUID") from None
+        self.balances(account_ref)
+        return self._get("/api/v2/crypto/trading/orders/"+order_ref+"/",
+                         {"account_number":account_ref})
+
     def submit_order(self, account_ref, intent):
         raise RobinhoodUnavailable("Robinhood live orders disabled")
 

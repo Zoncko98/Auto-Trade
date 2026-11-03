@@ -3,6 +3,7 @@ from datetime import datetime,timezone
 from decimal import Decimal,ROUND_DOWN
 from uuid import uuid4
 from robinhood_order_journal import OrderJournal,UnreconciledOrder
+from robinhood_crypto_execution import RobinhoodWriteRejected
 from robinhood_risk import preflight,RiskDenied,money
 
 class OrderPassBlocked(RuntimeError):pass
@@ -112,11 +113,17 @@ def submit_approved(state,client,policy,signal,now=None):
     journal=OrderJournal(state)
     journal.record_intent(prepared["account"],order_id,
                          prepared["symbol"],prepared["quantity"],prepared["limit_price"])
-    result=client.submit_order(prepared["account"],{
-        "type":"limit","side":"buy","symbol":prepared["symbol"],
-        "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
-        "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
-    return {"client_order_id":order_id,"broker_acknowledged":isinstance(result,dict) and bool(result.get("id")),
+    try:
+        result=client.submit_order(prepared["account"],{
+            "type":"limit","side":"buy","symbol":prepared["symbol"],
+            "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
+            "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
+    except RobinhoodWriteRejected as exc:
+        journal.mark_submission_rejected(order_id,str(exc))
+        raise
+    journal.mark_submission_ack(order_id,result if isinstance(result,dict) else {})
+    return {"client_order_id":order_id,"broker_order_id":result.get("id") if isinstance(result,dict) else None,
+            "broker_acknowledged":isinstance(result,dict) and bool(result.get("id")),
             "fill_verified":False,"prepared":prepared}
 
 def review_sell(state,client,policy,signal,now=None):
@@ -208,10 +215,15 @@ def submit_sell_approved(state,client,policy,signal,now=None):
     journal=OrderJournal(state)
     journal.record_intent(prepared["account"],order_id,prepared["symbol"],
                           prepared["quantity"],prepared["limit_price"],side="sell")
-    result=client.submit_order(prepared["account"],{
-        "type":"limit","side":"sell","symbol":prepared["symbol"],
-        "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
-        "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
-    return {"client_order_id":order_id,
+    try:
+        result=client.submit_order(prepared["account"],{
+            "type":"limit","side":"sell","symbol":prepared["symbol"],
+            "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
+            "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
+    except RobinhoodWriteRejected as exc:
+        journal.mark_submission_rejected(order_id,str(exc))
+        raise
+    journal.mark_submission_ack(order_id,result if isinstance(result,dict) else {})
+    return {"client_order_id":order_id,"broker_order_id":result.get("id") if isinstance(result,dict) else None,
         "broker_acknowledged":isinstance(result,dict) and bool(result.get("id")),
         "fill_verified":False,"prepared":prepared}

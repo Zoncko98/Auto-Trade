@@ -155,7 +155,21 @@ def run_once(state,client,feed=None):
                       if isinstance(row,dict) and isinstance(row.get("account"),str)}
     authorized={a.get("account_number") for a in account_rows if isinstance(a,dict)}
     for account_ref in journal_accounts & authorized:
-        journal.reconcile(account_ref,client.orders(account_ref))
+        broker_rows=client.orders(account_ref)
+        known_clients={row.get("client_order_id") for row in broker_rows if isinstance(row,dict)}
+        # If a successful submission already gave us a Robinhood order UUID,
+        # query it directly when bulk history has not surfaced it yet.
+        for intent in journal.pending():
+            if intent.get("account")!=account_ref or intent.get("client_order_id") in known_clients:
+                continue
+            broker_id=intent.get("broker_order_id")
+            if not isinstance(broker_id,str):continue
+            try:
+                direct=client.order(account_ref,broker_id)
+                if isinstance(direct,dict):broker_rows.append(direct)
+            except (OSError,ValueError,TypeError,RobinhoodUnavailable):
+                pass
+        journal.reconcile(account_ref,broker_rows)
     pending=journal.pending()
     positions=journal.positions()
     result["bot_open_positions"]=len(positions)

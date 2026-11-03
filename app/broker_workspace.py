@@ -208,6 +208,8 @@ def _pending_order_diagnostics(state,client):
             "filled_asset_quantity":broker_match.get("filled_asset_quantity") if isinstance(broker_match,dict) else None,
             "average_price":broker_match.get("average_price") if isinstance(broker_match,dict) else None,
             "broker_lookup_detail":broker_error,
+            "reconcile_miss_count":int(row.get("reconcile_miss_count") or 0),
+            "last_reconcile_check_at":row.get("last_reconcile_check_at"),
         })
     return result
 

@@ -15,6 +15,16 @@ from robinhood_crypto_gateway import (
     RobinhoodCryptoAdapter, RobinhoodUnavailable, NoRedirect, HOST, PAIR, ACCOUNT
 )
 
+class RobinhoodWriteRejected(RobinhoodUnavailable):
+    """Robinhood definitively rejected a write before an order was accepted."""
+    def __init__(self,status):
+        super().__init__("Robinhood write rejected (HTTP "+str(status)+")")
+        self.status=int(status)
+
+class RobinhoodWriteUncertain(RobinhoodUnavailable):
+    """Write outcome is ambiguous; reconciliation must retain the local lock."""
+    pass
+
 class RobinhoodCryptoTradingAdapter(RobinhoodCryptoAdapter):
     """Adapter for the shared worker; live execution is disabled by default.
 
@@ -91,9 +101,19 @@ class RobinhoodCryptoTradingAdapter(RobinhoodCryptoAdapter):
                 if len(payload) > 1048576:
                     raise RobinhoodUnavailable("Oversized response")
                 return json.loads(payload) if payload else {"status": "accepted"}
-        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
-            # Never log credentials, signed headers, or possibly sensitive response body.
-            raise RobinhoodUnavailable("Robinhood write request failed: " + type(exc).__name__) from None
+        except HTTPError as exc:
+            # 4xx authentication/validation/not-found responses are definitive
+            # request rejections. 409 is deliberately excluded because an
+            # idempotency conflict can indicate that Robinhood already has the order.
+            if 400 <= exc.code < 500 and exc.code != 409:
+                raise RobinhoodWriteRejected(exc.code) from None
+            raise RobinhoodWriteUncertain("Robinhood write outcome uncertain: HTTP "+str(exc.code)) from None
+        except (URLError, TimeoutError, OSError) as exc:
+            # Network failures may happen after Robinhood accepted the request.
+            # Keep the durable intent locked until broker reconciliation proves state.
+            raise RobinhoodWriteUncertain("Robinhood write outcome uncertain: "+type(exc).__name__) from None
+        except ValueError:
+            raise RobinhoodWriteUncertain("Robinhood write response invalid; reconciliation required") from None
 
     def submit_order(self, account_ref, intent):
         self._permit(account_ref)

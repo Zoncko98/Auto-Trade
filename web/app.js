@@ -202,7 +202,9 @@ function renderRobinhoodPendingOrder(data){
     " · Robinhood: "+(order.broker_order_id||"unavailable");
   $("rh-pending-detail").textContent=order.broker_matched?
     "Auto Trader will keep the order lock until this broker state is final and required fill fields are reconciled.":
-    "Auto Trader has a durable local intent but cannot currently match it to a Robinhood order. New orders remain blocked to prevent duplicates.";
+    "Auto Trader has a durable local intent but cannot currently match it to a Robinhood order. "+
+    "Successful broker-history misses: "+(order.reconcile_miss_count??0)+
+    ". Legacy orphan recovery requires at least 10 successful misses and 10 minutes before the lock can resolve as not submitted.";
 }
 async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
