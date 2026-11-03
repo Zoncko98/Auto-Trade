@@ -1123,7 +1123,11 @@ function opsDate(value){
 }
 function opsSection(name){
   document.querySelectorAll("[data-ops-panel]").forEach(e=>e.classList.toggle("hidden",e.dataset.opsPanel!==name));
-  document.querySelectorAll("[data-ops-section]").forEach(e=>e.classList.toggle("active",e.dataset.opsSection===name));
+  document.querySelectorAll("[data-ops-section]").forEach(e=>{
+    const selected=e.dataset.opsSection===name;
+    e.classList.toggle("active",selected);
+    e.setAttribute("aria-pressed",String(selected));
+  });
 }
 function opsInspect(){
   const i=Number($("ops-decision-select")?.value);
@@ -1155,9 +1159,17 @@ function opsInspect(){
 async function loadOperations(){
   const updated=$("ops-updated");if(updated)updated.textContent="Refreshing authenticated observations…";
   const sources=await Promise.allSettled([
-    request("/api/status"),request("/api/live"),request("/api/robinhood/status"),request("/api/robinhood/portfolio")
+    request("/api/status"),request("/api/live"),request("/api/robinhood/status"),request("/api/robinhood/portfolio"),
+    request("/api/webull/status")
   ]);
-  const [paper,live,rh,portfolio]=sources.map(x=>x.status==="fulfilled"?x.value:null);
+  const [paper,live,rh,portfolio,webull]=sources.map(x=>x.status==="fulfilled"?x.value:null);
+  const webullAccounts=webull?.connected===true&&Array.isArray(webull.accounts)?
+    webull.accounts.filter(x=>typeof x?.account_id==="string"&&x.account_id.trim()&&x.account_id.toLowerCase()!=="unknown"):[];
+  const webullResult=webullAccounts.length===1?
+    await request("/api/webull/portfolio?account_id="+encodeURIComponent(webullAccounts[0].account_id)).catch(()=>null):null;
+  const webullBalances=webullResult?.balances||null;
+  const webullUsd=webullBalances?.total_asset_currency==="USD";
+  const webullEquity=webullUsd?verifiedWebullUsd(webullBalances.total_net_liquidation_value):null;
   const sourceNote=(v)=>v?"Loaded":"Unavailable / request failed";
   const worker=rh?.worker||{};
   const rhRows=Array.isArray(rh?.decision_evidence)?rh.decision_evidence:[];
@@ -1182,6 +1194,13 @@ async function loadOperations(){
       ["Worker",worker.worker],["Last signal",worker.last_signal],
       ["AI review",worker.ai_review_status],["Reason",worker.execution_reason],
       ["Last update",opsDate(worker.updated_at)],["Quotes checked",worker.quotes_checked]
+    ]),
+    opsRecord("Webull · broker and market readiness",[
+      ["Account access",webull?.connected===true?"Authenticated":webull?"Unverified":"Unavailable"],
+      ["Verified accounts",webull?String(webullAccounts.length):null],
+      ["Broker valuation",webullEquity===null?"Unavailable":money(webullEquity)],
+      ["Order permission","Not established by account authentication"],
+      ["Account data",webullResult?"Loaded":webullAccounts.length>1?"Select account in Webull workspace":"Unavailable"]
     ])
   ];
   $("ops-activity").innerHTML=activity.join("");
@@ -1197,6 +1216,7 @@ async function loadOperations(){
     ["Robinhood execution",worker.execution_status],["Last execution reason",worker.execution_reason],
     ["Schwab worker",live?live.worker_online===true?"Online":"Offline / unverified":null],
     ["Paper trade count · simulated",paper?.account?.trade_count],
+    ["Webull orders","Open Webull orders & reconciliation for broker states"],
     ["Broker-confirmed Robinhood bot fill",rh?worker.last_order_confirmed===true?"Reported":"Not verified":null]
   ])+orderCards.join("");
   const schwabAt=Date.parse(live?.account?.at||"");
@@ -1207,7 +1227,10 @@ async function loadOperations(){
   const bp=accounts.length===1&&accounts[0].buying_power_currency==="USD"?finiteUsd(Number(accounts[0].buying_power)):null;
   $("ops-portfolio").innerHTML=[
     opsRecord("Schwab · live brokerage",[["Verified current equity",schwabEquity],["Last broker snapshot",opsDate(live?.account?.at)],["Status",fresh?"Fresh worker snapshot":"Not verified as current"]]),
-    opsRecord("Robinhood · live crypto",[["USD buying power",rh?.connected?bp:null],["Broker-reported holdings",portfolio?.available?portfolio.position_count:null],["Account valuation","Open Robinhood workspace for holdings + quoted valuation"]]),
+    opsRecord("Robinhood · live crypto",[["USD buying power",rh?.connected?bp:null],["Broker-reported holdings",portfolio?.available?portfolio.position_count:null],["Estimated account value",portfolio?.available?robinhoodAccountValueUsd(portfolio.estimated_crypto_account_value_usd):null],["Valuation method","Holdings + USD buying power; indicative marks"]]),
+    opsRecord("Webull · live brokerage",[["Verified USD equity",webullEquity===null?null:money(webullEquity)],
+      ["Account coverage",webullAccounts.length===1?"1 selected account":webullAccounts.length+" accounts · select in Webull workspace"],
+      ["Positions",webullResult?.positions?.length],["Broker valuation",webullResult?"Broker snapshot":"Unavailable"]]),
     opsRecord("Paper Trading · simulation",[["Simulated equity",paperEquity],["Simulated trade count",paper?.account?.trade_count],["Real brokerage funds","Not included"]])
   ].join("");
   const selector=$("ops-decision-select");
@@ -1218,7 +1241,7 @@ async function loadOperations(){
       d.source+" · "+(d.signal||d.decision||"Decision")+" · "+opsDate(d.at),String(i))));
     opsInspect();
   }
-  if(updated)updated.textContent="Refreshed "+new Date().toLocaleString()+" · Schwab "+sourceNote(live)+" · Paper "+sourceNote(paper)+" · Robinhood "+sourceNote(rh)+" · Holdings "+sourceNote(portfolio);
+  if(updated)updated.textContent="Refreshed "+new Date().toLocaleString()+" · Schwab "+sourceNote(live)+" · Paper "+sourceNote(paper)+" · Robinhood "+sourceNote(rh)+" · Holdings "+sourceNote(portfolio)+" · Webull "+sourceNote(webull)+" · Webull portfolio "+sourceNote(webullResult);
 }
 
 let webullTraderPolicy=null;

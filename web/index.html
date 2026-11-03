@@ -116,11 +116,11 @@
         <section class="panel hidden" data-ops-panel="orders"><h2>Order &amp; reconciliation center</h2>
           <p class="muted">An unresolved intent remains locked until broker confirmation. Inspect details in the Robinhood AI evidence screen.</p>
           <div id="ops-orders" class="ops-records">Loading…</div>
-          <button class="btn secondary" type="button" data-view="robinhood-decisions">Open Robinhood reconciliation controls</button></section>
+          <div class="ops-account-links"><button class="btn secondary" type="button" data-view="robinhood-decisions">Robinhood reconciliation</button><button class="btn secondary" type="button" data-view="webull-orders">Webull orders</button><button class="btn secondary" type="button" data-view="live">Schwab orders</button><button class="btn secondary" type="button" data-view="trades">Paper trades</button></div></section>
         <section class="panel hidden" data-ops-panel="portfolio"><h2>Unified portfolio</h2>
-          <p class="muted">Real brokerage and simulated equity are never combined. Values are displayed only when verified.</p>
+          <p class="muted">Schwab, Robinhood and Webull remain separate from simulated equity. Missing or stale valuations are never treated as zero.</p>
           <div id="ops-portfolio" class="ops-records">Loading…</div>
-          <button class="btn secondary" type="button" data-view="robinhood">Open Robinhood holdings</button></section>
+          <div class="ops-account-links"><button class="btn secondary" type="button" data-view="live">Schwab holdings</button><button class="btn secondary" type="button" data-view="robinhood">Robinhood holdings</button><button class="btn secondary" type="button" data-view="webull">Webull holdings</button><button class="btn secondary" type="button" data-view="overview">Paper portfolio</button></div></section>
         <section class="panel hidden" data-ops-panel="inspector"><h2>AI decision inspector</h2>
           <p class="muted">Select a recorded decision to inspect its available evidence. Missing fields are explicitly identified.</p>
           <label for="ops-decision-select">Recorded decision</label>

@@ -297,3 +297,20 @@
 .view .table-wrap td{overflow-wrap:anywhere}
 .view .panel-note{overflow-wrap:anywhere}
 @media(max-width:680px){.view .settings-layout .setting-item,.view .panel .setting-item{grid-template-columns:minmax(0,1fr);gap:8px}}
+
+
+/* Shared operations: readable broker-specific evidence and mobile navigation */
+.ops-account-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.ops-account-links .btn{min-height:38px}
+.ops-record .ops-field{min-width:0}
+.ops-record .ops-field strong{overflow-wrap:anywhere;word-break:break-word;font-variant-numeric:tabular-nums}
+.ops-tabs [aria-pressed=true]{border-color:#65b6ff;background:#193c5d;color:#e8f4ff}
+.ops-tabs [aria-pressed=false]{opacity:.9}
+#view-operations .panel{min-width:0}
+#view-operations .ops-select{max-width:100%;min-height:40px}
+#view-operations .ops-records{align-items:stretch}
+@media(max-width:680px){
+ .ops-account-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ops-account-links .btn{white-space:normal;overflow-wrap:anywhere}
+}
+@media(max-width:420px){.ops-account-links{grid-template-columns:minmax(0,1fr)}}
