@@ -336,6 +336,10 @@ class Handler(BaseHTTPRequestHandler):
                 if cfg.get("ai_provider")=="ollama" and cfg.get("ollama_url"):
                     result.update(verify_ollama_model(cfg["ollama_url"],cfg.get("ai_model","")))
                 return self._json(200,result)
+            if UNIFIED_APP and path == "/api/webull/risk":
+                from webull_risk import read
+                try:return self._json(200,read(STATE_DIR))
+                except (OSError,ValueError):return self._json(503,{"error":"Webull risk plan unavailable"})
             if UNIFIED_APP and path == "/api/webull/status":
                 from webull_openapi import status
                 return self._json(200,status(STATE_DIR))
@@ -535,6 +539,11 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if UNIFIED_APP and path == "/api/webull/risk":
+            from webull_risk import save
+            try:return self._json(200,save(STATE_DIR,self._body()))
+            except (ValueError,TypeError,OSError):
+                return self._json(400,{"error":"Invalid Webull risk plan or storage unavailable"})
         if UNIFIED_APP and path == "/api/webull/connect":
             from webull_openapi import store_credentials,WebullError
             try:return self._json(200,store_credentials(STATE_DIR,self._body()))

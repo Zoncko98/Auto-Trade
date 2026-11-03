@@ -40,4 +40,22 @@ class WebullTests(unittest.TestCase):
             self.assertFalse(result["execution_enabled"])
             self.assertNotIn("secretvalue",json.dumps(result))
 
+class WebullRiskTests(unittest.TestCase):
+    def test_risk_plan_isolated_and_disarmed(self):
+        import webull_risk
+        with tempfile.TemporaryDirectory() as td:
+            self.assertFalse(webull_risk.read(td)["execution_enabled"])
+            values={"max_position_pct":5.0,"max_order_usd":100.0,
+                    "max_daily_loss_usd":25.0,"max_open_positions":3}
+            result=webull_risk.save(td,values)
+            self.assertTrue(result["saved"])
+            self.assertFalse(result["execution_enabled"])
+            self.assertEqual(webull_risk.read(td)["max_open_positions"],3)
+            self.assertEqual((Path(td)/"webull"/"risk_plan.json").stat().st_mode & 0o077,0)
+            with self.assertRaises(ValueError):
+                webull_risk.save(td,dict(values,max_order_usd=float("nan")))
+            with self.assertRaises(ValueError):
+                webull_risk.save(td,dict(values,max_open_positions=0))
+            with self.assertRaises(ValueError):
+                webull_risk.save(td,dict(values,execution_enabled=True))
 if __name__=="__main__":unittest.main()

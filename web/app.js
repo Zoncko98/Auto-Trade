@@ -857,7 +857,7 @@ function bindEvents(){
       if(!AVAILABLE_WORKSPACES.includes(tile.dataset.workspace))return;
       showView(tile.dataset.workspace==="paper"?"overview":
         tile.dataset.workspace==="robinhood_crypto"?"robinhood":
-        tile.dataset.workspace==="webull"?"brokers":"live");
+        tile.dataset.workspace==="webull"?"webull":"live");
     }));
   document.addEventListener("click",event=>{
     const live=event.target.closest("[data-export-live-index]");
@@ -982,8 +982,84 @@ async function loadOperations(){
   if(updated)updated.textContent="Refreshed "+new Date().toLocaleString()+" · Schwab "+sourceNote(live)+" · Paper "+sourceNote(paper)+" · Robinhood "+sourceNote(rh)+" · Holdings "+sourceNote(portfolio);
 }
 
+async function loadWebullWorkspace(){
+  const health=$("webull-connectivity"),accounts=$("webull-account");
+  const updated=$("webull-updated"),balances=$("webull-balance-fields");
+  const positions=$("webull-positions");
+  if(!health||!accounts)return;
+  health.textContent="Checking Webull account access…";
+  const data=await request("/api/webull/status");
+  accounts.replaceChildren();
+  const entries=Array.isArray(data.accounts)?data.accounts:[];
+  if(!data.connected||!entries.length){
+    health.textContent=data.credentials_saved?"Connection not verified: "+(data.reason||"Check Webull permissions"):"Webull credentials required";
+    accounts.add(new Option("No authenticated accounts available",""));
+    balances.replaceChildren();
+    positions.textContent="No authenticated position snapshot.";
+    updated.textContent="Open Broker Connections to save Webull API credentials.";
+    return;
+  }
+  health.textContent="Authenticated Webull "+data.environment+" account access verified";
+  for(const entry of entries){
+    accounts.add(new Option((entry.account_type||"Webull account")+" · "+entry.account_id,entry.account_id));
+  }
+  await loadWebullAccount();
+}
+function webullReadOnlyRows(root,label,data){
+  const wrapper=document.createElement("div");
+  const heading=document.createElement("strong");
+  heading.textContent=label;wrapper.appendChild(heading);
+  const content=document.createElement("pre");
+  content.style.cssText="white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto;font-size:12px";
+  content.textContent=JSON.stringify(data,null,2);
+  wrapper.appendChild(content);
+  root.appendChild(wrapper);
+}
+async function loadWebullAccount(){
+  const id=$("webull-account")?.value;
+  const updated=$("webull-updated"),balances=$("webull-balance-fields");
+  const positions=$("webull-positions");
+  if(!id||!balances||!positions)return;
+  balances.replaceChildren();positions.replaceChildren();
+  updated.textContent="Checking selected Webull balance and holdings…";
+  try{
+    const result=await request("/api/webull/portfolio?account_id="+encodeURIComponent(id));
+    webullReadOnlyRows(balances,"Webull-reported balance",result.balances);
+    webullReadOnlyRows(positions,"Webull-reported positions",result.positions);
+    updated.textContent="Broker data refreshed "+new Date().toLocaleString()+" · "+result.environment+
+      " · read-only, not an execution authorization";
+  }catch(error){
+    updated.textContent="Unable to verify account data: "+error.message;
+    positions.textContent="Current positions unavailable; no values inferred.";
+  }
+}
+async function loadWebullRisk(){
+  const plan=await request("/api/webull/risk");
+  $("webull-risk-position").value=plan.max_position_pct;
+  $("webull-risk-order").value=plan.max_order_usd;
+  $("webull-risk-loss").value=plan.max_daily_loss_usd;
+  $("webull-risk-positions").value=plan.max_open_positions;
+  $("webull-risk-status").textContent=plan.saved?"Risk plan saved · not active":"Defaults · not active";
+}
+async function saveWebullRisk(e){
+  e.preventDefault();
+  const form=$("webull-risk-form");if(!form.reportValidity())return;
+  const payload={max_position_pct:Number($("webull-risk-position").value),
+    max_order_usd:Number($("webull-risk-order").value),
+    max_daily_loss_usd:Number($("webull-risk-loss").value),
+    max_open_positions:Number($("webull-risk-positions").value)};
+  try{
+    const result=await request("/api/webull/risk",{method:"POST",body:JSON.stringify(payload)});
+    $("webull-risk-status").textContent=result.saved?"Saved · trading remains disabled":"Not saved";
+  }catch(error){$("webull-risk-status").textContent="Unable to save: "+error.message;}
+}
+document.addEventListener("DOMContentLoaded",()=>{
+  $("webull-refresh")?.addEventListener("click",()=>loadWebullWorkspace().catch(err=>toast(err.message,true)));
+  $("webull-account")?.addEventListener("change",()=>loadWebullAccount().catch(err=>toast(err.message,true)));
+  $("webull-risk-form")?.addEventListener("submit",saveWebullRisk);
+});
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-forecast","operations"].includes(view))return;
+  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-forecast","operations","webull","webull-risk","webull-decisions","webull-orders"].includes(view))return;
   activeView=view;
   // Shared AI and operations views must not inherit Schwab or Robinhood context.
   const liveViews=["live","decisions","live-risk","forecast"];
@@ -992,12 +1068,15 @@ function showView(view) {
   if(paperViews.includes(view))selectWorkspace("paper");
   const rhViews=["robinhood","robinhood-risk","robinhood-decisions","robinhood-forecast"];
   if(rhViews.includes(view))selectWorkspace("robinhood_crypto");
-  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":rhViews.includes(view)?"robinhood_crypto":null;
+  const webullViews=["webull","webull-risk","webull-decisions","webull-orders"];
+  if(webullViews.includes(view))selectWorkspace("webull");
+  const context=liveViews.includes(view)?"live":paperViews.includes(view)?"paper":rhViews.includes(view)?"robinhood_crypto":webullViews.includes(view)?"webull":null;
   $("sidebar-account-context").classList.toggle("hidden",context===null);
-  if(context)$("sidebar-current-account").textContent=context==="live"?"Schwab live":context==="paper"?"Paper Trading":"Robinhood Crypto";
+  if(context)$("sidebar-current-account").textContent=context==="live"?"Schwab live":context==="paper"?"Paper Trading":context==="webull"?"Webull":"Robinhood Crypto";
   $("live-nav-group").classList.toggle("hidden",context!=="live");
   $("paper-nav-group").classList.toggle("hidden",context!=="paper");
   $("robinhood-nav-group")?.classList.toggle("hidden",context!=="robinhood_crypto");
+  $("webull-nav-group")?.classList.toggle("hidden",context!=="webull");
   // The overview sidebar owns shared tools; keep them visible while either tool is open.
   $("overview-shared-nav")?.classList.toggle("hidden",!["workspaces","local","operations"].includes(view));
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!=="view-"+view));
@@ -1007,7 +1086,8 @@ function showView(view) {
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
 settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",operations:"Trading operations",robinhood:"Robinhood Crypto","robinhood-risk":"Robinhood risk settings",
     "robinhood-decisions":"Robinhood AI evidence",
-    "robinhood-forecast":"Crypto scan forecast"};
+    "robinhood-forecast":"Crypto scan forecast",webull:"Webull","webull-risk":"Webull risk plan",
+    "webull-decisions":"Webull AI evidence","webull-orders":"Webull orders"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
   $("live-mode-banner").classList.toggle("hidden",!liveViews.includes(view));
@@ -1020,6 +1100,8 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="forecast") loadForecast().catch(err=>toast(err.message,true));
   if(view==="operations") loadOperations().catch(err=>{if($("ops-updated"))$("ops-updated").textContent="Unable to load operations: "+err.message;});
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
+  if(view==="webull")loadWebullWorkspace().catch(err=>toast(err.message,true));
+  if(view==="webull-risk")loadWebullRisk().catch(err=>toast(err.message,true));
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood-risk") loadRobinhoodRisk().catch(err=>toast(err.message,true));
   if(view==="robinhood-decisions") loadRobinhoodDecisionEvidence().catch(err=>toast(err.message,true));

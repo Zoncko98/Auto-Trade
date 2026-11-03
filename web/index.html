@@ -63,6 +63,12 @@
         <button class="nav-item" data-view="robinhood-risk"><span class="nav-icon">⚙</span> Live crypto risk settings</button>
         <button class="nav-item" data-view="robinhood-forecast"><span class="nav-icon">◷</span> Crypto scan forecast</button>
       </div>
+      <div id="webull-nav-group" class="workspace-menu hidden">
+        <button class="nav-item" data-view="webull"><span class="nav-icon">◈</span> Stock + crypto overview</button>
+        <button class="nav-item" data-view="webull-decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
+        <button class="nav-item" data-view="webull-risk"><span class="nav-icon">⚙</span> Webull risk plan</button>
+        <button class="nav-item" data-view="webull-orders"><span class="nav-icon">⇄</span> Orders &amp; reconciliation</button>
+      </div>
       <div id="paper-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Paper overview</button>
         <button class="nav-item" data-view="trades"><span class="nav-icon">⇄</span> Paper trades <span id="trade-count-nav" class="nav-counter">0</span></button>
@@ -385,6 +391,70 @@
             <span id="robinhood-risk-feedback" role="status"></span></div>
         </section>
       </form>
+    </section>
+    <section class="view hidden" id="view-webull">
+      <div class="page-header"><div><p class="eyebrow">WEBULL · STOCKS + CRYPTO</p>
+        <h1>Webull account overview</h1>
+        <p class="muted">Official OpenAPI · separate brokerage balances and assets · read-only until execution validation</p></div>
+        <button class="btn secondary" id="webull-refresh" type="button">Refresh Webull</button></div>
+      <div class="notice neutral" style="margin:14px 0"><span class="notice-icon">ⓘ</span>
+        <div><strong id="webull-connectivity">Checking Webull credentials and account access…</strong>
+          <p id="webull-execution">Automated live Webull orders are not enabled. No order will be sent from this workspace.</p></div></div>
+      <section class="panel" style="padding:20px;margin-bottom:20px">
+        <div class="panel-heading"><div><h2>Authenticated brokerage accounts</h2>
+          <p>Stock and crypto account IDs may be separate. Values below come from Webull, not paper simulation.</p></div>
+          <button class="btn secondary" data-view="brokers" type="button">Configure Webull API keys</button></div>
+        <label for="webull-account">Selected Webull account</label>
+        <select id="webull-account" style="display:block;max-width:440px;margin:10px 0">
+          <option value="">Connect Webull to choose an account</option></select>
+        <p id="webull-updated" class="panel-note" role="status">No verified account data loaded.</p>
+        <div class="broker-capabilities" id="webull-balance-fields"></div>
+      </section>
+      <section class="panel" style="padding:20px;margin-bottom:20px">
+        <div class="panel-heading"><div><h2>Holdings and positions</h2>
+          <p>Broker-reported positions. P&amp;L is shown only where Webull provides a verified value.</p></div></div>
+        <div id="webull-positions" class="broker-capabilities">No authenticated position snapshot.</div>
+      </section>
+      <section class="panel" style="padding:20px">
+        <div class="panel-heading"><div><h2>Trading engine status</h2>
+          <p>Stock and crypto scanners, AI approvals, order submission and reconciliation are isolated from Robinhood.</p></div></div>
+        <div class="broker-capabilities">
+          <strong>Webull autonomous scanning</strong><span>Not yet connected to a Webull execution worker</span>
+          <strong>AI decision evidence</strong><span>No Webull-specific decisions recorded</span>
+          <strong>Live trading</strong><span>Disabled · no Webull broker order submission authorized</span>
+          <strong>Pending-order reconciliation</strong><span>Not active until Webull order lifecycle is implemented</span>
+        </div>
+      </section>
+    </section>
+    <section class="view hidden" id="view-webull-risk">
+      <div class="page-header"><div><p class="eyebrow">WEBULL · ACCOUNT SAFETY</p>
+        <h1>Webull risk settings</h1><p class="muted">Account-specific planning. These settings do not arm live execution.</p></div></div>
+      <form id="webull-risk-form" class="panel" style="padding:24px;max-width:760px">
+        <div class="notice neutral"><span class="notice-icon">ⓘ</span><div><strong>Webull live orders remain disabled</strong>
+          <p>Risk limits are stored for a future execution engine. They are not active order safeguards until that engine is implemented and validated.</p></div></div>
+        <div class="setting-row"><label for="webull-risk-position">Maximum position exposure (%)</label>
+          <input id="webull-risk-position" type="number" min="0.1" max="25" step="0.1" required></div>
+        <div class="setting-row"><label for="webull-risk-order">Maximum single order (USD)</label>
+          <input id="webull-risk-order" type="number" min="1" max="100000" step="0.01" required></div>
+        <div class="setting-row"><label for="webull-risk-loss">Maximum daily loss (USD)</label>
+          <input id="webull-risk-loss" type="number" min="1" max="100000" step="0.01" required></div>
+        <div class="setting-row"><label for="webull-risk-positions">Maximum simultaneous positions</label>
+          <input id="webull-risk-positions" type="number" min="1" max="20" step="1" required></div>
+        <div class="form-actions"><button type="submit" class="btn secondary">Save Webull risk plan</button>
+          <span id="webull-risk-status" role="status"></span></div>
+      </form>
+    </section>
+    <section class="view hidden" id="view-webull-decisions">
+      <div class="page-header"><div><p class="eyebrow">WEBULL · AI EVIDENCE</p>
+        <h1>Webull AI decisions</h1><p class="muted">Separate stock and crypto decisions will appear when Webull strategy execution is integrated.</p></div></div>
+      <section class="panel" style="padding:24px"><h2>No Webull strategy decisions recorded</h2>
+        <p>The shared AI workstation is available from Account Overview. Webull order automation has not yet been enabled or verified; Robinhood decision logs are never presented as Webull decisions.</p></section>
+    </section>
+    <section class="view hidden" id="view-webull-orders">
+      <div class="page-header"><div><p class="eyebrow">WEBULL · ORDER CENTER</p>
+        <h1>Webull orders &amp; reconciliation</h1><p class="muted">Separate order lifecycle and execution evidence.</p></div></div>
+      <section class="panel" style="padding:24px"><h2>Webull automated execution not active</h2>
+        <p>No Webull bot orders have been submitted by this integration. Order placement, cancellation, broker receipt, fills, reconciliation and safe restart recovery must be validated before live execution becomes available.</p></section>
     </section>
     <section class="view hidden" id="view-brokers">
         <div class="page-header"><div><p class="eyebrow">BROKERAGE CONNECTIONS</p>
