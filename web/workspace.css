@@ -387,3 +387,49 @@
 #view-overview .paper-performance #equity-chart.empty-history .chart-empty{
   min-height:0;margin:0;padding:8px 0;text-align:left;
 }
+
+
+/* Four-workspace visual system: identical component rhythm and section hierarchy. */
+[data-broker-dashboard] > .rh-portfolio-performance,
+[data-broker-dashboard] > .stats-grid,
+[data-broker-dashboard] > .content-grid {width:100%;min-width:0}
+[data-broker-dashboard] > .rh-portfolio-performance {margin-top:0}
+[data-broker-dashboard] .rh-portfolio-performance .rh-portfolio-metrics > div {
+  min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+}
+[data-broker-dashboard] .rh-portfolio-performance .rh-portfolio-metrics strong {
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere;
+}
+[data-broker-dashboard] .rh-portfolio-performance .rh-portfolio-metrics small {
+  line-height:1.45;
+}
+[data-broker-dashboard] > .stats-grid > .stat-card {
+  min-height:122px;display:flex;flex-direction:column;align-items:stretch;
+}
+[data-broker-dashboard] > .stats-grid > .stat-card > strong {
+  margin-top:auto;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;
+}
+[data-broker-dashboard] > .stats-grid > .stat-card > small {
+  margin-top:8px;line-height:1.45;
+}
+[data-broker-dashboard] > .content-grid > .panel {
+  min-width:0;
+}
+[data-broker-dashboard] .broker-holdings-heading {
+  margin-top:20px;padding-top:16px;border-top:1px solid rgba(140,170,204,.23);
+}
+[data-broker-dashboard] .broker-holdings-heading h2 {
+  font-size:14px;
+}
+[data-broker-dashboard] .broker-holdings-table {
+  margin-top:10px;max-width:100%;overflow-x:auto;
+}
+[data-broker-dashboard] .panel-heading > .btn,
+[data-broker-dashboard] .panel-heading > .time-label {
+  flex-shrink:0;
+}
+@media(max-width:850px) {
+ [data-broker-dashboard] .panel-heading {flex-wrap:wrap}
+ [data-broker-dashboard] .panel-heading > .btn {max-width:100%;white-space:normal}
+ [data-broker-dashboard] > .stats-grid > .stat-card {min-height:116px}
+}

@@ -263,7 +263,7 @@
           </div>
           <p class="panel-note" id="rh-performance-disclosure">Robinhood Crypto v2 holdings do not report official average cost. Estimates are shown only when filled-order history matches held quantity. No tax-basis claim.</p>
         <div class="broker-holdings-detail" aria-label="Robinhood holdings and profit or loss">
-          <div class="panel-heading"><div><h2>Current crypto holdings</h2>
+          <div class="panel-heading broker-holdings-heading"><div><h2>Current crypto holdings</h2>
             <p>Green = estimated gain since purchase; red = estimated loss. Unverified costs remain unavailable.</p></div>
             <span class="time-label" id="rh-holdings-summary">Loading holdings…</span></div>
           <div id="robinhood-positions-list" class="table-wrap" aria-live="polite">Loading Robinhood holdings…</div>
@@ -424,7 +424,7 @@
         </section>
       </form>
     </section>
-    <section class="view hidden" id="view-webull" data-broker-dashboard="webull">
+    <section class="view hidden" id="view-webull" aria-label="Webull broker dashboard" data-broker-dashboard="webull">
       <div class="hero-head"><div><p class="eyebrow">WEBULL · STOCKS + CRYPTO · ACCOUNT WORKSPACE</p>
         <h1>Live account</h1><p class="muted">Verified broker holdings, scanner activity and order evidence. Trading authorization remains separate.</p></div>
         <div class="control-panel"><div class="control-caption">WEBULL ORDER PERMISSION <span class="mode-tag stopped" id="webull-order-mode">Checking</span></div>
@@ -441,13 +441,13 @@
           <div><span>Unrealized P/L</span><strong id="webull-performance-pnl">—</strong><small>Broker-reported, not inferred</small></div>
           <div><span>Return on holdings</span><strong id="webull-performance-return">—</strong><small>Only when verified cost basis is available</small></div>
         </div><p class="panel-note" id="webull-performance-note">Select a verified account to load portfolio performance.</p>
-        <div class="panel-heading" style="margin-top:20px"><div><h2>Current Webull holdings</h2>
+        <div class="panel-heading broker-holdings-heading"><div><h2>Current Webull holdings</h2>
           <p>Selected account only; stock and crypto accounts may be separate.</p></div></div>
-        <div id="webull-positions" class="table-wrap">Awaiting broker holdings…</div>
+        <div id="webull-positions" class="broker-holdings-table table-wrap">Awaiting broker holdings…</div>
       </section>
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-top">BROKERAGE EQUITY <span class="stat-icon">◈</span></div><strong id="webull-equity">—</strong><small>Selected Webull account</small></div>
-        <div class="stat-card"><div class="stat-top">CASH BALANCE <span class="stat-icon">◉</span></div><strong id="webull-cash">—</strong><small>Broker-reported cash, not buying power</small></div>
+        <div class="stat-card"><div class="stat-top">AVAILABLE CASH <span class="stat-icon">◉</span></div><strong id="webull-cash">—</strong><small>Broker-reported cash, not buying power</small></div>
         <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="webull-holdings-count">—</strong><small>Selected account positions</small></div>
         <div class="stat-card"><div class="stat-top">PENDING ORDERS <span class="stat-icon">⇄</span></div><strong id="webull-orders-count">—</strong><small>Worker order journal</small></div>
       </div>
@@ -624,7 +624,7 @@
             <button id="logout-btn" class="btn secondary" type="button">Log out</button></div>
         </section>
       </section>
-      <section class="view hidden" id="view-live" data-broker-dashboard="live">
+      <section class="view hidden" id="view-live" aria-label="Schwab live broker dashboard" data-broker-dashboard="live">
         <div class="hero-head">
           <div>
             <p class="eyebrow">CHARLES SCHWAB · AUTONOMOUS TRADING</p>
@@ -652,10 +652,11 @@
 <div><span>Unrealized P/L</span><strong id="schwab-perf-pnl">—</strong><small>Based on available average purchase price</small></div>
 <div><span>Return on holdings</span><strong id="schwab-perf-return">—</strong><small>Since purchase, not today's return</small></div>
 </div><p class="panel-note" id="schwab-perf-note">Unrealized figures require complete broker cost coverage.</p>
-<div class="table-wrap" id="schwab-perf-holdings">Awaiting broker holdings…</div></section>
+<div class="panel-heading broker-holdings-heading"><div><h2>Current Schwab holdings</h2><p>Broker-reported positions and purchase cost where available</p></div></div>
+<div class="broker-holdings-table table-wrap" id="schwab-perf-holdings">Awaiting broker holdings…</div></section>
 <div class="stats-grid">
           <div class="stat-card"><div class="stat-top">BROKERAGE EQUITY <span class="stat-icon">◈</span></div><strong id="live-equity">—</strong><small id="live-snapshot-age">No recent broker snapshot</small></div>
-          <div class="stat-card"><div class="stat-top">CASH ONLY <span class="stat-icon">◉</span></div><strong id="live-cash">—</strong><small>Conservative verified cash, not margin buying power</small></div>
+          <div class="stat-card"><div class="stat-top">AVAILABLE CASH <span class="stat-icon">◉</span></div><strong id="live-cash">—</strong><small>Conservative verified cash, not margin buying power</small></div>
           <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="live-holdings">—</strong><small id="live-holdings-detail">Awaiting broker positions</small></div>
           <div class="stat-card"><div class="stat-top">BROKER ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="live-order-total">0</strong><small>Confirmed and pending worker journal entries</small></div>
         </div>
@@ -749,7 +750,7 @@
           </aside>
         </form>
       </section>
-      <section class="view hidden" id="view-overview" data-broker-dashboard="paper">
+      <section class="view hidden" id="view-overview" aria-label="Paper trading dashboard" data-broker-dashboard="paper">
         <div class="hero-head">
           <div>
             <p class="eyebrow">PAPER TRADING · SIMULATED ACCOUNT</p>
@@ -782,10 +783,10 @@
             <div id="positions-list" class="positions-list" aria-live="polite"></div>
           </section>
         <div class="stats-grid">
-          <div class="stat-card"><div class="stat-top"><span>Paper portfolio value</span><span class="stat-icon">◈</span></div><strong id="stat-equity">$100.00</strong><small id="stat-equity-desc">Starting simulated balance</small></div>
-          <div class="stat-card"><div class="stat-top"><span>Available trading cash</span><span class="stat-icon">◉</span></div><strong id="stat-cash">$100.00</strong><small id="stat-cash-desc">Before allocation limit</small></div>
+          <div class="stat-card"><div class="stat-top"><span>SIMULATED ACCOUNT VALUE</span><span class="stat-icon">◈</span></div><strong id="stat-equity">$100.00</strong><small id="stat-equity-desc">Starting simulated balance</small></div>
+          <div class="stat-card"><div class="stat-top"><span>AVAILABLE CASH</span><span class="stat-icon">◉</span></div><strong id="stat-cash">$100.00</strong><small id="stat-cash-desc">Before allocation limit</small></div>
           <div class="stat-card"><div class="stat-top"><span>OPEN HOLDINGS</span><span class="stat-icon">▥</span></div><strong id="stat-open-holdings">0</strong><small>Current simulated positions</small></div>
-          <div class="stat-card"><div class="stat-top"><span>Total paper trades</span><span class="stat-icon">⇄</span></div><strong id="stat-trades">0</strong><small id="stat-reviews">0 AI evaluations recorded</small></div>
+          <div class="stat-card"><div class="stat-top"><span>PAPER TRADE RECORDS</span><span class="stat-icon">⇄</span></div><strong id="stat-trades">0</strong><small id="stat-reviews">0 AI evaluations recorded</small></div>
         </div>
         <div class="content-grid">
           <section class="panel paper-execution-panel">
