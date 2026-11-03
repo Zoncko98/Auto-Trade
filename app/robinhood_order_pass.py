@@ -103,6 +103,16 @@ def review_sell(state,client,policy,signal,now=None):
     account=accounts[0]["account_number"]
     journal=OrderJournal(state)
     if journal.pending():raise OrderPassBlocked("Unresolved order intent")
+    # Do not liquidate manually held Robinhood assets. Only filled buys placed
+    # by this bot, minus filled bot sells, are eligible to be reduced.
+    rows=journal.load()["orders"]
+    bot_quantity=Decimal("0")
+    for row in rows:
+        if row.get("symbol")!=symbol or row.get("status")!="filled":continue
+        side=row.get("side","buy")
+        if side=="buy":bot_quantity+=money(row.get("quantity"))
+        elif side=="sell":bot_quantity-=money(row.get("quantity"))
+    if bot_quantity<=0:raise OrderPassBlocked("No bot-acquired holding available to sell")
     orders=client.orders(account)
     if not isinstance(orders,list) or any(isinstance(o,dict) and o.get("state") in
             ("open","pending","partially_filled") for o in orders):
@@ -127,7 +137,7 @@ def review_sell(state,client,policy,signal,now=None):
     max_notional=money(policy.get("max_order_usd",0))
     if not 0<max_notional<=Decimal("25"):
         raise OrderPassBlocked("Account sell limit invalid")
-    permitted=min(available,max_qty,max_notional/bid)
+    permitted=min(available,bot_quantity,max_qty,max_notional/bid)
     qty=(permitted/increment).to_integral_value(rounding=ROUND_DOWN)*increment
     if qty<=0 or qty>available or qty*bid<minimum:
         raise OrderPassBlocked("Sell order below minimum or unavailable")

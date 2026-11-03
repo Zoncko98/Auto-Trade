@@ -1,6 +1,8 @@
 import tempfile,unittest
 from datetime import datetime,timezone
 from robinhood_order_pass import review_sell,submit_sell_approved,OrderPassBlocked
+from robinhood_order_journal import OrderJournal
+from uuid import uuid4
 class Fake:
  def __init__(self):self.writes=[]
  def list_accounts(self):
@@ -23,6 +25,10 @@ class SellTests(unittest.TestCase):
   self.signal={"technical_exit":True,"at":self.at.isoformat(),"symbol":"BTC-USD"}
  def test_sell_existing_only_and_journal(self):
   with tempfile.TemporaryDirectory() as d:
+   j=OrderJournal(d);prior=str(uuid4())
+   j.record_intent("acct",prior,"BTC-USD","2","10",side="buy")
+   j.reconcile("acct",[{"client_order_id":prior,"state":"filled",
+                       "filled_asset_quantity":"2"}])
    f=Fake()
    out=submit_sell_approved(d,f,self.policy,self.signal,self.at)
    self.assertTrue(out["broker_acknowledged"])

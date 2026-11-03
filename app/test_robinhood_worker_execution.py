@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 from robinhood_worker import run_once
 from robinhood_order_journal import OrderJournal
+from uuid import uuid4
 
 class SimulatedBroker:
  def __init__(self):self.submissions=[]
@@ -35,6 +36,11 @@ class FullWorkerExecutionTests(unittest.TestCase):
    (path/"risk_policy.json").write_text(json.dumps({
     "enabled":True,"account":"acct","max_order_usd":"5",
     "verified_broker_minimum_usd":"1"}))
+   if not rising:
+    j=OrderJournal(tmp);prior=str(uuid4())
+    j.record_intent("acct",prior,"BTC-USD","2","10",side="buy")
+    j.reconcile("acct",[{"client_order_id":prior,"state":"filled",
+                         "filled_asset_quantity":"2"}])
    (path/"quote_history.json").write_text(json.dumps([
     {"symbol":"BTC-USD","mid":mid,
      "at":(now-timedelta(seconds=elapsed)).isoformat()}
