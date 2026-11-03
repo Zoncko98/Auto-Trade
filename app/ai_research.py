@@ -18,6 +18,10 @@ from openwebui_gateway import classify_news, GatewayUnavailable
 
 COMPANIES = {
     'F':'Ford Motor Company', 'T':'AT&T', 'PFE':'Pfizer',
+    'AAPL':'Apple Inc', 'MSFT':'Microsoft Corporation',
+    'NVDA':'NVIDIA Corporation', 'TSLA':'Tesla Inc',
+    'AMD':'Advanced Micro Devices', 'PLTR':'Palantir Technologies',
+    'SPY':'SPDR S&P 500 ETF', 'QQQ':'Invesco QQQ Trust',
     'AAL':'American Airlines Group', 'CCL':'Carnival Corporation',
     'SOFI':'SoFi Technologies', 'SNAP':'Snap Inc', 'NU':'Nu Holdings',
     'WBD':'Warner Bros Discovery', 'NIO':'NIO Inc', 'NOK':'Nokia',

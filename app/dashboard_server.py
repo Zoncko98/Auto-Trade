@@ -336,6 +336,31 @@ class Handler(BaseHTTPRequestHandler):
                 if cfg.get("ai_provider")=="ollama" and cfg.get("ollama_url"):
                     result.update(verify_ollama_model(cfg["ollama_url"],cfg.get("ai_model","")))
                 return self._json(200,result)
+            if UNIFIED_APP and path == "/api/webull/trader":
+                from webull_trade_config import read
+                from webull_risk import read as read_risk
+                from webull_journal import WebullJournal
+                policy=read(STATE_DIR)
+                risk=read_risk(STATE_DIR)
+                try:
+                    worker=json.loads((Path(STATE_DIR)/"webull"/"worker_status.json").read_text())
+                    if not isinstance(worker,dict):worker={}
+                except (OSError,ValueError,TypeError):worker={}
+                try:
+                    journal=WebullJournal(STATE_DIR)
+                    orders=journal.recent(30)
+                except (OSError,ValueError,TypeError):orders=[]
+                from webull_trade_config import LIVE_EXECUTION_VERIFIED
+                return self._json(200,{"policy":policy,"risk":risk,
+                    "worker":worker,"orders":orders,
+                    "execution_validated":LIVE_EXECUTION_VERIFIED,
+                    "execution_enabled":policy.get("enabled") is True and LIVE_EXECUTION_VERIFIED})
+            if UNIFIED_APP and path == "/api/webull/evidence":
+                try:
+                    evidence=json.loads((Path(STATE_DIR)/"webull"/"decision_history.json").read_text())
+                    if not isinstance(evidence,list):evidence=[]
+                except (OSError,ValueError,TypeError):evidence=[]
+                return self._json(200,{"items":evidence[-40:][::-1]})
             if UNIFIED_APP and path == "/api/webull/risk":
                 from webull_risk import read
                 try:return self._json(200,read(STATE_DIR))
@@ -539,6 +564,35 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if UNIFIED_APP and path == "/api/webull/trader":
+            from webull_trade_config import save,WebullPolicyError
+            from webull_broker import WebullBroker,WebullError
+            from webull_journal import WebullJournal
+            from webull_worker import _can_trade_account
+            try:
+                request=self._body()
+                # When pausing, do not require reachable broker (kill-switch).
+                if isinstance(request,dict) and isinstance(request.get("policy"),dict) and request["policy"].get("enabled") is False:
+                    return self._json(200,save(STATE_DIR,request["policy"],[]))
+                broker=WebullBroker(STATE_DIR)
+                accounts=broker.accounts()
+                policy=request.get("policy") if isinstance(request,dict) else None
+                if not isinstance(policy,dict):raise WebullPolicyError("Missing trade policy")
+                selected=[("stock_account","trade_stocks","EQUITY"),
+                          ("crypto_account","trade_crypto","CRYPTO")]
+                for id_key,flag,asset in selected:
+                    if policy.get(flag):
+                        row=next((r for r in accounts if r.get("account_id")==policy.get(id_key)),None)
+                        if row is None or not _can_trade_account(row,asset):
+                            raise WebullPolicyError("Selected Webull cash account/asset class not verified")
+                        if WebullJournal(STATE_DIR).pending(policy[id_key]):
+                            raise WebullPolicyError("Unresolved Webull order intent")
+                        if broker.open_orders(policy[id_key]):
+                            raise WebullPolicyError("Existing broker open orders prevent arming")
+                        broker.balance(policy[id_key])
+                return self._json(200,save(STATE_DIR,policy,accounts,request.get("confirmation")))
+            except (WebullPolicyError,WebullError,OSError,ValueError,TypeError,KeyError):
+                return self._json(400,{"error":"Webull authorization, account class, risk limits or pending orders not verified"})
         if UNIFIED_APP and path == "/api/webull/risk":
             from webull_risk import save
             try:return self._json(200,save(STATE_DIR,self._body()))

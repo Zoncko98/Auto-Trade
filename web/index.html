@@ -415,45 +415,87 @@
         <div id="webull-positions" class="broker-capabilities">No authenticated position snapshot.</div>
       </section>
       <section class="panel" style="padding:20px">
-        <div class="panel-heading"><div><h2>Trading engine status</h2>
-          <p>Stock and crypto scanners, AI approvals, order submission and reconciliation are isolated from Robinhood.</p></div></div>
-        <div class="broker-capabilities">
-          <strong>Webull autonomous scanning</strong><span>Not yet connected to a Webull execution worker</span>
-          <strong>AI decision evidence</strong><span>No Webull-specific decisions recorded</span>
-          <strong>Live trading</strong><span>Disabled · no Webull broker order submission authorized</span>
-          <strong>Pending-order reconciliation</strong><span>Not active until Webull order lifecycle is implemented</span>
+        <div class="panel-heading"><div><h2>Stock + crypto trading engine</h2>
+          <p>Independent scanner, AI decisions, risk enforcement and Webull order reconciliation.</p></div>
+          <button class="btn secondary" data-view="webull-risk" type="button">Risk &amp; execution controls</button></div>
+        <p id="webull-worker-updated" class="panel-note" role="status">Waiting for Webull worker heartbeat…</p>
+        <div id="webull-engine-fields" class="broker-capabilities">
+          Worker execution not verified. Live trading is disarmed by default.
         </div>
+        <p style="margin-top:14px"><button class="btn secondary" data-view="webull-decisions" type="button">AI decision evidence</button>
+          <button class="btn secondary" data-view="webull-orders" type="button">Orders &amp; reconciliation</button></p>
       </section>
     </section>
     <section class="view hidden" id="view-webull-risk">
       <div class="page-header"><div><p class="eyebrow">WEBULL · ACCOUNT SAFETY</p>
-        <h1>Webull risk settings</h1><p class="muted">Account-specific planning. These settings do not arm live execution.</p></div></div>
+        <h1>Webull risk settings</h1><p class="muted">Webull-specific cash limits for stocks and crypto. Saving never arms trading.</p></div></div>
       <form id="webull-risk-form" class="panel" style="padding:24px;max-width:760px">
-        <div class="notice neutral"><span class="notice-icon">ⓘ</span><div><strong>Webull live orders remain disabled</strong>
-          <p>Risk limits are stored for a future execution engine. They are not active order safeguards until that engine is implemented and validated.</p></div></div>
+        <div class="notice neutral"><span class="notice-icon">ⓘ</span><div><strong>Webull default is disarmed</strong>
+          <p>Limits are account-specific. The live engine also enforces a hard $1,000/order ceiling,
+          a 10% per-position cap and $250 maximum daily loss limit before any broker order.</p></div></div>
         <div class="setting-row"><label for="webull-risk-position">Maximum position exposure (%)</label>
-          <input id="webull-risk-position" type="number" min="0.1" max="25" step="0.1" required></div>
+          <input id="webull-risk-position" type="number" min="0.1" max="10" step="0.1" required></div>
         <div class="setting-row"><label for="webull-risk-order">Maximum single order (USD)</label>
-          <input id="webull-risk-order" type="number" min="1" max="100000" step="0.01" required></div>
+          <input id="webull-risk-order" type="number" min="1" max="1000" step="0.01" required></div>
         <div class="setting-row"><label for="webull-risk-loss">Maximum daily loss (USD)</label>
-          <input id="webull-risk-loss" type="number" min="1" max="100000" step="0.01" required></div>
+          <input id="webull-risk-loss" type="number" min="1" max="250" step="0.01" required></div>
         <div class="setting-row"><label for="webull-risk-positions">Maximum simultaneous positions</label>
-          <input id="webull-risk-positions" type="number" min="1" max="20" step="1" required></div>
+          <input id="webull-risk-positions" type="number" min="1" max="10" step="1" required></div>
         <div class="form-actions"><button type="submit" class="btn secondary">Save Webull risk plan</button>
           <span id="webull-risk-status" role="status"></span></div>
       </form>
+      <section class="panel" style="padding:24px;max-width:760px;margin-top:20px">
+        <div class="panel-heading"><div><h2>Live trading authorization</h2>
+          <p>Select a separate verified cash account for each applicable market.</p></div></div>
+        <p id="webull-live-policy-state" role="status">Webull live execution: checking…</p>
+        <div class="setting-row"><label for="webull-live-stocks">Enable US stocks &amp; ETFs</label>
+          <input type="checkbox" id="webull-live-stocks"></div>
+        <div class="setting-row"><label for="webull-stock-account">Stocks brokerage account</label>
+          <select id="webull-stock-account"><option value="">Select verified Webull account</option></select></div>
+        <div class="setting-row"><label for="webull-live-crypto">Enable spot crypto</label>
+          <input type="checkbox" id="webull-live-crypto"></div>
+        <div class="setting-row"><label for="webull-crypto-account">Crypto brokerage account</label>
+          <select id="webull-crypto-account"><option value="">Select verified Webull crypto account</option></select></div>
+        <p class="panel-note">The Webull worker scans while disarmed. Start requires explicit authorization and a saved
+          risk plan; only cash-funded limit BUY/SELL orders can pass the worker. Any unresolved order or
+          unavailable broker status blocks further orders. No margin, options, shorts or duplicate orders.</p>
+        <div class="form-actions">
+          <button class="btn primary" type="button" id="webull-live-start">▶ Start Webull live trading</button>
+          <button class="btn danger-outline" type="button" id="webull-live-pause">Ⅱ Pause Webull live trading</button>
+          <span id="webull-live-feedback" role="status"></span>
+        </div>
+        <p class="panel-note">Profit protection starts at +3% estimated net return,
+          trailing protection activates at +2% and triggers after a 0.75% retreat,
+          with 1% minimum net profit, 2% stop-loss and 15-minute profit hold.
+          These defaults are independent of Robinhood positions.</p>
+      </section>
     </section>
     <section class="view hidden" id="view-webull-decisions">
       <div class="page-header"><div><p class="eyebrow">WEBULL · AI EVIDENCE</p>
         <h1>Webull AI decisions</h1><p class="muted">Separate stock and crypto decisions will appear when Webull strategy execution is integrated.</p></div></div>
-      <section class="panel" style="padding:24px"><h2>No Webull strategy decisions recorded</h2>
-        <p>The shared AI workstation is available from Account Overview. Webull order automation has not yet been enabled or verified; Robinhood decision logs are never presented as Webull decisions.</p></section>
+      <section class="panel" style="padding:24px">
+        <div class="panel-heading"><h2>Scanner &amp; AI evidence</h2>
+          <button class="btn secondary" type="button" id="webull-evidence-refresh">Refresh evidence</button></div>
+        <p id="webull-evidence-updated" role="status">Waiting for scan decisions…</p>
+        <div id="webull-evidence-list" class="broker-capabilities">
+          No completed Webull-specific scans verified yet.
+        </div>
+      </section>
     </section>
     <section class="view hidden" id="view-webull-orders">
       <div class="page-header"><div><p class="eyebrow">WEBULL · ORDER CENTER</p>
         <h1>Webull orders &amp; reconciliation</h1><p class="muted">Separate order lifecycle and execution evidence.</p></div></div>
-      <section class="panel" style="padding:24px"><h2>Webull automated execution not active</h2>
-        <p>No Webull bot orders have been submitted by this integration. Order placement, cancellation, broker receipt, fills, reconciliation and safe restart recovery must be validated before live execution becomes available.</p></section>
+      <section class="panel" style="padding:24px">
+        <div class="panel-heading"><h2>Broker order journal</h2>
+          <button class="btn secondary" type="button" id="webull-orders-refresh">Refresh orders</button></div>
+        <p id="webull-orders-updated" role="status">Loading Webull journal…</p>
+        <div id="webull-orders-list" class="broker-capabilities">
+          Webull order history has not been retrieved.
+        </div>
+        <p class="panel-note">A submitted order is never reported as filled until Webull order details confirm
+          the complete fill quantity, execution price and timestamp. Unknown or partial results retain the
+          duplicate-order lock across restarts.</p>
+      </section>
     </section>
     <section class="view hidden" id="view-brokers">
         <div class="page-header"><div><p class="eyebrow">BROKERAGE CONNECTIONS</p>

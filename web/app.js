@@ -1099,6 +1099,168 @@ async function loadOperations(){
   if(updated)updated.textContent="Refreshed "+new Date().toLocaleString()+" · Schwab "+sourceNote(live)+" · Paper "+sourceNote(paper)+" · Robinhood "+sourceNote(rh)+" · Holdings "+sourceNote(portfolio);
 }
 
+let webullTraderPolicy=null;
+let webullExecutionValidated=false;
+function webullRow(root,key,value){
+  const name=document.createElement("strong"),detail=document.createElement("span");
+  name.textContent=key;detail.textContent=value==null?"Unavailable":String(value);
+  root.append(name,detail);
+}
+function webullPrice(raw){
+  if(typeof raw!=="string" && typeof raw!=="number")return null;
+  if(!/^-?(?:0|[1-9]\d*)(?:\.\d{1,8})?(?:[Ee][+-]?\d{1,3})?$/.test(String(raw)))return null;
+  const n=Number(raw);
+  return Number.isFinite(n)&&Math.abs(n)<1e13?money(n):null;
+}
+function webullReadableDate(raw){
+  const dt=typeof raw==="string"?Date.parse(raw):NaN;
+  return Number.isFinite(dt)?new Date(dt).toLocaleString():"Not reported";
+}
+function webullListRoot(id){const root=$(id);if(root)root.replaceChildren();return root;}
+async function loadWebullTrader(){
+  const data=await request("/api/webull/trader");
+  const worker=data.worker||{},policy=data.policy||{};
+  webullTraderPolicy=policy;
+  const root=webullListRoot("webull-engine-fields");
+  const heartbeat=$("webull-worker-updated");
+  const age=Date.now()-Date.parse(worker.updated_at||"");
+  const fresh=Number.isFinite(age)&&age>=-60000&&age<600000;
+  if(heartbeat)heartbeat.textContent=fresh?
+    "Webull scanner last reported "+webullReadableDate(worker.updated_at):
+    "Webull worker offline, stale or not yet verified";
+  if(root){
+    webullRow(root,"Scanner",fresh?worker.worker||"Unverified":"No recent worker heartbeat");
+    webullRow(root,"Last order decision",worker.execution_status||"NO_WORKER_REPORT");
+    webullRow(root,"AI approvals",Array.isArray(worker.ai_reviews)?
+      worker.ai_reviews.filter(x=>x.approved===true).length+" of "+worker.ai_reviews.length+" reviewed":"No reviews");
+    webullRow(root,"Market symbols checked",Array.isArray(worker.signals)?worker.signals.length:"Unavailable");
+    webullRow(root,"Webull orders unresolved",Array.isArray(worker.pending_orders)?worker.pending_orders.length:"Unavailable");
+    webullRow(root,"Trading permission",data.execution_validated===true&&policy.enabled===true?
+      "Operator armed · broker risk and order checks required":
+      "DISARMED · broker order lifecycle validation required");
+    webullRow(root,"Last block",worker.execution_reason||"None recorded");
+    const broker=Array.isArray(worker.account_summaries)?worker.account_summaries:[];
+    broker.forEach(row=>webullRow(root,
+      "Account "+String(row.account_id||"").slice(-6)+" value",
+      webullPrice(row.account_value)||row.status||"Unavailable"));
+  }
+  return data;
+}
+function webullPolicyFromInputs(enabled){
+  return {enabled,stock_account:$("webull-stock-account")?.value||"",
+    crypto_account:$("webull-crypto-account")?.value||"",
+    trade_stocks:$("webull-live-stocks")?.checked===true,
+    trade_crypto:$("webull-live-crypto")?.checked===true};
+}
+async function loadWebullPolicy(){
+  const [data,accountData]=await Promise.all([request("/api/webull/trader"),request("/api/webull/status")]);
+  const policy=data.policy||{};
+  webullTraderPolicy=policy;
+  webullExecutionValidated=data.execution_validated===true;
+  const entries=Array.isArray(accountData.accounts)?accountData.accounts:[];
+  for(const field of ["webull-stock-account","webull-crypto-account"]){
+    const select=$(field);if(!select)continue;
+    select.replaceChildren();
+    select.add(new Option("Choose verified Webull account",""));
+    entries.forEach(a=>{
+      if(typeof a.account_id==="string"&&a.account_id)
+        select.add(new Option((a.account_type||"Webull")+" · "+a.account_id,a.account_id));
+    });
+  }
+  $("webull-stock-account").value=policy.stock_account||"";
+  $("webull-crypto-account").value=policy.crypto_account||"";
+  $("webull-live-stocks").checked=policy.trade_stocks===true;
+  $("webull-live-crypto").checked=policy.trade_crypto===true;
+  $("webull-live-policy-state").textContent=policy.enabled===true?
+    "Webull policy ARMED · the worker can place orders only after independent checks":
+    "Webull policy DISARMED · scanning only; no live orders";
+  $("webull-live-feedback").textContent=!data.execution_validated?
+    "Live orders locked until Webull sandbox order and reconciliation validation completes":
+    data.risk?.saved?"Webull risk plan saved · stock and crypto permissions are separate":
+    "Save Webull risk plan before arming";
+  $("webull-live-start").disabled=policy.enabled===true||!data.risk?.saved||!data.execution_validated;
+  $("webull-live-pause").disabled=policy.enabled!==true;
+}
+async function webullChangePermission(enable){
+  const feedback=$("webull-live-feedback");
+  const policy=webullPolicyFromInputs(enable);
+  if(enable){
+    if(!policy.trade_stocks&&!policy.trade_crypto){
+      feedback.textContent="Select at least one market and account";return;
+    }
+    if((policy.trade_stocks&&!policy.stock_account)||
+       (policy.trade_crypto&&!policy.crypto_account)){
+      feedback.textContent="Select a Webull account for each enabled market";return;
+    }
+    const yes=window.confirm(
+      "Start AUTONOMOUS LIVE Webull trading with REAL MONEY in selected account(s)? "+
+      "Cash-only stock and crypto limit orders may execute automatically. "+
+      "The separate risk plan and broker checks will apply. Continue?");
+    if(!yes)return;
+  }
+  const button=enable?$("webull-live-start"):$("webull-live-pause");
+  if(button)button.disabled=true;
+  feedback.textContent="Saving Webull execution permission…";
+  try{
+    await request("/api/webull/trader",{method:"POST",body:JSON.stringify({
+      policy,confirmation:enable?"ENABLE_WEBULL_LIVE":""})});
+    await loadWebullPolicy();
+    await loadWebullTrader();
+    feedback.textContent=enable?
+      "Webull live policy armed. Worker must independently pass all risk and broker checks.":
+      "Webull live execution paused. Pending broker orders still require reconciliation.";
+  }catch(error){feedback.textContent="Webull authorization blocked: "+error.message;}
+  finally{
+    if(button){
+      if(enable){button.disabled=webullTraderPolicy?.enabled===true||!webullExecutionValidated;}
+      else{button.disabled=webullTraderPolicy?.enabled!==true;}
+    }
+  }
+}
+async function loadWebullEvidence(){
+  const data=await request("/api/webull/evidence");
+  const root=webullListRoot("webull-evidence-list"),items=Array.isArray(data.items)?data.items:[];
+  if($("webull-evidence-updated"))$("webull-evidence-updated").textContent=
+    items.length?items.length+" recent Webull scans, newest first":"No completed Webull scans recorded";
+  if(!root)return;
+  if(!items.length){webullRow(root,"Status","Awaiting first Webull scan");return;}
+  items.slice(0,25).forEach(item=>{
+    webullRow(root,"Scan · "+webullReadableDate(item.updated_at),
+      (item.execution_status||"NO_EXECUTION")+
+      " · "+(item.execution_reason||"No broker order"));
+    const signals=Array.isArray(item.signals)?item.signals:[];
+    signals.slice(0,6).forEach(s=>webullRow(root,
+      (s.asset==="CRYPTO"?"Crypto ":"Stock ")+(s.symbol||"?"),
+      (s.technical_approved?"MOMENTUM CANDIDATE":"No qualified signal")+
+      " · "+(s.reason||"No recorded reason")+
+      (s.momentum_pct==null?"":" · "+s.momentum_pct+"% momentum")));
+    const ai=Array.isArray(item.ai_reviews)?item.ai_reviews:[];
+    ai.slice(0,3).forEach(a=>webullRow(root,
+      "AI "+(a.approved?"PASS":"BLOCK")+" · "+(a.symbol||"?"),
+      (a.model||"Model unavailable")+" · "+(a.reason||"No rationale available")));
+  });
+}
+async function loadWebullOrders(){
+  const data=await request("/api/webull/trader");
+  const root=webullListRoot("webull-orders-list");
+  const rows=Array.isArray(data.orders)?data.orders:[];
+  if($("webull-orders-updated"))$("webull-orders-updated").textContent=
+    "Webull-specific local intents: "+rows.length+
+    " · live permission "+(data.policy?.enabled?"ARMED":"DISARMED");
+  if(!root)return;
+  if(!rows.length){webullRow(root,"No Webull bot orders",
+    "No automated orders submitted by this Webull worker");return;}
+  rows.forEach(order=>{
+    webullRow(root,(order.symbol||"Unknown")+" · "+(order.side||""),
+      (order.status||"UNKNOWN")+" · account "+String(order.account||"").slice(-6)+
+      " · qty "+(order.quantity||"?")+" · limit "+(webullPrice(order.limit_price)||"unavailable"));
+    webullRow(root,"Broker fill evidence · "+String(order.client_id||"").slice(0,8),
+      order.status==="FILLED"?
+      "Filled "+order.filled_qty+" @ "+(webullPrice(order.filled_price)||"?")+
+      " · "+webullReadableDate(order.fill_at):
+      "Not broker-confirmed filled · checked "+webullReadableDate(order.checked_at));
+  });
+}
 async function loadWebullWorkspace(){
   const health=$("webull-connectivity"),accounts=$("webull-account");
   const updated=$("webull-updated"),balances=$("webull-balance-fields");
@@ -1122,6 +1284,7 @@ async function loadWebullWorkspace(){
     accounts.add(new Option((entry.account_type||"Webull account")+" · "+entry.account_id,entry.account_id));
   }
   await loadWebullAccount();
+  loadWebullTrader().catch(()=>{if($("webull-worker-updated"))$("webull-worker-updated").textContent="Worker status unavailable";});
 }
 function webullReadOnlyRows(root,label,data){
   const wrapper=document.createElement("div");
@@ -1142,8 +1305,23 @@ async function loadWebullAccount(){
   updated.textContent="Checking selected Webull balance and holdings…";
   try{
     const result=await request("/api/webull/portfolio?account_id="+encodeURIComponent(id));
-    webullReadOnlyRows(balances,"Webull-reported balance",result.balances);
-    webullReadOnlyRows(positions,"Webull-reported positions",result.positions);
+    const moneyFields=result.balances||{};
+    balances.replaceChildren();
+    webullRow(balances,"Account value (USD)",webullPrice(moneyFields.total_net_liquidation_value));
+    webullRow(balances,"Cash balance (USD)",webullPrice(moneyFields.total_cash_balance));
+    webullRow(balances,"Holdings value (USD)",webullPrice(moneyFields.total_market_value));
+    webullRow(balances,"Unrealized P/L",webullPrice(moneyFields.total_unrealized_profit_loss));
+    const assets=Array.isArray(moneyFields.account_currency_assets)?moneyFields.account_currency_assets:[];
+    assets.filter(x=>x.currency==="USD").forEach(a=>
+      webullRow(balances,"Available USD buying power",webullPrice(a.buying_power)));
+    positions.replaceChildren();
+    const holdings=Array.isArray(result.positions)?result.positions:[];
+    if(!holdings.length)webullRow(positions,"Holdings","No holdings reported by selected Webull account");
+    holdings.forEach(holding=>webullRow(positions,
+      String(holding.symbol||"Unknown")+" · "+String(holding.instrument_type||"Asset"),
+      String(holding.quantity??"Quantity unavailable")+" units · "+
+      (webullPrice(holding.last_price)||"Price unavailable")+" last · P/L "+
+      (webullPrice(holding.unrealized_profit_loss)||"Unavailable")));
     updated.textContent="Broker data refreshed "+new Date().toLocaleString()+" · "+result.environment+
       " · read-only, not an execution authorization";
   }catch(error){
@@ -1157,7 +1335,8 @@ async function loadWebullRisk(){
   $("webull-risk-order").value=plan.max_order_usd;
   $("webull-risk-loss").value=plan.max_daily_loss_usd;
   $("webull-risk-positions").value=plan.max_open_positions;
-  $("webull-risk-status").textContent=plan.saved?"Risk plan saved · not active":"Defaults · not active";
+  $("webull-risk-status").textContent=plan.saved?"Risk limits saved":"Defaults · save before live trading";
+  await loadWebullPolicy();
 }
 async function saveWebullRisk(e){
   e.preventDefault();
@@ -1168,13 +1347,24 @@ async function saveWebullRisk(e){
     max_open_positions:Number($("webull-risk-positions").value)};
   try{
     const result=await request("/api/webull/risk",{method:"POST",body:JSON.stringify(payload)});
-    $("webull-risk-status").textContent=result.saved?"Saved · trading remains disabled":"Not saved";
+    $("webull-risk-status").textContent=result.saved?"Webull risk limits saved":"Not saved";
+    await loadWebullPolicy();
   }catch(error){$("webull-risk-status").textContent="Unable to save: "+error.message;}
 }
 document.addEventListener("DOMContentLoaded",()=>{
   $("webull-refresh")?.addEventListener("click",()=>loadWebullWorkspace().catch(err=>toast(err.message,true)));
   $("webull-account")?.addEventListener("change",()=>loadWebullAccount().catch(err=>toast(err.message,true)));
   $("webull-risk-form")?.addEventListener("submit",saveWebullRisk);
+  $("webull-live-start")?.addEventListener("click",()=>webullChangePermission(true));
+  $("webull-live-pause")?.addEventListener("click",()=>webullChangePermission(false));
+  $("webull-evidence-refresh")?.addEventListener("click",()=>loadWebullEvidence().catch(err=>toast(err.message,true)));
+  $("webull-orders-refresh")?.addEventListener("click",()=>loadWebullOrders().catch(err=>toast(err.message,true)));
+  setInterval(()=>{
+    if(!csrf)return;
+    if(activeView==="webull")loadWebullTrader().catch(()=>{});
+    if(activeView==="webull-decisions")loadWebullEvidence().catch(()=>{});
+    if(activeView==="webull-orders")loadWebullOrders().catch(()=>{});
+  },30000);
 });
 function showView(view) {
   if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-forecast","operations","webull","webull-risk","webull-decisions","webull-orders"].includes(view))return;
@@ -1220,6 +1410,8 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="brokers") loadBrokerWorkspace().catch(err=>toast(err.message,true));
   if(view==="webull")loadWebullWorkspace().catch(err=>toast(err.message,true));
   if(view==="webull-risk")loadWebullRisk().catch(err=>toast(err.message,true));
+  if(view==="webull-decisions")loadWebullEvidence().catch(err=>toast(err.message,true));
+  if(view==="webull-orders")loadWebullOrders().catch(err=>toast(err.message,true));
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood-risk") loadRobinhoodRisk().catch(err=>toast(err.message,true));
   if(view==="robinhood-decisions") loadRobinhoodDecisionEvidence().catch(err=>toast(err.message,true));

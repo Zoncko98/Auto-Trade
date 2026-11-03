@@ -118,6 +118,7 @@ def main():
     spawn("dashboard",["/app/dashboard_server.py"],env)
     live_started_signature=None
     paper_last_spawn=0.0
+    webull_last_spawn=0.0
     while not _STOP:
         dash=CHILDREN.get("dashboard")
         if dash is None or dash.poll() is not None:
@@ -141,6 +142,13 @@ def main():
                 if rh_ready and (rh is None or rh.poll() is not None):
                     spawn("robinhood",["/app/robinhood_worker.py"],runtime_env)
                 if not rh_ready:stop_process("robinhood")
+                wb_ready=(STATE/"config"/"webull_openapi.json").is_file()
+                wb=CHILDREN.get("webull")
+                if wb_ready and (wb is None or wb.poll() is not None):
+                    if time.monotonic()-webull_last_spawn>=120 or wb is None and webull_last_spawn==0:
+                        webull_last_spawn=time.monotonic()
+                        spawn("webull",["/app/webull_worker.py"],runtime_env)
+                if not wb_ready:stop_process("webull")
                 for name,command in (
                    ("paper",["/app/live_worker.py","--account","paper","--run"]),
                    ("market",["/app/broker_market_data.py"])):
@@ -180,7 +188,7 @@ def main():
         else:
             for name in ("paper","market","live"):stop_process(name)
         time.sleep(4)
-    for name in ("robinhood","live","market","paper","dashboard"):stop_process(name)
+    for name in ("webull","robinhood","live","market","paper","dashboard"):stop_process(name)
     return 0
 
 if __name__=="__main__":sys.exit(main())

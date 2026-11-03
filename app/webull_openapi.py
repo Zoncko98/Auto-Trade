@@ -55,6 +55,10 @@ def store_credentials(state, payload):
         raise ValueError("Invalid app secret")
     if env not in ("sandbox","production"):
         raise ValueError("Invalid environment")
+    # Rotating broker credentials must revoke any previous live authorization
+    # before changing the signing principal. Never carry an armed policy over.
+    from webull_trade_config import disarm
+    disarm(state)
     folder=_file(state).parent
     folder.mkdir(mode=0o700,parents=True,exist_ok=True)
     if folder.stat().st_mode & 0o077:
@@ -81,11 +85,10 @@ def _load(state):
         raise WebullError("Invalid Webull environment")
     return cfg
 
-def _client(state):
+def _api(state):
     cfg=_load(state)
     try:
         from webull.core.client import ApiClient
-        from webull.trade.trade_client import TradeClient
     except ImportError:
         raise WebullError("Webull official SDK is not installed") from None
     api=ApiClient(cfg["app_key"],cfg["app_secret"],"us")
@@ -95,7 +98,14 @@ def _client(state):
     if token_dir.stat().st_mode & 0o077: raise WebullError("Unsafe token directory permissions")
     api.set_token_dir(str(token_dir))
     _configure_sdk_logging(api)
-    return TradeClient(api),cfg["environment"]
+    return api,cfg["environment"]
+
+def _client(state):
+    try:
+        from webull.trade.trade_client import TradeClient
+    except ImportError:raise WebullError("Webull official SDK is not installed") from None
+    api,env=_api(state)
+    return TradeClient(api),env
 
 def _data(response):
     if response.status_code != 200:
