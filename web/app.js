@@ -1597,8 +1597,8 @@ async function loadWebullAccount(){
     const assets=Array.isArray(moneyFields.account_currency_assets)?moneyFields.account_currency_assets:[];
     assets.filter(x=>x.currency==="USD").forEach(a=>
       webullRow(balances,"Available USD buying power",webullPrice(a.buying_power)));
-    positions.replaceChildren();
-    const holdings=Array.isArray(result.positions)?result.positions:[];
+    // renderWebullPortfolio() already populated the holdings table.
+    // Do not clear it after rendering.
     updated.textContent="Broker data refreshed "+new Date().toLocaleString()+" · "+result.environment+
       " · read-only, not an execution authorization";
   }catch(error){
