@@ -64,6 +64,10 @@ def _client(state):
         raise WebullError("Webull official SDK is not installed") from None
     api=ApiClient(cfg["app_key"],cfg["app_secret"],"us")
     api.add_endpoint("us",("api.sandbox.webull.com" if cfg["environment"]=="sandbox" else "api.webull.com"))
+    token_dir=Path(state)/"webull"/cfg["environment"]/"tokens"
+    token_dir.mkdir(parents=True,mode=0o700,exist_ok=True)
+    if token_dir.stat().st_mode & 0o077: raise WebullError("Unsafe token directory permissions")
+    api.set_token_dir(str(token_dir))
     return TradeClient(api),cfg["environment"]
 
 def _data(response):
@@ -109,5 +113,5 @@ def portfolio(state,account_id):
         raise WebullError("Account not authorized")
     return {"account_id":account_id,"environment":env,
             "balances":_data(client.account_v2.get_account_balance(account_id)),
-            "positions":_data(client.account_v2.get_account_positions(account_id)),
+            "positions":_data(client.account_v2.get_account_position(account_id)),
             "execution_enabled":False}
