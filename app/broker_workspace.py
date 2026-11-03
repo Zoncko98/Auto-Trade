@@ -197,7 +197,7 @@ def robinhood_status(state):
                  for row in history[-100:] if isinstance(row,dict)]
         return {"effective_state":effective,"effective_detail":detail,"worker_fresh":fresh,
                 "decision_evidence":history,"policy_enabled":armed,"worker":{k:worker.get(k) for k in
-                    ("updated_at","worker","quotes_checked","pairs_checked","universe_size","scan_batch",
+                    ("updated_at","worker","quotes_checked","pairs_checked","universe_size","scan_batch","coinbase_feed","coinbase_live_pairs","coinbase_scanned_pairs","market_data_source",
                      "pending_order_intents","risk_check", "last_signal","observations","signal_diagnostics","ai_review_status","ai_connection_status","ai_model","ai_reason","execution_status","live_orders_allowed",
                      "last_order_confirmed","reason")},
                 "provider":"robinhood_crypto","credentials_saved":credential_saved,"connected":True,

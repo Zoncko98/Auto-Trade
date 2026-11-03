@@ -34,16 +34,18 @@ def observe(history,symbol,quote,now=None):
     signal="INSUFFICIENT_HISTORY"
     momentum=None
     if len(fresh)>=4 and max(a for a,_ in fresh)>=300:
-        old=fresh[0][1]
+        fresh.sort(key=lambda point:-point[0])
+        checks=[fresh[int(i*(len(fresh)-1)/3)][1] for i in range(4)]
+        old=checks[0]
         momentum=(mid/old-1)*100
         signal=("MOMENTUM_CANDIDATE" if Decimal("0.5")<=momentum<=Decimal("2")
                 and spread<=Decimal("0.5") and
-                all(fresh[i][1]>fresh[i-1][1] for i in range(1,len(fresh)))
+                all(checks[i]>checks[i-1] for i in range(1,4))
                 else "NO_SIGNAL")
     exit_candidate=(len(fresh)>=4 and max(a for a,_ in fresh)>=300
         and momentum is not None and Decimal("-2")<=momentum<=Decimal("-0.5")
         and spread<=Decimal("0.5") and
-        all(fresh[i][1]<fresh[i-1][1] for i in range(1,len(fresh))))
+        all(checks[i]<checks[i-1] for i in range(1,4)))
     return {"at":now.isoformat(),"symbol":symbol,"mid":str(mid),
             "technical_exit":exit_candidate,
             "spread_pct":round(float(spread),4),"momentum_pct":round(float(momentum),4) if momentum is not None else None,

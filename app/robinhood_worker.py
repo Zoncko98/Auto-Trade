@@ -33,7 +33,7 @@ def snapshot(client):
             continue
     return {"accounts":out,"quotes_checked":quotes_checked,"pairs_checked":len(PAIRS)}
 
-def run_once(state,client):
+def run_once(state,client,feed=None):
     result=snapshot(client)
     # One shared worker records observed crypto momentum and keeps the AI
     # approval boundary closed until a validated crypto research path exists.
@@ -57,6 +57,12 @@ def run_once(state,client):
         universe=[]
     if not universe:
         universe=list(PAIRS)
+    from coinbase_market_feed import read_snapshot
+    market=read_snapshot(state)
+    if feed is not None:
+        feed.update_symbols(universe)
+    result["coinbase_feed"]=market["state"]
+    result["coinbase_live_pairs"]=len(market["quotes"])
     cursor_path=Path(state)/"robinhood"/"universe_cursor.json"
     try:
         cursor=int(json.loads(cursor_path.read_text()).get("offset",0))
@@ -66,23 +72,49 @@ def run_once(state,client):
     write_atomic(cursor_path,{"offset":(start+len(batch))%len(universe)})
     result["universe_size"]=len(universe)
     result["scan_batch"]=batch
-    observations=[]
+    observations=[];broker_observations=[];coinbase_used=0
+    from robinhood_order_pass import _quote_prices
     for symbol in batch:
         try:
-            observations.append(observe(history,symbol,client.quote(symbol)))
+            if symbol in market["quotes"]:
+                points=market["history"].get(symbol,[])
+                # Remove the latest same-bucket sample; observe() appends the
+                # independently validated current Coinbase bid/ask midpoint.
+                recent=[x for x in points if
+                        (datetime.now(timezone.utc)-
+                         datetime.fromisoformat(x["at"])).total_seconds()>=20]
+                row=observe(recent,symbol,market["quotes"][symbol])
+                row["source"]="COINBASE_WS"
+                coinbase_used+=1
+                if row.get("technical_approved") or row.get("technical_exit"):
+                    rb,ra=_quote_prices(client.quote(symbol),symbol)
+                    cb,ca=_quote_prices(market["quotes"][symbol],symbol)
+                    cb_mid=(cb+ca)/2;rb_mid=(rb+ra)/2
+                    if abs(rb_mid/cb_mid-1)*100>Decimal("0.75") or (ra-rb)/ra*100>Decimal("0.5"):
+                        row["technical_approved"]=False
+                        row["technical_exit"]=False
+                        row["signal"]="VENUE_PRICE_MISMATCH"
+                observations.append(row)
+            else:
+                row=observe(history,symbol,client.quote(symbol))
+                row["source"]="ROBINHOOD_POLL_FALLBACK"
+                observations.append(row)
+                broker_observations.append(row)
         except (RobinhoodUnavailable,ValueError,TypeError,KeyError):
             continue
+    result["coinbase_scanned_pairs"]=coinbase_used
+    result["market_data_source"]="COINBASE_PUBLIC_WS" if coinbase_used else "ROBINHOOD_POLL_FALLBACK"
     result["pairs_checked"]=len(batch)
     result["quotes_checked"]=len(observations)
     history=(history+[{"symbol":r["symbol"],"mid":r["mid"],"at":r["at"]}
-                       for r in observations])[-2400:]
+                       for r in broker_observations])[-2400:]
     write_atomic(history_path,history)
     signal_candidates=[r for r in observations if r["technical_approved"]]
     result["last_signal"]=(signal_candidates[0]["symbol"]+": MOMENTUM_CANDIDATE"
                           if signal_candidates else
                           "NO_SIGNAL" if observations else "QUOTE_UNAVAILABLE")
     result["signal_diagnostics"]=" · ".join(
-        r["symbol"]+": "+r["signal"]+
+        r["symbol"]+" ["+r.get("source","unverified")+"]: "+r["signal"]+
         (" ("+str(r["momentum_pct"])+"% momentum, "+str(r["spread_pct"])+"% spread)" if r.get("momentum_pct") is not None else "")
         for r in observations) or "No valid broker quotes"
     result["observations"]=len(observations)
@@ -215,10 +247,13 @@ def run_once(state,client):
 
 def main():
     state=Path(os.getenv("STATE_DIR","/state"))
+    from coinbase_market_feed import CoinbaseFeed
+    feed=CoinbaseFeed(state)
+    feed.start()
     while True:
         try:
             client=RobinhoodCryptoAdapter.from_state(state)
-            report=run_once(state,client)
+            report=run_once(state,client,feed=feed)
             print("Robinhood monitoring:",report["quotes_checked"],"quote responses",flush=True)
         except (OSError,ValueError,KeyError,TypeError,RobinhoodUnavailable) as exc:
             write_atomic(state/"robinhood"/"worker_status.json",{

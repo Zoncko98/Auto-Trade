@@ -265,6 +265,11 @@ async function loadRobinhoodWorkspace(){
     if(orderPermission)orderPermission.textContent=effective.label;
     if(executionPill)executionPill.textContent=effective.label.toUpperCase();
     const scanEl=$("robinhood-scanner-state");
+    const marketFeed=$("robinhood-market-feed");
+    if(marketFeed)marketFeed.textContent="Coinbase public WebSocket: "+(worker.coinbase_feed||"UNVERIFIED")+
+      " · Live pairs: "+(worker.coinbase_live_pairs??0)+
+      " · Current scan from Coinbase: "+(worker.coinbase_scanned_pairs??0)+
+      " · Fallback: Robinhood signed quotes";
     const diag=$("robinhood-signal-diagnostics");
     if(diag)diag.textContent=worker.signal_diagnostics||"No per-pair diagnostics recorded";
     const orderEl=$("robinhood-order-state");
