@@ -50,14 +50,16 @@ def core_stock_session(now):
     et=now.astimezone(ZoneInfo("America/New_York"))
     return et.weekday()<5 and dtime(9,35)<=et.time().replace(tzinfo=None)<dtime(15,50)
 
-def evaluate(symbol,asset,quote,bars,now=None):
+def evaluate(symbol,asset,quote,bars,now=None,source="WEBULL_M1"):
+    if source not in ("WEBULL_M1","COINBASE_WS","ALPACA_IEX_WS"):
+        raise WebullSignalError("Unsupported quote provenance")
     now=now or datetime.now(timezone.utc)
     if now.tzinfo is None:raise WebullSignalError("Time zone required")
     if asset not in ("EQUITY","CRYPTO"):raise WebullSignalError("Unsupported market")
     if asset=="EQUITY" and not core_stock_session(now):
         return {"symbol":symbol,"asset":asset,"technical_approved":False,
                 "technical_exit":False,"reason":"Outside conservative US core stock session",
-                "at":now.isoformat(),"source":"WEBULL_M1"}
+                "at":now.isoformat(),"source":source}
     bid,ask,spread=_quote(quote,now)
     if not isinstance(bars,list):raise WebullSignalError("Missing M1 bar history")
     valid={}
@@ -74,7 +76,7 @@ def evaluate(symbol,asset,quote,bars,now=None):
     if len(points)<6 or (points[-1][0]-points[0][0]).total_seconds()<300:
         return {"symbol":symbol,"asset":asset,"technical_approved":False,
                 "technical_exit":False,"reason":"Need six recent completed 1-minute bars spanning 5 minutes",
-                "at":now.isoformat(),"source":"WEBULL_M1","spread_pct":float(spread)}
+                "at":now.isoformat(),"source":source,"spread_pct":float(spread)}
     if (now-points[-1][0]).total_seconds()>180:
         raise WebullSignalError("Last completed price bar stale")
     mid=(bid+ask)/2
@@ -85,7 +87,7 @@ def evaluate(symbol,asset,quote,bars,now=None):
     approved=Decimal("0.5")<=momentum<=Decimal("2") and rising
     exit_signal=Decimal("-2")<=momentum<=Decimal("-0.5") and declining
     return {"symbol":symbol,"asset":asset,"technical_approved":approved,
-            "technical_exit":exit_signal,"source":"WEBULL_M1",
+            "technical_exit":exit_signal,"source":source,
             "at":now.isoformat(),"bid":str(bid),"ask":str(ask),
             "mid":str(mid),"spread_pct":round(float(spread),4),
             "momentum_pct":round(float(momentum),4),

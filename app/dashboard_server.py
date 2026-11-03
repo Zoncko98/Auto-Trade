@@ -367,8 +367,9 @@ class Handler(BaseHTTPRequestHandler):
                     worker["account_readiness"]=[
                         account_readiness(a,allow_margin) for a in worker["broker_accounts"]
                         if isinstance(a,dict) and isinstance(a.get("account_id"),str)]
+                from webull_streaming import feed_status
                 return self._json(200,{"policy":policy,"risk":risk,
-                    "worker":worker,"orders":orders,
+                    "worker":worker,"stream_status":feed_status(STATE_DIR),"orders":orders,
                     "execution_validated":LIVE_EXECUTION_VERIFIED,
                     "execution_enabled":policy.get("enabled") is True and LIVE_EXECUTION_VERIFIED})
             if UNIFIED_APP and path == "/api/webull/evidence":
@@ -381,6 +382,9 @@ class Handler(BaseHTTPRequestHandler):
                 from webull_risk import read
                 try:return self._json(200,read(STATE_DIR))
                 except (OSError,ValueError):return self._json(503,{"error":"Webull risk plan unavailable"})
+            if UNIFIED_APP and path == "/api/webull/stock-feed":
+                from webull_streaming import feed_status
+                return self._json(200,feed_status(STATE_DIR))
             if UNIFIED_APP and path == "/api/webull/status":
                 from webull_openapi import status
                 return self._json(200,status(STATE_DIR))
@@ -627,6 +631,13 @@ class Handler(BaseHTTPRequestHandler):
             try:return self._json(200,save(STATE_DIR,self._body()))
             except (ValueError,TypeError,OSError):
                 return self._json(400,{"error":"Invalid Webull risk plan or storage unavailable"})
+        if UNIFIED_APP and path == "/api/webull/stock-feed":
+            from webull_streaming import save_stock_feed, StreamError
+            try:
+                result=save_stock_feed(STATE_DIR,self._body())
+                return self._json(200,result)
+            except (StreamError,OSError,ValueError,TypeError):
+                return self._json(400,{"error":"Invalid stock WebSocket feed credentials or storage"})
         if UNIFIED_APP and path == "/api/webull/connect":
             from webull_openapi import store_credentials,WebullError
             try:return self._json(200,store_credentials(STATE_DIR,self._body()))

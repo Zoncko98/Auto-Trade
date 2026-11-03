@@ -18,6 +18,7 @@ from webull_account_preferences import read as read_account_preferences
 from webull_journal import WebullJournal,JournalBlocked
 from webull_signals import evaluate,_quote,core_stock_session,WebullSignalError
 from dashboard_control import write_atomic
+from webull_streaming import read_snapshot, market_observation, feed_status
 
 STOCKS=("F","SOFI","AAPL","MSFT","AMD","NVDA","TSLA","PLTR","PFE","SNAP","NIO","AAL")
 CRYPTOS=("BTCUSD","ETHUSD","SOLUSD","DOGEUSD","XRPUSD","AVAXUSD")
@@ -290,20 +291,31 @@ def _scan(root,broker,rotation,report):
     report["scan_universe"]={"stocks":len(STOCKS),"crypto":len(CRYPTOS)}
     report["scanned_symbols"]=[s for s,_ in symbols]
     report["signals"]=[]
+    stream=read_snapshot(root)
+    report["stream_feeds"]=feed_status(root)
     observed=[]
     for symbol,asset in symbols:
+        origin="WEBULL_M1"
         try:
-            q=broker.quote(symbol,asset)
-            # Crypto REST quote endpoint enforces <=1 request/s per key.
-            if asset=="CRYPTO":time.sleep(1.05)
-            bars=broker.bars(symbol,asset)
-            if asset=="CRYPTO":time.sleep(1.05)
-            result=evaluate(symbol,asset,q,bars)
+            external=market_observation(stream,asset,symbol)
+            if external:
+                # Exchange WebSockets are discovery-only, never Webull order
+                # prices. The order path rechecks Webull quote and spread.
+                origin=external["source"]
+                result=evaluate(symbol,asset,external["quote"],
+                    external["bars"],source=origin)
+            else:
+                q=broker.quote(symbol,asset)
+                # Crypto REST quote endpoint enforces <=1 request/s per key.
+                if asset=="CRYPTO":time.sleep(1.05)
+                bars=broker.bars(symbol,asset)
+                if asset=="CRYPTO":time.sleep(1.05)
+                result=evaluate(symbol,asset,q,bars)
             report["signals"].append({k:result.get(k) for k in
                 ("symbol","asset","technical_approved","momentum_pct","spread_pct","reason","source")})
             if result.get("technical_approved"):observed.append(result)
         except Exception as exc:
-            report["signals"].append({"symbol":symbol,"asset":asset,
+            report["signals"].append({"symbol":symbol,"asset":asset,"source":origin,
                 "technical_approved":False,"reason":"MARKET_DATA_"+_safe_public(exc)})
     observed.sort(key=lambda v:(v.get("momentum_pct") or 0),reverse=True)
     report["ai_reviews"]=[]
@@ -459,7 +471,7 @@ def _persist(root,report):
     entry={k:report.get(k) for k in (
         "updated_at","execution_status","execution_reason","scan_universe",
         "scanned_symbols","signals","ai_reviews","approved_candidates",
-        "reconciliation","pending_orders","last_submission","market_readiness")}
+        "reconciliation","pending_orders","last_submission","market_readiness","stream_feeds")}
     write_atomic(history,(old+[entry])[-120:])
 
 def main():

@@ -119,6 +119,8 @@ def main():
     live_started_signature=None
     paper_last_spawn=0.0
     webull_last_spawn=0.0
+    webull_feed_config_time=None
+    webull_feed_last_spawn=0.0
     while not _STOP:
         dash=CHILDREN.get("dashboard")
         if dash is None or dash.poll() is not None:
@@ -149,6 +151,20 @@ def main():
                         webull_last_spawn=time.monotonic()
                         spawn("webull",["/app/webull_worker.py"],runtime_env)
                 if not wb_ready:stop_process("webull")
+                alpaca_file=STATE/"webull"/"alpaca_iex_credentials.json"
+                feed_mtime=alpaca_file.stat().st_mtime_ns if alpaca_file.is_file() else None
+                feed=CHILDREN.get("webull-feed")
+                if wb_ready:
+                    if feed is not None and webull_feed_config_time!=feed_mtime:
+                        stop_process("webull-feed")
+                        feed=None
+                    if feed is None or feed.poll() is not None:
+                        if time.monotonic()-webull_feed_last_spawn>=20 or webull_feed_last_spawn==0:
+                            webull_feed_last_spawn=time.monotonic()
+                            webull_feed_config_time=feed_mtime
+                            spawn("webull-feed",["/app/webull_streaming.py"],runtime_env)
+                else:
+                    stop_process("webull-feed")
                 for name,command in (
                    ("paper",["/app/live_worker.py","--account","paper","--run"]),
                    ("market",["/app/broker_market_data.py"])):
@@ -188,7 +204,7 @@ def main():
         else:
             for name in ("paper","market","live"):stop_process(name)
         time.sleep(4)
-    for name in ("webull","robinhood","live","market","paper","dashboard"):stop_process(name)
+    for name in ("webull-feed","webull","robinhood","live","market","paper","dashboard"):stop_process(name)
     return 0
 
 if __name__=="__main__":sys.exit(main())

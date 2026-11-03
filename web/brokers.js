@@ -89,7 +89,50 @@ function brokerCard(broker){
       finally{key.value="";secret.value="";submit.disabled=false;}
     });
     card.append(health,accounts,setup);
+    const streamHeader=brokerEl("h3","Open WebSocket market feeds");
+    const streamNote=brokerEl("p","Coinbase: public crypto bid/ask and ticker stream, no key required. "+
+      "US stocks: optional free Alpaca IEX stream (separate market-data keys). IEX is one exchange, not consolidated NBBO. "+
+      "WebSocket prices are for discovery only; Webull must independently confirm order pricing and spreads.","broker-note");
+    const feedStatus=brokerEl("p","Checking market-data connections…","broker-note");
+    const feedForm=brokerEl("form",null,"broker-actions");
+    feedForm.autocomplete="off";
+    const feedKeyLabel=brokerEl("label","Alpaca IEX market-data API Key");
+    const feedKey=document.createElement("input");feedKey.type="text";feedKey.required=true;feedKey.autocomplete="off";
+    const feedSecretLabel=brokerEl("label","Alpaca API Secret (market data only)");
+    const feedSecret=document.createElement("input");feedSecret.type="password";feedSecret.required=true;feedSecret.autocomplete="new-password";
+    const saveFeed=brokerEl("button","Save IEX WebSocket access");saveFeed.type="submit";
+    const disableFeed=brokerEl("button","Remove IEX credentials");disableFeed.type="button";
+    feedForm.append(feedKeyLabel,feedKey,feedSecretLabel,feedSecret,saveFeed,disableFeed);
+    async function refreshFeeds(){
+      const data=await request("/api/webull/stock-feed");
+      const cs=data.crypto||{},st=data.stocks||{};
+      feedStatus.textContent="Crypto · Coinbase public WS: "+(cs.status||"STARTING")+
+        " · Stocks · Alpaca IEX: "+(st.status||"NOT_CONFIGURED")+
+        " · "+(data.stock_feed_configured?"IEX keys stored":"IEX keys not configured")+
+        " · broker execution requires Webull quote verification";
+      disableFeed.disabled=!data.stock_feed_configured;
+    }
+    feedForm.addEventListener("submit",async e=>{
+      e.preventDefault();saveFeed.disabled=true;
+      try{
+        await request("/api/webull/stock-feed",{method:"POST",
+          body:JSON.stringify({key:feedKey.value.trim(),secret:feedSecret.value.trim()})});
+        await refreshFeeds();
+      }catch(error){feedStatus.textContent="IEX setup error: "+error.message;}
+      finally{feedKey.value="";feedSecret.value="";saveFeed.disabled=false;}
+    });
+    disableFeed.addEventListener("click",async()=>{
+      if(!window.confirm("Remove separate Alpaca IEX market-data credentials? Coinbase crypto feed will remain active."))return;
+      disableFeed.disabled=true;
+      try{
+        await request("/api/webull/stock-feed",{method:"POST",body:JSON.stringify({enabled:false})});
+        await refreshFeeds();
+      }catch(error){feedStatus.textContent="Stock-feed change failed: "+error.message;}
+      finally{disableFeed.disabled=false;}
+    });
+    card.append(streamHeader,streamNote,feedStatus,feedForm);
     refresh().catch(()=>{health.textContent="Webull status unavailable";});
+    refreshFeeds().catch(()=>{feedStatus.textContent="Market-data feed status unavailable";});
   }
   if(broker.id==="robinhood_crypto"){
     const health=brokerEl("p","Robinhood connection: checking…","broker-note");

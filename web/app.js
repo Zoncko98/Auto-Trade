@@ -1256,6 +1256,14 @@ async function loadWebullTrader(){
     webullRow(root,"AI approvals",Array.isArray(worker.ai_reviews)?
       worker.ai_reviews.filter(x=>x.approved===true).length+" of "+worker.ai_reviews.length+" reviewed":"No reviews");
     webullRow(root,"Market symbols checked",Array.isArray(worker.signals)?worker.signals.length:"Unavailable");
+    const feeds=data.stream_status||worker.stream_feeds||{};
+    webullRow(root,"Crypto discovery feed", "Coinbase public WebSocket · "+(feeds.crypto?.status||"NOT_CONNECTED"));
+    webullRow(root,"Stock discovery feed", "Alpaca IEX WebSocket · "+(feeds.stocks?.status||"NOT_CONFIGURED")+
+      (feeds.stock_feed_configured?" · configured":" · configure free feed in Broker Connections"));
+    webullRow(root,"Execution quote source","Webull broker only · independent fresh bid/ask required");
+    const signalSources=Array.isArray(worker.signals)?worker.signals:[];
+    const sourceNames=[...new Set(signalSources.map(s=>s.source).filter(Boolean))];
+    if(sourceNames.length)webullRow(root,"Scan observation source",sourceNames.join(" · "));
     const ready=worker.market_readiness||{};
     for(const [asset,label] of [["stocks","Stocks"],["crypto","Crypto"]]){
       const item=ready[asset];
@@ -1429,6 +1437,7 @@ async function loadWebullEvidence(){
     signals.slice(0,6).forEach(s=>webullRow(root,
       (s.asset==="CRYPTO"?"Crypto ":"Stock ")+(s.symbol||"?"),
       (s.technical_approved?"MOMENTUM CANDIDATE":"No qualified signal")+
+      " · "+(s.source||"Source unavailable")+
       " · "+(s.reason||"No recorded reason")+
       (s.momentum_pct==null?"":" · "+s.momentum_pct+"% momentum")));
     const ai=Array.isArray(item.ai_reviews)?item.ai_reviews:[];
