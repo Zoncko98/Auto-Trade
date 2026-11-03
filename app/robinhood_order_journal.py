@@ -154,9 +154,10 @@ class OrderJournal:
             if match is None:
                 if row.get("status") not in FINAL:
                     row["reconcile_miss_count"]=int(row.get("reconcile_miss_count") or 0)+1
+                    row.setdefault("first_reconcile_miss_at",now.isoformat())
                     row["last_reconcile_check_at"]=now.isoformat()
-                    created=_timestamp(row.get("created_at"))
-                    age=(now-created.astimezone(timezone.utc)).total_seconds() if created else None
+                    reference=_timestamp(row.get("created_at")) or _timestamp(row.get("first_reconcile_miss_at"))
+                    age=(now-reference.astimezone(timezone.utc)).total_seconds() if reference else None
                     # The full broker order list is authoritative. Require both
                     # repeated successful misses and a substantial grace period
                     # before resolving a legacy local intent that has no broker record.

@@ -316,8 +316,12 @@ def run_once(state,client,feed=None):
     if execution=="NOT_ARMED":
         if exit_attempted:
             result["execution_reason"]=result.get("execution_reason","Managed exit did not submit")
+        elif exit_candidates and signal_candidates:
+            result["ai_review_status"]="NOT_INVOKED_POSITION_MANAGEMENT_PRIORITY"
+            result["ai_reason"]="Entry AI review skipped because an existing bot position had a higher-priority exit evaluation"
+            result["execution_reason"]="Entry candidate deferred while managed-position exit evaluation had priority"
         elif signal_candidates and approved_signal is None:
-            result["execution_reason"]="Technical candidates reviewed; AI/news gate approved none"
+            result["execution_reason"]="Technical candidates were AI-reviewed; news gate approved none"
         else:
             result["execution_reason"]="No qualified technical entry or managed exit"
 

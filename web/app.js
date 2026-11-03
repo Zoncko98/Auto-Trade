@@ -213,7 +213,8 @@ function renderRobinhoodPendingOrder(data){
   const order=rows[0]||{};
   $("rh-pending-symbol").textContent=(order.symbol||"Unknown")+" · "+String(order.side||"unknown").toUpperCase();
   $("rh-pending-size").textContent=(order.quantity||"unknown")+" @ limit "+(order.limit_price||"unknown");
-  $("rh-pending-local").textContent=(order.local_status||"unknown")+" · "+formatAge(Number(order.age_seconds));
+  $("rh-pending-local").textContent=(order.local_status||"unknown")+" · "+
+    (order.age_seconds==null?"age unavailable":formatAge(Number(order.age_seconds)));
   $("rh-pending-broker").textContent=order.broker_matched?
     "Matched · "+(order.broker_state||"state unavailable"):
     "Not matched · "+(order.broker_lookup_detail||"Robinhood record not found");
@@ -228,7 +229,34 @@ function renderRobinhoodPendingOrder(data){
     "Auto Trader will keep the order lock until this broker state is final and required fill fields are reconciled.":
     "Auto Trader has a durable local intent but cannot currently match it to a Robinhood order. "+
     "Successful broker-history misses: "+(order.reconcile_miss_count??0)+
-    ". Legacy orphan recovery requires at least 10 successful misses and 10 minutes before the lock can resolve as not submitted.";
+    ". Automatic legacy recovery uses repeated successful misses plus a verified age window. "+
+    "Manual resolution performs one more fresh Robinhood history check before releasing the lock.";
+  const resolve=$("rh-pending-resolve");
+  if(resolve){
+    const eligible=order.manual_resolution_eligible===true;
+    resolve.classList.toggle("hidden",!eligible);
+    resolve.disabled=!eligible;
+    resolve.dataset.clientOrderId=eligible?(order.client_order_id||""):"";
+  }
+}
+async function resolveRobinhoodPendingOrder(){
+  const button=$("rh-pending-resolve");
+  const clientOrderId=button?.dataset.clientOrderId||"";
+  if(!clientOrderId)throw Error("Pending orphan is not eligible for manual resolution");
+  const original=button.textContent;
+  button.disabled=true;
+  button.textContent="Verifying Robinhood…";
+  try{
+    const result=await request("/api/robinhood/pending/resolve",{
+      method:"POST",body:JSON.stringify({client_order_id:clientOrderId})
+    });
+    toast(result.reason||"Pending order lock resolved");
+    await loadRobinhoodDecisionEvidence();
+    await loadRobinhoodWorkspace().catch(()=>{});
+  }finally{
+    button.textContent=original;
+    button.disabled=false;
+  }
 }
 async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
@@ -629,6 +657,8 @@ function bindEvents(){
   $("robinhood-refresh")?.addEventListener("click",()=>loadRobinhoodWorkspace().catch(err=>toast(err.message,true)));
   $("robinhood-configure")?.addEventListener("click",()=>showView("brokers"));
   $("robinhood-ai-models")?.addEventListener("click",()=>showView("local"));
+  $("rh-pending-resolve")?.addEventListener("click",()=>resolveRobinhoodPendingOrder()
+    .catch(err=>toast(err.message,true)));
   document.querySelectorAll(".workspace-tile:not(:disabled)").forEach(tile=>
     tile.addEventListener("click",()=>{
       if(!AVAILABLE_WORKSPACES.includes(tile.dataset.workspace))return;

@@ -180,8 +180,9 @@ def _pending_order_diagnostics(state,client):
             except Exception:
                 broker_error="Robinhood order lookup unavailable"
         created=row.get("created_at")
+        first_miss=row.get("first_reconcile_miss_at")
         broker_created=broker_match.get("created_at") if isinstance(broker_match,dict) else None
-        reference=created or broker_created
+        reference=created or first_miss or broker_created
         age_seconds=None
         if isinstance(reference,str):
             try:
@@ -209,9 +210,50 @@ def _pending_order_diagnostics(state,client):
             "average_price":broker_match.get("average_price") if isinstance(broker_match,dict) else None,
             "broker_lookup_detail":broker_error,
             "reconcile_miss_count":int(row.get("reconcile_miss_count") or 0),
+            "first_reconcile_miss_at":row.get("first_reconcile_miss_at"),
             "last_reconcile_check_at":row.get("last_reconcile_check_at"),
+            "manual_resolution_eligible":(
+                broker_match is None and not row.get("broker_order_id")
+                and int(row.get("reconcile_miss_count") or 0)>=10),
         })
     return result
+
+def resolve_robinhood_orphan(state,payload,client=None):
+    """Resolve only a proven local orphan after a fresh authoritative broker-history miss."""
+    from robinhood_order_journal import OrderJournal,UnreconciledOrder
+    from robinhood_crypto_gateway import RobinhoodUnavailable
+    if not isinstance(payload,dict) or set(payload)!={"client_order_id"}:
+        raise ValueError("Pending order identifier required")
+    client_id=payload.get("client_order_id")
+    if not isinstance(client_id,str) or not client_id:
+        raise ValueError("Pending order identifier required")
+    journal=OrderJournal(state)
+    matches=[row for row in journal.pending()
+             if isinstance(row,dict) and row.get("client_order_id")==client_id]
+    if len(matches)!=1:
+        raise ValueError("Pending order is no longer available")
+    row=matches[0]
+    misses=int(row.get("reconcile_miss_count") or 0)
+    if misses<10:
+        raise ValueError("At least 10 successful Robinhood history misses are required")
+    if row.get("broker_order_id"):
+        raise ValueError("Robinhood order ID exists; manual orphan resolution is not permitted")
+    account=row.get("account")
+    if not isinstance(account,str):
+        raise ValueError("Pending order account unavailable")
+    client=client or _robinhood_client(state)
+    broker_rows=client.orders(account)
+    broker_matches=[item for item in broker_rows if isinstance(item,dict)
+                    and item.get("client_order_id")==client_id]
+    if broker_matches:
+        journal.reconcile(account,broker_rows)
+        raise ValueError("Robinhood now reports this order; reconciliation must use broker state")
+    journal.mark_submission_rejected(
+        client_id,
+        "Operator resolved local orphan after "+str(misses)+
+        " prior successful history misses and a fresh Robinhood history check found no order")
+    return {"resolved":True,"client_order_id":client_id,
+            "reason":"Fresh Robinhood order history confirmed no matching order; duplicate-order lock released"}
 
 def robinhood_status(state):
     """Verify broker account access, never sending a secret to the browser."""

@@ -19,6 +19,23 @@ class JournalTests(unittest.TestCase):
    self.assertEqual(row["status"],"rejected")
    self.assertEqual(row["reconcile_miss_count"],10)
    self.assertIn("No Robinhood order found",row["submission_error"])
+ def test_legacy_missing_created_at_uses_first_reconcile_miss_time(self):
+  with tempfile.TemporaryDirectory() as root:
+   j=OrderJournal(root)
+   j.record_intent("account1","legacy-no-created","PENGU-USD","721","0.0069283")
+   doc=j.load()
+   doc["orders"][0].pop("created_at",None)
+   j._save(doc)
+   self.assertFalse(j.reconcile("account1",[]))
+   row=j.pending()[0]
+   self.assertIsNotNone(row.get("first_reconcile_miss_at"))
+   doc=j.load()
+   doc["orders"][0]["first_reconcile_miss_at"]=(datetime.now(timezone.utc)-timedelta(minutes=11)).isoformat()
+   doc["orders"][0]["reconcile_miss_count"]=9
+   j._save(doc)
+   self.assertTrue(j.reconcile("account1",[]))
+   self.assertFalse(j.pending())
+
  def test_intent_persists_and_blocks_duplicates(self):
   with tempfile.TemporaryDirectory() as root:
    j=OrderJournal(root)
