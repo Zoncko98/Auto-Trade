@@ -1900,6 +1900,26 @@ function renderOverview(data,points,recent){
   $("start-btn").disabled=(mode==="running");
   $("pause-btn").disabled=(mode==="paused");
   $("stop-btn").disabled=(mode==="stopped");
+  const paperPositions=Array.isArray(a.positions)?a.positions:[];
+  const hasMarketValues=paperPositions.every(p=>p.market_value!=null&&Number.isFinite(Number(p.market_value)));
+  const holdingsValue=hasMarketValues?paperPositions.reduce((sum,p)=>sum+Number(p.market_value),0):null;
+  const unrealized=a.unrealized_pnl!=null&&Number.isFinite(Number(a.unrealized_pnl))?Number(a.unrealized_pnl):null;
+  const hasCosts=paperPositions.length>0&&paperPositions.every(p=>p.entry_price!=null&&p.quantity!=null&&
+    Number.isFinite(Number(p.entry_price))&&Number.isFinite(Number(p.quantity))&&Number(p.entry_price)>=0&&Number(p.quantity)>0);
+  const totalCost=hasCosts?paperPositions.reduce((sum,p)=>sum+Number(p.entry_price)*Number(p.quantity),0):null;
+  $("paper-performance-value").textContent=holdingsValue===null?"Unavailable":money(holdingsValue);
+  $("paper-performance-pnl").textContent=unrealized===null?"Unavailable":money(unrealized);
+  $("paper-performance-return").textContent=totalCost>0&&unrealized!==null?(unrealized/totalCost*100).toFixed(2)+"%":"—";
+  $("paper-performance-note").textContent=paperPositions.length?
+    paperPositions.length+" simulated holdings · return calculated from recorded entry prices where complete; not a broker return.":
+    "No open simulated positions. Historical paper equity is separate from open-holdings returns.";
+  $("paper-holdings-coverage").textContent=paperPositions.length+" simulated holdings";
+  $("stat-open-holdings").textContent=String(paperPositions.length);
+  $("paper-strategy-mode").textContent=mode.toUpperCase();
+  $("paper-worker-status").textContent=r.online===true?"Reporting":r.online===false?"Not reporting":"Unavailable";
+  $("paper-execution-label").textContent=r.online===true?"SIMULATED · RUNNING":"SIMULATED · CHECK STATUS";
+  $("paper-last-decision").textContent=r.last_paper_decision||"No recent decision";
+  $("paper-last-symbol").textContent=r.last_paper_symbol||"Not reported";
   $("stat-equity").textContent=money(a.equity);
   $("stat-equity-desc").textContent=a.initialized?"Mark-to-market paper equity":"Starting simulated balance";
   $("stat-cash").textContent=money(a.cash);

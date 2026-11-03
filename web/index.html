@@ -262,16 +262,17 @@
               <small>Since purchase · not today's return</small></div>
           </div>
           <p class="panel-note" id="rh-performance-disclosure">Robinhood Crypto v2 holdings do not report official average cost. Estimates are shown only when filled-order history matches held quantity. No tax-basis claim.</p>
-        </section>
-        <section class="panel rh-holdings-panel" aria-label="Robinhood holdings and profit or loss">
+        <div class="broker-holdings-detail" aria-label="Robinhood holdings and profit or loss">
           <div class="panel-heading"><div><h2>Current crypto holdings</h2>
             <p>Green = estimated gain since purchase; red = estimated loss. Unverified costs remain unavailable.</p></div>
             <span class="time-label" id="rh-holdings-summary">Loading holdings…</span></div>
           <div id="robinhood-positions-list" class="table-wrap" aria-live="polite">Loading Robinhood holdings…</div>
+        </div>
         </section>
+
         <div class="stats-grid">
           <div class="stat-card"><div class="stat-top">EST. CRYPTO ACCOUNT VALUE <span class="stat-icon">◈</span></div><strong id="robinhood-total-stat">—</strong><small id="robinhood-total-note">Holdings + USD buying power; quoted mark, not liquidation proceeds</small></div>
-          <div class="stat-card"><div class="stat-top">ACTIVE ACCOUNT <span class="stat-icon">◉</span></div><strong id="robinhood-account-stat">—</strong><small>Verified Robinhood API status</small></div>
+          <div class="stat-card"><div class="stat-top">USD BUYING POWER <span class="stat-icon">◉</span></div><strong id="robinhood-cash-stat">—</strong><small>Broker-reported buying power, not confirmed settled cash</small></div>
           <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="robinhood-holdings-stat">—</strong><small>Broker-reported crypto holdings</small></div>
           <div class="stat-card"><div class="stat-top">BROKER ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="robinhood-orders-stat">—</strong><small>Broker history, not necessarily bot fills</small></div>
         </div>
@@ -293,6 +294,7 @@
           </section>
           <section class="panel">
             <div class="panel-heading"><div><h2>Investment operation</h2><p>Your connected Robinhood Crypto account</p></div></div>
+            <div class="readiness-item"><span>Account verification</span><strong id="robinhood-account-stat">Checking…</strong></div>
             <div class="readiness-item"><span>Strategy status</span><strong id="robinhood-strategy-status">Checking…</strong></div>
             <div class="readiness-item"><span>Risk policy</span><strong id="robinhood-risk-status">Checking…</strong></div>
             <div class="readiness-item"><span>Trade performance</span><strong id="robinhood-trade-activity">No bot-confirmed fills verified</strong></div>
@@ -748,21 +750,39 @@
           </div>
         </div>
         <div id="data-warning" class="notice"><span class="notice-icon">ⓘ</span><div><strong>No live market feed connected</strong><p>The monitor can run, but trades require timestamped market prices. AI approvals also require a configured model.</p></div></div>
-        <div class="stats-grid">
-          <div class="stat-card"><div class="stat-top"><span>Paper portfolio value</span><span class="stat-icon">◈</span></div><strong id="stat-equity">$100.00</strong><small id="stat-equity-desc">Starting simulated balance</small></div>
-          <div class="stat-card"><div class="stat-top"><span>Available trading cash</span><span class="stat-icon">◉</span></div><strong id="stat-cash">$100.00</strong><small id="stat-cash-desc">Before allocation limit</small></div>
-          <div class="stat-card"><div class="stat-top"><span>Realized P&L</span><span class="stat-icon">↗</span></div><strong id="stat-pnl">$0.00</strong><small id="stat-unrealized">Unrealized $0.00</small></div>
-          <div class="stat-card"><div class="stat-top"><span>Total paper trades</span><span class="stat-icon">⇄</span></div><strong id="stat-trades">0</strong><small id="stat-reviews">0 AI evaluations recorded</small></div>
-        </div>
-        <div class="content-grid">
-          <section class="panel chart-panel">
+          <section class="panel rh-portfolio-performance chart-panel paper-performance">
             <div class="panel-heading"><div><h2>Portfolio performance · Paper Trading</h2><p>Simulated equity history, not live brokerage performance</p></div><span class="time-label">HISTORY</span></div>
+            <div class="rh-portfolio-metrics">
+              <div><span>Holdings value</span><strong id="paper-performance-value">—</strong><small>Simulated positions only · excludes cash</small></div>
+              <div><span>Unrealized P/L</span><strong id="paper-performance-pnl">—</strong><small id="stat-unrealized">Simulated entry prices and current marks</small></div>
+              <div><span>Return on holdings</span><strong id="paper-performance-return">—</strong><small>Since simulated entry · requires recorded cost</small></div>
+            </div>
+            <p class="panel-note" id="paper-performance-note">Only simulated positions and ledger values are shown; no real brokerage equity is included.</p>
+            <div class="paper-history-label">Simulated equity history</div>
             <div class="chart-value" id="chart-value">$100.00 <small>Current equity</small></div>
             <div id="equity-chart" class="chart-holder" aria-label="Paper portfolio equity chart"></div>
             <div class="chart-bottom"><span>Earliest recorded</span><span>Latest</span></div>
+            <div class="panel-heading broker-holdings-heading"><div><h2>Current simulated holdings</h2><p>Ledger-held positions; no live broker orders</p></div><span class="time-label" id="paper-holdings-coverage">Awaiting positions</span></div>
+            <div id="positions-list" class="positions-list" aria-live="polite"></div>
+          </section>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-top"><span>Paper portfolio value</span><span class="stat-icon">◈</span></div><strong id="stat-equity">$100.00</strong><small id="stat-equity-desc">Starting simulated balance</small></div>
+          <div class="stat-card"><div class="stat-top"><span>Available trading cash</span><span class="stat-icon">◉</span></div><strong id="stat-cash">$100.00</strong><small id="stat-cash-desc">Before allocation limit</small></div>
+          <div class="stat-card"><div class="stat-top"><span>OPEN HOLDINGS</span><span class="stat-icon">▥</span></div><strong id="stat-open-holdings">0</strong><small>Current simulated positions</small></div>
+          <div class="stat-card"><div class="stat-top"><span>Total paper trades</span><span class="stat-icon">⇄</span></div><strong id="stat-trades">0</strong><small id="stat-reviews">0 AI evaluations recorded</small></div>
+        </div>
+        <div class="content-grid">
+          <section class="panel paper-execution-panel">
+            <div class="panel-heading"><div><h2>Execution status</h2><p>Paper simulator only · never live orders</p></div><span class="time-label" id="paper-execution-label">Checking worker</span></div>
+            <div class="readiness-item"><span>Strategy mode</span><strong id="paper-strategy-mode">Checking…</strong></div>
+            <div class="readiness-item"><span>Worker heartbeat</span><strong id="paper-worker-status">Checking…</strong></div>
+            <div class="readiness-item"><span>Latest decision</span><strong id="paper-last-decision">Awaiting scan</strong></div>
+            <div class="readiness-item"><span>Latest symbol</span><strong id="paper-last-symbol">Not reported</strong></div>
+            <div class="readiness-item"><span>Realized P/L</span><strong id="stat-pnl">$0.00</strong></div>
+            <p class="panel-note">These are simulated outcomes, not broker-confirmed executions.</p>
           </section>
           <section class="panel allocations-panel">
-            <div class="panel-heading"><div><h2>Capital allocation</h2><p>Your current spending limits</p></div><button class="text-link" data-view="settings">Edit →</button></div>
+            <div class="panel-heading"><div><h2>Investment operation</h2><p>Capital allocation · current simulated risk limits</p></div><button class="text-link" data-view="settings">Edit →</button></div>
             <div class="allocation-numbers"><strong id="alloc-available">$100.00</strong><small>Trading cash available</small></div>
             <div class="progress-title"><span>Deployable cash</span><strong id="alloc-pct">100%</strong></div>
             <div class="progress-rail"><div id="alloc-bar" class="progress-fill"></div></div>
@@ -773,14 +793,10 @@
             <p class="panel-note">The daily-loss limit prevents new entries after a threshold; it is not a guaranteed stop-loss.</p>
           </section>
         </div>
-        <div class="content-grid lower-grid">
+        <div class="content-grid lower-grid paper-recent-activity">
           <section class="panel">
             <div class="panel-heading"><div><h2>Recent trade activity</h2><p>Executed simulated entries and exits</p></div><button class="text-link" data-view="trades">View all →</button></div>
             <div class="table-wrap"><table><thead><tr><th>Asset</th><th>Action</th><th>Value</th><th>Reason</th></tr></thead><tbody id="recent-trades"></tbody></table></div>
-          </section>
-          <section class="panel">
-            <div class="panel-heading"><div><h2>Open positions</h2><p>Current simulated holdings</p></div><span class="time-label">PAPER</span></div>
-            <div id="positions-list" class="positions-list"></div>
           </section>
         </div>
         <div class="footer-note">This page is the separate paper simulation. Go to Schwab live for real-money account status, orders and rationale.</div>

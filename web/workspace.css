@@ -354,3 +354,27 @@
  [data-broker-dashboard] .control-buttons { flex-wrap:wrap; }
  [data-broker-dashboard] .control-buttons .btn { min-height:40px; }
 }
+
+
+/* Unified original broker dashboard hierarchy; no new routes or order actions. */
+[data-broker-dashboard] > .rh-portfolio-performance {margin-top:16px;margin-bottom:16px}
+[data-broker-dashboard] > .stats-grid {margin-top:0;margin-bottom:16px}
+[data-broker-dashboard] > .content-grid {margin-top:0;margin-bottom:16px}
+.broker-holdings-detail,.broker-holdings-heading {margin-top:20px;padding-top:16px;border-top:1px solid rgba(140,170,204,.23)}
+.broker-holdings-detail > .panel-heading {padding-bottom:8px}
+.paper-performance {width:100%;min-width:0}
+.paper-performance .rh-portfolio-metrics {margin-bottom:12px}
+.paper-performance .paper-history-label{font-size:12px;font-weight:750;color:#a8bdd7;margin-top:18px}
+.paper-performance .chart-holder {min-height:180px}
+.paper-performance .broker-holdings-heading {padding-top:18px}
+.paper-performance .positions-list {margin-top:10px}
+.paper-recent-activity {grid-template-columns:minmax(0,1fr)}
+.paper-execution-panel .readiness-item strong {overflow-wrap:anywhere;text-align:right}
+[data-broker-dashboard] .control-panel .control-buttons {display:flex;flex-wrap:wrap;gap:8px}
+[data-broker-dashboard] .control-panel {max-width:390px}
+@media(max-width:1000px) {
+  [data-broker-dashboard] .control-panel{max-width:none}
+}
+@media(max-width:850px) {
+  [data-broker-dashboard] .rh-portfolio-metrics {grid-template-columns:minmax(0,1fr)}
+}
