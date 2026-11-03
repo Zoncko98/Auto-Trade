@@ -1134,6 +1134,14 @@ async function loadWebullTrader(){
     webullRow(root,"AI approvals",Array.isArray(worker.ai_reviews)?
       worker.ai_reviews.filter(x=>x.approved===true).length+" of "+worker.ai_reviews.length+" reviewed":"No reviews");
     webullRow(root,"Market symbols checked",Array.isArray(worker.signals)?worker.signals.length:"Unavailable");
+    const ready=worker.market_readiness||{};
+    for(const [asset,label] of [["stocks","Stocks"],["crypto","Crypto"]]){
+      const item=ready[asset];
+      if(!item)continue;
+      webullRow(root,label+" market-data readiness",
+        (item.status||"UNVERIFIED")+" · "+(item.detail||"No diagnostic")+
+        " · "+(item.checked??0)+" quotes checked");
+    }
     webullRow(root,"Webull orders unresolved",Array.isArray(worker.pending_orders)?worker.pending_orders.length:"Unavailable");
     webullRow(root,"Trading permission",data.execution_validated===true&&policy.enabled===true?
       "Operator armed · broker risk and order checks required":

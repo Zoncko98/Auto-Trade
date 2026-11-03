@@ -75,6 +75,36 @@ class Tests(unittest.TestCase):
     def signal(self):
         return {"at":NOW().isoformat(),"symbol":"F","asset":"EQUITY",
                 "bid":"9.99","ask":"10","technical_approved":True,"ai_approved":True}
+    def test_real_market_blockers_are_distinguished_without_weakening_risk(self):
+        from webull_worker import market_readiness
+        summary=market_readiness([
+            {"asset":"EQUITY","symbol":"AAPL","technical_approved":False,
+             "reason":"MARKET_DATA_WEBULL_HTTP_403"},
+            {"asset":"CRYPTO","symbol":"BTCUSD","technical_approved":False,
+             "reason":"MARKET_DATA_SIGNAL_BROKER_SPREAD_ABOVE_0_5"}])
+        self.assertEqual(summary["stocks"]["status"],"MARKET_DATA_PERMISSION_REQUIRED")
+        self.assertEqual(summary["crypto"]["status"],"BROKER_SPREAD_TOO_WIDE")
+        self.assertEqual(summary["stocks"]["permission_errors"],1)
+        self.assertEqual(summary["crypto"]["spread_blocks"],1)
+        self.assertNotIn("enabled",summary)
+        self.assertEqual(market_readiness([])["stocks"]["status"],"NOT_SCANNED")
+        mixed=market_readiness([
+            {"asset":"EQUITY","reason":"MARKET_DATA_WEBULL_HTTP_403"},
+            {"asset":"EQUITY","reason":"No qualifying momentum"}])
+        self.assertEqual(mixed["stocks"]["status"],"MARKET_DATA_DEGRADED")
+    def test_disarmed_ai_pipeline_reviews_candidates_but_never_submits(self):
+        from webull_worker import _scan
+        signal=dict(self.signal(),technical_approved=True,mid="9.995",
+                    momentum_pct=0.75,spread_pct=0.1,source="WEBULL_M1")
+        with patch("webull_worker.evaluate",return_value=signal),             patch("ai_research.approve_entry",return_value=(True,"Approved")) as ai,             patch("ai_research.research_evidence",return_value={"model":"test-ai"}):
+            report={}
+            approved=_scan(self.state,self.b,0,report)
+        self.assertTrue(approved)
+        self.assertEqual(report["candidates"],6)
+        self.assertEqual(len(report["ai_reviews"]),2)
+        self.assertEqual(ai.call_count,2)
+        self.assertEqual(self.b.submissions,[])
+        self.assertTrue(all(x.get("ai_approved") is True for x in approved))
     def test_migrates_preexisting_webull_state_to_private_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"webull"

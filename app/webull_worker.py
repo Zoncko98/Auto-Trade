@@ -24,6 +24,38 @@ MAX_SCAN_PER_CLASS=3
 
 class WebullBlocked(RuntimeError):pass
 
+def market_readiness(signals):
+    """Summarize actual broker market-data gate results, not execution readiness."""
+    result={}
+    for asset,label in (("EQUITY","stocks"),("CRYPTO","crypto")):
+        rows=[r for r in signals if r.get("asset")==asset]
+        eligible=sum(r.get("technical_approved") is True for r in rows)
+        permission=sum(r.get("reason")=="MARKET_DATA_WEBULL_HTTP_403" for r in rows)
+        spread=sum("SPREAD_ABOVE_0_5" in str(r.get("reason","")) for r in rows)
+        if not rows:
+            state,detail="NOT_SCANNED","No market observations recorded"
+        elif permission==len(rows):
+            state,detail="MARKET_DATA_PERMISSION_REQUIRED",(
+                "Webull OpenAPI stock quote subscription or permissions unavailable; "
+                "do not infer live prices or use other broker quotes as Webull executions")
+        elif spread==len(rows):
+            state,detail="BROKER_SPREAD_TOO_WIDE",(
+                "Webull bid/ask spread exceeds the existing 0.5% strategy limit; "
+                "no buy signal permitted")
+        elif eligible:
+            state,detail="CANDIDATE_FOUND",(
+                "Technical candidate found; AI approval and broker risk checks remain separate")
+        elif any(r.get("reason","").startswith("MARKET_DATA_") for r in rows):
+            state,detail="MARKET_DATA_DEGRADED",(
+                "One or more broker market-data checks failed")
+        else:
+            state,detail="SCANNING_NO_SIGNAL",(
+                "Quotes checked; no approved momentum entry")
+        result[label]={"status":state,"detail":detail,"checked":len(rows),
+                       "candidates":eligible,"permission_errors":permission,
+                       "spread_blocks":spread}
+    return result
+
 def _now():return datetime.now(timezone.utc)
 
 def _safe_public(exc):
@@ -294,6 +326,7 @@ def run_cycle(root,broker,rotation=0):
     if policy["enabled"] and report["pending_orders"]:
         report["execution_status"]="RECONCILIATION_PENDING"
     approvals=_scan(root,broker,rotation,report)
+    report["market_readiness"]=market_readiness(report.get("signals",[]))
     report["approved_candidates"]=[{"symbol":x["symbol"],"asset":x["asset"]} for x in approvals]
     # Independently managed Webull-owned exit protection. No Robinhood inventory.
     if policy["enabled"] and not report["pending_orders"]:
@@ -375,7 +408,7 @@ def _persist(root,report):
     entry={k:report.get(k) for k in (
         "updated_at","execution_status","execution_reason","scan_universe",
         "scanned_symbols","signals","ai_reviews","approved_candidates",
-        "reconciliation","pending_orders","last_submission")}
+        "reconciliation","pending_orders","last_submission","market_readiness")}
     write_atomic(history,(old+[entry])[-120:])
 
 def main():
