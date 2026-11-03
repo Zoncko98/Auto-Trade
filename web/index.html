@@ -96,9 +96,15 @@
             <p class="muted">See your trading accounts at a glance. Select an account to open its full dashboard.</p>
           </div>
           <div class="workspace-hero-pills">
-            <span class="workspace-overview-stat">● 2 available</span>
-            <span class="workspace-overview-stat muted-stat">4 coming soon</span>
+            <span class="workspace-overview-stat" id="workspace-active-count">● Checking accounts</span>
+            <span class="workspace-overview-stat muted-stat">3 integrations planned</span>
           </div>
+        </div>
+        <div class="workspace-command-strip" aria-label="Trading system summary">
+          <div class="workspace-command-stat"><span>System</span><strong id="workspace-system-health">Checking…</strong></div>
+          <div class="workspace-command-stat"><span>Paper engine</span><strong id="workspace-paper-engine">Checking…</strong></div>
+          <div class="workspace-command-stat"><span>Schwab worker</span><strong id="workspace-schwab-worker">Checking…</strong></div>
+          <div class="workspace-command-stat"><span>Robinhood AI</span><strong id="workspace-robinhood-agent">Checking…</strong></div>
         </div>
         <div class="workspace-section-bar"><h2>Available accounts</h2>
           <p>Real and simulated funds are always separate.</p></div>
@@ -108,7 +114,7 @@
         <span class="workspace-tile-icon schwab-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-6 9 6"/><path d="M5 10v9m5-9v9m4-9v9m5-9v9M3 21h18"/></svg>
         </span>
-        <span class="workspace-tile-title">Charles Schwab</span>
+        <span class="workspace-tile-head"><span class="workspace-tile-title">Charles Schwab</span><span class="workspace-kind live-kind">LIVE</span></span>
         <span class="workspace-tile-subtitle">Real brokerage · Cash-only trading</span>
         <span class="workspace-tile-equity-label">BROKER-REPORTED EQUITY</span>
         <span class="workspace-tile-balance" id="workspace-schwab-balance" aria-live="off">Balance unavailable</span>
@@ -120,7 +126,7 @@
         <span class="workspace-tile-icon paper-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7V5a2 2 0 0 0-2-2H6a3 3 0 0 0 0 6h14"/><path d="M3 6v13a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1V10a1 1 0 0 0-1-1H6"/><path d="M16 14h5v4h-5a2 2 0 0 1 0-4Z"/></svg>
         </span>
-        <span class="workspace-tile-title">Paper Trading</span>
+        <span class="workspace-tile-head"><span class="workspace-tile-title">Paper Trading</span><span class="workspace-kind paper-kind">SIMULATED</span></span>
         <span class="workspace-tile-subtitle">Simulated environment · No real brokerage orders</span>
         <span class="workspace-tile-equity-label">SIMULATED EQUITY</span>
         <span class="workspace-tile-balance" id="workspace-paper-balance" aria-live="off">Balance unavailable</span>
@@ -132,7 +138,8 @@
         <span class="workspace-tile-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
         </span>
-        <span class="workspace-tile-title">Robinhood</span>
+        <span class="workspace-tile-head"><span class="workspace-tile-title">Robinhood</span><span class="workspace-kind crypto-kind">LIVE CRYPTO</span></span>
+        <span class="workspace-tile-subtitle">Real brokerage · Crypto execution and AI scanner</span>
         <span class="workspace-tile-equity-label" hidden>CRYPTO BUYING POWER · USD</span>
         <span class="workspace-tile-balance" id="workspace-robinhood-balance">Buying power unavailable</span>
         <span class="workspace-tile-status" id="workspace-robinhood-status">CHECKING CONNECTION</span>

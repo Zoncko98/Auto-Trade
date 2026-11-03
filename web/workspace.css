@@ -95,3 +95,22 @@
  .workspace-tile-featured {width:100%}
  .workspace-section-bar p {max-width:100%}
 }
+
+/* 2026-11 command-center polish */
+.workspace-command-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:-10px 0 30px}
+.workspace-command-stat{min-width:0;border:1px solid #263b55;background:#0e1b2c;border-radius:13px;padding:13px 15px}
+.workspace-command-stat span{display:block;color:#7890ad;font-size:9px;font-weight:800;letter-spacing:1.15px;text-transform:uppercase;margin-bottom:6px}
+.workspace-command-stat strong{display:block;color:#dcecff;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.workspace-command-stat strong.good{color:#78ddb9}.workspace-command-stat strong.warn{color:#efbd6a}.workspace-command-stat strong.bad{color:#fb8292}
+.workspace-tile-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.workspace-tile-featured{min-height:330px;padding:23px 24px}
+.workspace-tile-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.workspace-kind{flex:none;border:1px solid #496986;background:#18304c;border-radius:999px;padding:4px 7px;color:#9fc8f2;font-size:8px;font-weight:900;letter-spacing:.9px}
+.workspace-kind.paper-kind{border-color:#367e73;background:#183e38;color:#9ce7cd}
+.workspace-kind.crypto-kind{border-color:#6a56a0;background:#2c2345;color:#cabdff}
+.workspace-tile-subtitle{min-height:35px;margin-bottom:20px}
+.workspace-tile .agent-activity-summary{border-top:1px solid #ffffff18;padding-top:11px!important;margin:12px 0 0!important;color:#9fb7d2!important}
+.workspace-tile-open{margin-top:14px}
+@media(max-width:1180px){.workspace-tile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace-command-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.workspace-tile-grid{grid-template-columns:1fr}.workspace-command-strip{grid-template-columns:1fr 1fr;margin-top:0}.workspace-tile-featured{min-height:300px}.workspace-tile-head{align-items:flex-start}.workspace-kind{margin-top:2px}}
+@media(max-width:480px){.workspace-command-strip{grid-template-columns:1fr}}

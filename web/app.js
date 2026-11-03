@@ -85,6 +85,24 @@ function updateAccountActivity(paper,live){
     el.setAttribute("role","status");
   });
 }
+function setWorkspaceHealth(id,text,state){
+  const el=$(id); if(!el)return;
+  el.textContent=text;
+  el.classList.remove("good","warn","bad");
+  if(state)el.classList.add(state);
+}
+function updateWorkspaceCommandStrip(paper,live){
+  const online=paper?.runtime?.online===true;
+  setWorkspaceHealth("workspace-system-health",online?"ONLINE":"ATTENTION",online?"good":"warn");
+  const paperMode=String(paper?.control?.mode||"unknown").toUpperCase();
+  setWorkspaceHealth("workspace-paper-engine",paperMode,paperMode==="RUNNING"?"good":paperMode==="PAUSED"?"warn":"");
+  const schwabOnline=live?.worker_online===true;
+  setWorkspaceHealth("workspace-schwab-worker",schwabOnline?"ONLINE":"OFFLINE",schwabOnline?"good":"warn");
+  const configured=[...document.querySelectorAll(".workspace-tile-grid .workspace-tile:not(.is-coming-soon)")].length;
+  const count=$("workspace-active-count");
+  if(count)count.textContent="● "+configured+" available";
+}
+
 function clearWorkspaceBalances(){
   for(const name of ["paper","schwab"]){
     const el=$("workspace-"+name+"-balance");
@@ -134,6 +152,12 @@ function updateRobinhoodTile(result){
     (configured?"CREDENTIALS SAVED · CHECK CONNECTION":"SET UP ROBINHOOD");
   const buyingPower=verified?robinhoodBuyingPower(accounts):null;
   amountNode.textContent=buyingPower===null?"Buying power unavailable":money(buyingPower);
+  setWorkspaceHealth("workspace-robinhood-agent",verified?"CONNECTED":"NOT READY",verified?"good":"warn");
+  const count=$("workspace-active-count");
+  if(count){
+    const configuredCount=[...document.querySelectorAll(".workspace-tile-grid .workspace-tile:not(.is-coming-soon)")].length;
+    count.textContent="● "+configuredCount+" available";
+  }
   amountNode.title=buyingPower===null?
     "No verified USD buying power was returned by the Robinhood Crypto API":
     "Verified Robinhood Crypto USD buying power; this is not total portfolio equity";
@@ -680,6 +704,7 @@ async function refreshAll(){
     status=response;
     updateWorkspaceBalances(response,live);
     updateAccountActivity(response,live);
+    updateWorkspaceCommandStrip(response,live);
 
     renderOverview(response,performance.points||[],trades.items||[]);
     renderLiveView(live);
