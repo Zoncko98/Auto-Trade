@@ -108,6 +108,7 @@
           <button class="btn secondary" data-ops-section="orders" type="button">Orders &amp; reconciliation</button>
           <button class="btn secondary" data-ops-section="portfolio" type="button">Portfolio</button>
           <button class="btn secondary" data-ops-section="inspector" type="button">Decision inspector</button>
+          <button class="btn secondary" data-ops-section="exits" type="button">Exit monitoring</button>
         </div>
         <p id="ops-updated" class="muted" role="status">No authenticated observations loaded.</p>
         <section class="panel" data-ops-panel="activity"><h2>AI agent activity</h2>
@@ -121,6 +122,11 @@
           <p class="muted">Real brokerage and simulated equity are never combined. Schwab, Robinhood and Webull remain separate; missing or stale valuations are never treated as zero.</p>
           <div id="ops-portfolio" class="ops-records">Loading…</div>
           <div class="ops-account-links"><button class="btn secondary" type="button" data-view="live">Schwab holdings</button><button class="btn secondary" type="button" data-view="robinhood">Robinhood holdings</button><button class="btn secondary" type="button" data-view="webull">Webull holdings</button><button class="btn secondary" type="button" data-view="overview">Paper portfolio</button></div></section>
+        <section class="panel hidden" data-ops-panel="exits"><h2>Position exit monitoring</h2>
+          <p class="muted">Read-only broker position observations. Profit targets and trailing protection are never assumed armed without verified worker evidence. This screen cannot submit an order.</p>
+          <div id="ops-exits" class="ops-records" aria-live="polite">Loading broker holdings…</div>
+          <div class="ops-account-links"><button class="btn secondary" type="button" data-view="live">Schwab exit details</button><button class="btn secondary" type="button" data-view="robinhood">Robinhood positions</button><button class="btn secondary" type="button" data-view="webull">Webull positions</button></div>
+        </section>
         <section class="panel hidden" data-ops-panel="inspector"><h2>AI decision inspector</h2>
           <p class="muted">Select a recorded decision to inspect its available evidence. Missing fields are explicitly identified.</p>
           <label for="ops-decision-select">Recorded decision</label>

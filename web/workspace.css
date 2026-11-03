@@ -314,3 +314,5 @@
  .ops-account-links .btn{white-space:normal;overflow-wrap:anywhere}
 }
 @media(max-width:420px){.ops-account-links{grid-template-columns:minmax(0,1fr)}}
+
+.ops-tabs{display:flex;flex-wrap:wrap;gap:8px}.ops-tabs .btn{min-height:40px}@media(max-width:680px){.ops-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.ops-tabs .btn{white-space:normal}}

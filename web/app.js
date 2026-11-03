@@ -1225,6 +1225,44 @@ async function loadOperations(){
   const paperEquity=finiteUsd(paper?.account?.equity);
   const accounts=Array.isArray(rh?.accounts)?rh.accounts:[];
   const bp=accounts.length===1&&accounts[0].buying_power_currency==="USD"?finiteUsd(Number(accounts[0].buying_power)):null;
+  const rhHoldings=portfolio?.available&&Array.isArray(portfolio.holdings)?portfolio.holdings:null;
+  const wbHoldings=webullResult&&Array.isArray(webullResult.positions)?webullResult.positions:null;
+  const exitRows=[
+    opsRecord("Schwab · exit observation",[
+      ["Worker",live?.worker_online===true?"Online":"Not verified online"],
+      ["Current positions",Array.isArray(live?.positions)?live.positions.length:null],
+      ["Profit target / trailing protection","Not verified from this operations snapshot"],
+      ["Broker sell orders","Inspect Schwab live order journal"]
+    ]),
+    opsRecord("Robinhood · exit observation",[
+      ["Broker holdings",rhHoldings?rhHoldings.length:null],
+      ["Last exit candidate",worker.exit_candidate_symbol],
+      ["Last execution state",worker.execution_status],
+      ["Exit risk checks",worker.execution_reason],
+      ["Trailing stop","Not verified as broker-native protection"]
+    ]),
+    opsRecord("Webull · exit observation",[
+      ["Broker holdings",wbHoldings?wbHoldings.length:null],
+      ["Order permission","Separate from account verification"],
+      ["Profit target / trailing protection","Not verified from broker snapshot"]
+    ]),
+    opsRecord("Paper Trading · simulated exits",[
+      ["Last decision",paperDecision],
+      ["Latest symbol",paper?.runtime?.last_paper_symbol],
+      ["Real brokerage protection","Not applicable · simulation"]
+    ])
+  ];
+  if(rhHoldings)for(const h of rhHoldings.slice(0,30)){
+    exitRows.push(opsRecord("Robinhood position · "+(h.symbol||h.asset_code||"Unknown"),[
+      ["Held quantity",h.quantity],
+      ["Estimated unrealized P/L",h.unrealized_pnl_usd],
+      ["Estimated return",h.unrealized_pnl_pct],
+      ["Cost basis",h.cost_basis_verified===true?"Verified":h.cost_basis_verified===false?"Not verified":"Not established"],
+      ["Take-profit trigger","Not verified for this position"],
+      ["Trailing high-water mark","Not available in broker holdings response"]
+    ]));
+  }
+  $("ops-exits").innerHTML=exitRows.join("");
   $("ops-portfolio").innerHTML=[
     opsRecord("Schwab · live brokerage",[["Verified current equity",schwabEquity],["Last broker snapshot",opsDate(live?.account?.at)],["Status",fresh?"Fresh worker snapshot":"Not verified as current"]]),
     opsRecord("Robinhood · live crypto",[["USD buying power",rh?.connected?bp:null],["Broker-reported holdings",portfolio?.available?portfolio.position_count:null],["Estimated account value",portfolio?.available?robinhoodAccountValueUsd(portfolio.estimated_crypto_account_value_usd):null],["Valuation method","Holdings + USD buying power; indicative marks"]]),
