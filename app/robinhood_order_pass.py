@@ -41,7 +41,7 @@ def review_order(state,client,policy,signal,now=None):
     if journal.pending():raise OrderPassBlocked("Unresolved order intent")
     orders=client.orders(account["account_number"])
     if not isinstance(orders,list):raise OrderPassBlocked("Broker order history unavailable")
-    if any(o.get("state") in ("open","pending") for o in orders if isinstance(o,dict)):
+    if any(o.get("state") in ("open","pending","partially_filled") for o in orders if isinstance(o,dict)):
         raise OrderPassBlocked("Existing Robinhood order still open")
     bid,ask=_quote_prices(client.quote(symbol),symbol)
     spread=(ask-bid)/ask*100
@@ -139,7 +139,7 @@ def submit_sell_approved(state,client,policy,signal,now=None):
     order_id=str(uuid4())
     journal=OrderJournal(state)
     journal.record_intent(prepared["account"],order_id,prepared["symbol"],
-                          prepared["quantity"],prepared["limit_price"])
+                          prepared["quantity"],prepared["limit_price"],side="sell")
     result=client.submit_order(prepared["account"],{
         "type":"limit","side":"sell","symbol":prepared["symbol"],
         "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],

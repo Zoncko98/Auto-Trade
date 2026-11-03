@@ -93,7 +93,8 @@ def installed_models(opener=urlopen):
 
 def classify_local_news(symbol,headlines,opener=urlopen):
     _,model=_settings()
-    if not isinstance(symbol,str) or not symbol.isupper() or len(symbol)>10:
+    from robinhood_crypto_gateway import PAIR
+    if not isinstance(symbol,str) or not ((symbol.isupper() and len(symbol)<=10) or PAIR.fullmatch(symbol)):
         raise LocalAIUnavailable("Invalid symbol")
     if not isinstance(headlines,list) or not (1<=len(headlines)<=6):
         raise LocalAIUnavailable("Timestamped news required")

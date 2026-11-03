@@ -29,13 +29,14 @@ class OrderJournal:
             if os.path.exists(temp):os.unlink(temp)
     def pending(self):
         return [row for row in self.load()["orders"] if row.get("status") not in FINAL]
-    def record_intent(self,account,client_id,symbol,quantity,limit_price):
+    def record_intent(self,account,client_id,symbol,quantity,limit_price,side="buy"):
+        if side not in ("buy","sell"):raise UnreconciledOrder("Unsupported order side")
         doc=self.load()
         if self.pending():raise UnreconciledOrder("Existing order not reconciled")
         if any(row.get("client_order_id")==client_id for row in doc["orders"]):
             raise UnreconciledOrder("Duplicate client order identifier")
         doc["orders"].append({"account":account,"client_order_id":client_id,
-            "symbol":symbol,"quantity":str(quantity),"limit_price":str(limit_price),
+            "symbol":symbol,"side":side,"quantity":str(quantity),"limit_price":str(limit_price),
             "status":"intent_unconfirmed"})
         self._save(doc)
     def reconcile(self,account,broker_rows):

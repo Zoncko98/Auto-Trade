@@ -87,7 +87,8 @@ def classify_news(symbol,headline_rows,opener=urlopen):
         except OAuthAIUnavailable as exc:raise GatewayUnavailable(str(exc)) from None
     _,_,model,route=_settings()
     if not model: raise GatewayUnavailable('Model not configured')
-    if not isinstance(symbol,str) or not symbol.isupper() or len(symbol)>10:
+    from robinhood_crypto_gateway import PAIR
+    if not isinstance(symbol,str) or not ((symbol.isupper() and len(symbol)<=10) or PAIR.fullmatch(symbol)):
         raise GatewayUnavailable('Invalid candidate')
     if not isinstance(headline_rows,list) or not 1<=len(headline_rows)<=6:
         raise GatewayUnavailable('Timestamped headlines required')
