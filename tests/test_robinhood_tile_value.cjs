@@ -63,6 +63,13 @@ async function run(){
   await refreshRobinhoodTile();
   assert.equal(amount.textContent,"Account value unavailable");
   assert.deepEqual(calls,["/api/robinhood/status"]);
+  context.fetch=async url=>{
+    if(url==="/api/robinhood/portfolio")throw Error("Quote timeout");
+    return {ok:true,status:200,json:async()=>authenticated};
+  };
+  await refreshRobinhoodTile();
+  assert.equal(amount.textContent,"Account value unavailable");
+  assert.equal(nodes.get("workspace-robinhood-status").textContent,"ACCOUNT VERIFIED");
   let finish;
   context.fetch=async url=>{
     if(url==="/api/robinhood/status")return {ok:true,status:200,json:async()=>authenticated};

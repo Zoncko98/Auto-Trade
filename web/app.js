@@ -193,9 +193,15 @@ async function refreshRobinhoodTile(){
     if(refreshId!==robinhoodTileRefreshId)return;
     updateRobinhoodTile(result);
     if(result.connected===true&&Array.isArray(result.accounts)&&result.accounts.length){
-      const portfolio=await request("/api/robinhood/portfolio");
-      if(refreshId!==robinhoodTileRefreshId)return;
-      updateRobinhoodTilePortfolio(portfolio);
+      try{
+        const portfolio=await request("/api/robinhood/portfolio");
+        if(refreshId!==robinhoodTileRefreshId)return;
+        updateRobinhoodTilePortfolio(portfolio);
+      }catch(_){
+        if(refreshId!==robinhoodTileRefreshId)return;
+        // A valuation lookup failure does not mean broker auth failed.
+        updateRobinhoodTilePortfolio({available:false});
+      }
     }
   }catch(_){
     if(refreshId!==robinhoodTileRefreshId)return;
