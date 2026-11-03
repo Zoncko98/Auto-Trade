@@ -24,9 +24,6 @@ function renderLiveView(data) {
   $("live-worker-mode").className="mode-tag "+(active?"running":paused?"paused":"stopped");
   $("live-execution-pill").textContent=active?"LIVE · AUTOMATED":armed?"WORKER ACTIVE · PAUSED":"NOT ARMED";
   $("live-mode-banner").textContent=active?"LIVE · CASH ONLY":"LIVE ORDERS OFF";
-  $("side-live-status").textContent=active?"ACTIVE":armed?"PAUSED":"OFF";
-  $("server-pill").classList.toggle("offline",!data.worker_online);
-  $("server-pill").innerHTML='<span class="live-dot"></span> '+(data.worker_online?"Schwab worker online":"Live worker offline");
   $("live-resume-btn").disabled=!armed||active||data.journal_halted;
   $("live-pause-btn").disabled=!armed||paused;
   $("live-order-permission").textContent=present(data.order_permission);

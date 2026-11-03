@@ -56,6 +56,7 @@ jobs:
           node tests/test_setup_pages.cjs
           node tests/test_workspace_balances.cjs
           node tests/test_main_overview.cjs
+          node tests/test_verified_brokers.cjs
           node tests/test_robinhood_tile_value.cjs
           node --check web/brokers.js
           node --check web/setup.js

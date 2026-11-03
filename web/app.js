@@ -11,6 +11,7 @@ let activeView = "workspaces";
 let activeWorkspace = "live";
 const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto","webull"]);
 let robinhoodTileRefreshId=0;
+let verifiedBrokerRequestId=0;
 // Do not format missing numbers as $0.00, and never render stale broker
 // snapshots as current. Values are only read from authenticated APIs.
 function finiteUsd(value){
@@ -86,22 +87,67 @@ function updateAccountActivity(paper,live){
     el.setAttribute("role","status");
   });
 }
-function setWorkspaceHealth(id,text,state){
-  const el=$(id); if(!el)return;
-  el.textContent=text;
-  el.classList.remove("good","warn","bad");
-  if(state)el.classList.add(state);
+// Authenticated broker accounts only: not worker uptime, cached tokens,
+// paper funds, AI readiness or permission to send live orders.
+function verifiedConnectedAccounts(schwab,robinhood,webull){
+  const rows=[];
+  const account=schwab?.account;
+  const time=typeof account?.at==="string"?Date.parse(account.at):NaN;
+  const age=Date.now()-time;
+  const heartbeat=schwab?.heartbeat_age_sec;
+  if(schwab?.worker_online===true && Number.isFinite(heartbeat) &&
+     heartbeat>=0 && heartbeat<=120 && Number.isFinite(time) &&
+     age>=-60000 && age<=300000 && schwabEquityUsd(account?.equity)!==null){
+    rows.push({name:"Schwab",detail:"Fresh broker account snapshot; not trading authorization"});
+  }
+  const activeRobinhood=robinhood?.connected===true &&
+    Array.isArray(robinhood.accounts) &&
+    robinhood.accounts.some(a=>typeof a?.account_number==="string" &&
+      a.account_number.trim().length>0 && a.account_number.toLowerCase()!=="unknown" &&
+      typeof a.status==="string" && a.status.toLowerCase()==="active");
+  if(activeRobinhood){
+    rows.push({name:"Robinhood Crypto",detail:"Authenticated active crypto account; order permission separate"});
+  }
+  const authenticatedWebull=webull?.connected===true && Array.isArray(webull.accounts) &&
+    webull.accounts.some(a=>typeof a?.account_id==="string" && a.account_id.trim().length>0);
+  if(authenticatedWebull){
+    const sandbox=webull.environment==="sandbox";
+    rows.push({name:sandbox?"Webull (sandbox)":"Webull",
+      detail:sandbox?"Authenticated Webull sandbox account; live orders disabled":
+        "Authenticated Webull account; Auto Trader live execution separately controlled"});
+  }
+  return rows;
 }
-function updateWorkspaceCommandStrip(paper,live){
-  const online=paper?.runtime?.online===true;
-  setWorkspaceHealth("workspace-system-health",online?"ONLINE":"ATTENTION",online?"good":"warn");
-  const paperMode=String(paper?.control?.mode||"unknown").toUpperCase();
-  setWorkspaceHealth("workspace-paper-engine",paperMode,paperMode==="RUNNING"?"good":paperMode==="PAUSED"?"warn":"");
-  const schwabOnline=live?.worker_online===true;
-  setWorkspaceHealth("workspace-schwab-worker",schwabOnline?"ONLINE":"OFFLINE",schwabOnline?"good":"warn");
-  const configured=[...document.querySelectorAll(".workspace-tile-grid .workspace-tile:not(.is-coming-soon)")].length;
-  const count=$("workspace-active-count");
-  if(count)count.textContent="● "+configured+" available";
+function renderVerifiedConnectedAccounts(rows){
+  const panel=$("verified-brokers"), list=$("verified-broker-items");
+  if(!panel||!list)return;
+  list.replaceChildren();
+  for(const account of rows){
+    const item=document.createElement("div");
+    item.className="verified-broker";
+    item.title=account.detail;
+    const dot=document.createElement("span");
+    dot.className="verified-broker-dot";
+    dot.setAttribute("aria-hidden","true");
+    const name=document.createElement("span");
+    name.textContent=account.name;
+    item.append(dot,name);
+    list.append(item);
+  }
+  panel.classList.toggle("hidden",rows.length===0);
+}
+function clearVerifiedConnectedAccounts(){
+  verifiedBrokerRequestId++; // Prevent stale in-flight auth lookups after sign-out.
+  renderVerifiedConnectedAccounts([]);
+}
+async function refreshVerifiedConnectedAccounts(){
+  const id=++verifiedBrokerRequestId;
+  const responses=await Promise.allSettled([
+    request("/api/live"),request("/api/robinhood/status"),request("/api/webull/status")
+  ]);
+  if(id!==verifiedBrokerRequestId||!csrf)return;
+  const data=responses.map(r=>r.status==="fulfilled"?r.value:null);
+  renderVerifiedConnectedAccounts(verifiedConnectedAccounts(...data));
 }
 
 function clearWorkspaceBalances(){
@@ -179,12 +225,6 @@ function updateRobinhoodTile(result){
   if(note)note.textContent=verified?
     "Holdings + USD buying power · verifying quotes":
     "Holdings + USD buying power · verification required";
-  setWorkspaceHealth("workspace-robinhood-agent",verified?"CONNECTED":"NOT READY",verified?"good":"warn");
-  const count=$("workspace-active-count");
-  if(count){
-    const configuredCount=[...document.querySelectorAll(".workspace-tile-grid .workspace-tile:not(.is-coming-soon)")].length;
-    count.textContent="● "+configuredCount+" available";
-  }
 }
 async function refreshRobinhoodTile(){
   const refreshId=++robinhoodTileRefreshId;
@@ -780,6 +820,7 @@ async function request(url, options={}) {
   return payload;
 }
 function showLogin(){
+  clearVerifiedConnectedAccounts();
   clearWorkspaceBalances();
   $("app").classList.add("hidden");
   $("login-screen").classList.remove("hidden");
@@ -793,6 +834,7 @@ function showApp(){
   showView("workspaces");
   // Use the local installed version, not the remote GitHub release.
   loadWorkspaceAvailability().catch(()=>{});
+  refreshVerifiedConnectedAccounts().catch(()=>{});
   request("/api/profile").then(profile=>{
     const version=profile.version;
     const label=$("sidebar-app-version");
@@ -804,33 +846,6 @@ function showApp(){
     if(label)label.textContent="Auto Trader · Version unavailable";
   });
 }
-async function refreshAIReadiness(){
-  const indicator=$("ai-readiness-indicator"), detail=$("ai-readiness-detail");
-  if(!indicator||!detail)return;
-  try{
-    const info=await request("/api/ai/readiness");
-    const claim=info.size_claim_meets_minimum===true;
-    if(info.status==="metadata_verified" || info.status==="below_minimum" ||
-       info.status==="unavailable_or_invalid_metadata"){
-      indicator.textContent=info.status==="metadata_verified"?"SIZE VERIFIED":
-        info.status==="below_minimum"?"BELOW 4B":"AI OFFLINE";
-      detail.textContent=info.status==="metadata_verified"?
-        "Ollama model size verified; response capability is not yet tested.":
-        info.status==="below_minimum"?"Configured local AI model is below 4B.":
-        "Unable to verify Ollama model; check model and network.";
-      return;
-    }
-    indicator.textContent=info.status==="not_configured"?"UNCONFIGURED":
-      info.status==="unverified_or_below_minimum"?"UNVERIFIED":"CHECK REQUIRED";
-    detail.textContent=info.provider==="ollama"?
-      (claim?"Model name claims 4B+; actual model and connection not yet verified.":"Local model is below 4B or size unknown; new minimum not yet enforced.") :
-      info.status==="not_configured"?"No AI provider selected.":
-      "Cloud provider selected; runtime readiness not verified.";
-  }catch(err){
-    indicator.textContent="UNKNOWN";
-    detail.textContent="Could not retrieve AI readiness; do not assume AI is connected.";
-  }
-}
 async function init(){
   bindEvents();
   try {
@@ -838,12 +853,11 @@ async function init(){
     csrf=session.csrf;
     showApp();
     await refreshAll();
-    await refreshAIReadiness();
     await checkForUpdate().catch(()=>{});
   } catch(_) { showLogin(); }
   setInterval(()=>{if(csrf) refreshAll().catch(err=>toast(err.message,true));},15000);
   setInterval(()=>{if(csrf) checkForUpdate().catch(()=>{});},60000);
-  setInterval(()=>{if(csrf) refreshAIReadiness().catch(()=>{});},30000);
+  setInterval(()=>{if(csrf) refreshVerifiedConnectedAccounts().catch(()=>{});},30000);
 }
 function bindEvents(){
   $("login-form").addEventListener("submit", async (ev)=>{
@@ -853,7 +867,7 @@ function bindEvents(){
     $("login-error").textContent="";
     try{
       const data=await request("/api/login",{method:"POST",body:JSON.stringify({username:$("username").value,password:$("password").value})});
-      csrf=data.csrf;showApp();await refreshAll();await refreshAIReadiness();await checkForUpdate().catch(()=>{});
+      csrf=data.csrf;showApp();await refreshAll();await checkForUpdate().catch(()=>{});
     }catch(err){$("login-error").textContent=err.message;}finally{btn.disabled=false;}
   });
   $("profile-check-update").addEventListener("click",()=>checkForUpdate()
@@ -863,7 +877,10 @@ function bindEvents(){
     try{await request("/api/logout",{method:"POST",body:"{}"});}catch(_){}
     csrf=null;showLogin();
   });
-  $("refresh-btn").addEventListener("click",()=>refreshAll().catch(err=>toast(err.message,true)));
+  $("refresh-btn").addEventListener("click",()=>{
+    refreshAll().catch(err=>toast(err.message,true));
+    refreshVerifiedConnectedAccounts().catch(()=>{});
+  });
   document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>showView(button.dataset.view)));
   document.querySelectorAll("[data-mode]").forEach(button=>button.addEventListener("click",()=>setMode(button.dataset.mode)));
   $("settings-form").addEventListener("submit",saveSettings);
@@ -1153,7 +1170,6 @@ async function refreshAll(){
     status=response;
     updateWorkspaceBalances(response,live);
     updateAccountActivity(response,live);
-    updateWorkspaceCommandStrip(response,live);
 
     renderOverview(response,performance.points||[],trades.items||[]);
     renderLiveView(live);
@@ -1171,8 +1187,6 @@ async function refreshAll(){
 function renderOverview(data,points,recent){
   const {account:a,control:c,runtime:r}=data;
   const active=r.online;
-  $("server-pill").classList.toggle("offline",!active);
-  $("server-pill").innerHTML=`<span class="live-dot"></span> ${active?"Monitor online":"Monitor offline"}`;
   const mode=c.mode || "stopped";
   $("mode-pill").textContent=mode[0].toUpperCase()+mode.slice(1);
   $("mode-pill").className="mode-tag "+mode;

@@ -224,3 +224,22 @@
  .overview-shared-nav .nav-item{min-width:0;justify-content:flex-start;font-size:11px}
 }
 @media(max-width:420px){.overview-shared-nav .nav-item{font-size:10px}}
+
+/* Live broker connectivity appears only beneath the upper-left brand. */
+.verified-brokers{margin:0 4px 22px;padding:12px 10px;border:1px solid #294969;
+ background:#12243a;border-radius:12px}
+.verified-brokers-heading{display:block;color:#91afcf;font-size:9px;letter-spacing:1.15px;
+ font-weight:800;margin-bottom:11px}
+.verified-broker-items{display:grid;gap:9px}
+.verified-broker{display:flex;align-items:center;gap:9px;min-width:0;
+ font-size:12px;font-weight:720;color:#d3e9f9;line-height:1.35;overflow-wrap:anywhere}
+.verified-broker-dot{height:8px;width:8px;flex:none;border-radius:50%;
+ background:#64dbad;box-shadow:0 0 8px #64dbad55}
+.sidebar-footer{padding-top:8px}
+.sidebar-footer #sidebar-app-version{margin:0}
+@media(max-width:760px){
+ .verified-brokers{margin:2px 0 10px;padding:9px 11px}
+ .verified-brokers-heading{margin-bottom:7px}
+ .verified-broker-items{display:flex;gap:12px;flex-wrap:wrap}
+ .verified-broker{font-size:11px}
+}

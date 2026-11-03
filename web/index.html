@@ -33,6 +33,10 @@
 <div id="app" class="app hidden">
   <aside class="sidebar">
     <div class="side-brand"><span class="brand-mark">◈</span><div><strong>Auto Trader</strong><small>LOCAL OR CLOUD AI</small></div></div>
+    <section id="verified-brokers" class="verified-brokers hidden" aria-label="Verified broker connections" aria-live="polite">
+      <span class="verified-brokers-heading">CONNECTED ACCOUNTS</span>
+      <div id="verified-broker-items" class="verified-broker-items"></div>
+    </section>
     <div class="sidebar-section-heading">NAVIGATION</div>
     <button class="nav-item active overview-nav" type="button" data-view="workspaces">
       <span class="nav-icon" aria-hidden="true">▦</span> Account overview
@@ -78,12 +82,6 @@
       <button class="nav-item" data-view="brokers"><span class="nav-icon">⌘</span> Manage broker connections</button>
     </nav>
     <div class="sidebar-footer">
-      <div class="guard-title"><span class="live-dot"></span> SYSTEM SAFEGUARDS</div>
-      <div class="side-safety"><span>Schwab live worker</span><strong id="side-live-status">OFF</strong></div>
-      <div class="side-safety"><span>Margin / options / shorts</span><strong>OFF</strong></div>
-      <div class="side-safety"><span>Local AI buy filter</span><strong>ON</strong></div>
-      <div class="side-safety"><span>Configured AI readiness</span><strong id="ai-readiness-indicator" role="status">CHECKING</strong></div>
-      <p id="ai-readiness-detail" class="muted" aria-live="polite">Verifying AI configuration…</p>
       <p id="sidebar-app-version" role="status" aria-label="Installed Auto Trader version">Auto Trader · Checking version…</p>
     </div>
   </aside>
@@ -95,7 +93,6 @@
         <span id="live-mode-banner" class="paper-label hidden">LIVE WORKER NOT ARMED</span>
         <a id="update-banner" class="paper-label hidden" href="#" target="_blank" rel="noopener noreferrer"
           aria-live="polite" title="Read release details before installing">Update available</a>
-        <span id="server-pill" class="status-pill"><span class="live-dot"></span> Checking server</span>
         <button id="refresh-btn" class="icon-button" aria-label="Refresh dashboard" title="Refresh">↻</button>
         <button id="profile-btn" class="btn secondary tiny" data-view="profile" aria-label="Open user profile">◉ Profile</button>
       </div>
@@ -137,16 +134,6 @@
             <h1>Your trading workspaces</h1>
             <p class="muted">See your trading accounts at a glance. Select an account to open its full dashboard.</p>
           </div>
-          <div class="workspace-hero-pills">
-            <span class="workspace-overview-stat" id="workspace-active-count">● Checking accounts</span>
-            <span class="workspace-overview-stat muted-stat">3 integrations planned</span>
-          </div>
-        </div>
-        <div class="workspace-command-strip" aria-label="Trading system summary">
-          <div class="workspace-command-stat"><span>System</span><strong id="workspace-system-health">Checking…</strong></div>
-          <div class="workspace-command-stat"><span>Paper engine</span><strong id="workspace-paper-engine">Checking…</strong></div>
-          <div class="workspace-command-stat"><span>Schwab worker</span><strong id="workspace-schwab-worker">Checking…</strong></div>
-          <div class="workspace-command-stat"><span>Robinhood AI</span><strong id="workspace-robinhood-agent">Checking…</strong></div>
         </div>
         <div class="workspace-section-bar"><h2>Available accounts</h2>
           <p>Real and simulated funds are always separate.</p></div>
