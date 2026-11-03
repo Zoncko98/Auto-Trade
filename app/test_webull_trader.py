@@ -79,6 +79,40 @@ class Tests(unittest.TestCase):
     def signal(self):
         return {"at":NOW().isoformat(),"symbol":"F","asset":"EQUITY",
                 "bid":"9.99","ask":"10","technical_approved":True,"ai_approved":True}
+    def test_stock_bars_accept_one_unambiguous_live_webull_wrapper(self):
+        from types import SimpleNamespace
+        broker=WebullBroker.__new__(WebullBroker)
+        rows=[{"time":"2026-11-03T14:00:00Z","close":"100.00"},
+              {"time":"2026-11-03T14:01:00Z","close":"100.01"}]
+        payloads=[
+            {"symbol":"AAPL","result":rows},
+            {"result":[{"symbol":"AAPL","result":rows}]},
+            {"result":rows},
+            rows]
+        for payload in payloads:
+            broker.data=SimpleNamespace(market_data=SimpleNamespace(
+                get_history_bar=lambda *args,body=payload,**kwargs:
+                    SimpleNamespace(status_code=200,json=lambda:body)))
+            self.assertEqual(broker.bars("AAPL","EQUITY"),rows)
+    def test_stock_bars_reject_misrouted_or_ambiguous_webull_wrapper(self):
+        from types import SimpleNamespace
+        broker=WebullBroker.__new__(WebullBroker)
+        rows=[{"time":"2026-11-03T14:00:00Z","close":"100.00"}]
+        bad=[
+            {"symbol":"MSFT","result":rows},
+            {"result":[{"symbol":"MSFT","result":rows}]},
+            {"result":[{"symbol":"AAPL","result":rows},
+                       {"symbol":"MSFT","result":rows}]},
+            {"result":[{"time":"2026-11-03T14:00:00Z",
+                        "close":"100.00","symbol":"MSFT"}]},
+            {"result":[{"symbol":"AAPL","result":"invalid"}]},
+            {"result":[]}]
+        for body in bad:
+            broker.data=SimpleNamespace(market_data=SimpleNamespace(
+                get_history_bar=lambda *args,payload=body,**kwargs:
+                    SimpleNamespace(status_code=200,json=lambda:payload)))
+            with self.assertRaises(WebullError):
+                broker.bars("AAPL","EQUITY")
     def test_readonly_stock_data_probe_classifies_three_endpoints(self):
         from types import SimpleNamespace
         broker=WebullBroker.__new__(WebullBroker)

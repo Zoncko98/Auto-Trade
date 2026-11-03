@@ -123,7 +123,7 @@ class WebullBroker:
                             body=response.json()
                             shape={"container":type(body).__name__}
                             safe={"symbol","result","data","items","list","bids","asks",
-                                  "quote_time","time","bid","ask","price","code","msg"}
+                                   "quote_time","time","close","bars","bid","ask","price","code","msg"}
                             if isinstance(body,dict):
                                 shape["fields"]=sorted(safe.intersection(body))
                                 child=body.get("data")
@@ -137,6 +137,12 @@ class WebullBroker:
                                         shape["data_fields"]=sorted(safe.intersection(child[0]))
                                 if isinstance(body.get("result"),list):
                                     shape["result_rows"]=len(body["result"])
+                                    if body["result"] and isinstance(body["result"][0],dict):
+                                        shape["result_first_fields"]=sorted(
+                                            safe.intersection(body["result"][0]))
+                                        inner=body["result"][0].get("result")
+                                        if isinstance(inner,list):
+                                            shape["nested_result_rows"]=len(inner)
                             elif isinstance(body,list):
                                 shape["rows"]=len(body)
                                 if body and isinstance(body[0],dict):
@@ -169,11 +175,33 @@ class WebullBroker:
         elif asset=="CRYPTO" and CRYPTO.fullmatch(symbol):
             raw=_data(self.data.crypto_market_data.get_crypto_history_bar(symbol,"US_CRYPTO","M1"))
         else:raise WebullError("Asset not supported for bars")
+        # Webull stock M1 currently returns an outer "result" container
+        # with one symbol-specific record, while the documented single-symbol
+        # response places "symbol" at the top level. Require a unique
+        # symbol match; never mix bars from multiple instruments.
         candidates=raw if isinstance(raw,list) else [raw]
         matched=[r for r in candidates if isinstance(r,dict) and
                  r.get("symbol")==symbol and isinstance(r.get("result"),list)]
-        if len(matched)!=1:raise WebullError("Missing symbol-specific market bars")
-        return matched[0]["result"]
+        if len(matched)==1:
+            return matched[0]["result"]
+        if len(matched)>1:
+            raise WebullError("Missing symbol-specific market bars")
+        if isinstance(raw,dict) and raw.get("symbol") in (None,symbol):
+            payload=raw.get("result")
+            if isinstance(payload,list) and len(payload)==1:
+                nested=payload[0]
+                if (isinstance(nested,dict) and nested.get("symbol")==symbol
+                    and isinstance(nested.get("result"),list)):
+                    return nested["result"]
+            if (isinstance(payload,list) and payload and
+                all(isinstance(row,dict) and "time" in row and "close" in row and
+                    row.get("symbol") in (None,symbol) for row in payload)):
+                return payload
+        if (isinstance(raw,list) and raw and
+            all(isinstance(row,dict) and "time" in row and "close" in row and
+                row.get("symbol") in (None,symbol) for row in raw)):
+            return raw
+        raise WebullError("Missing symbol-specific market bars")
     def quote(self,symbol,asset):
         if asset=="CRYPTO" and CRYPTO.fullmatch(symbol):
             raw=_data(self.data.crypto_market_data.get_crypto_snapshot(symbol))
