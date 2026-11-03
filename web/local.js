@@ -42,6 +42,7 @@ function renderLiveView(data) {
     ? holdings.length?holdings.map(([symbol,quantity])=>symbol+" · "+quantity+" shares").join(", "):"No open holdings"
     :"Awaiting brokerage account snapshot";
   $("live-snapshot-age").textContent=hasSnapshot?"Broker snapshot: "+formatBrokerDate(a.at):"No read-only brokerage snapshot yet";
+  renderSchwabPerformance(a,Boolean(data.worker_online));
   $("live-order-total").textContent=intNum(data.order_count);
   $("live-nav-count").textContent=intNum(data.order_count);
 
@@ -102,6 +103,46 @@ function renderLiveView(data) {
   $("live-warning-text").textContent=text;
 }
 
+function renderSchwabPerformance(a,online){
+  const el=id=>$(id),value=el("schwab-perf-value"),pnl=el("schwab-perf-pnl"),
+        pct=el("schwab-perf-return"),status=el("schwab-perf-status"),
+        note=el("schwab-perf-note"),box=el("schwab-perf-holdings");
+  if(!value||!pnl||!pct||!status||!note||!box)return;
+  const stamp=Date.parse(a.at||"");
+  const fresh=online&&Number.isFinite(stamp)&&Date.now()-stamp>=-60000&&Date.now()-stamp<300000;
+  if(!fresh){
+    value.textContent=pnl.textContent=pct.textContent="Unavailable";
+    status.textContent="No fresh broker snapshot";
+    note.textContent="Performance is hidden until Schwab reports a fresh account snapshot.";
+    box.textContent="Waiting for broker positions.";
+    return;
+  }
+  const rows=Array.isArray(a.position_performance)?a.position_performance:[];
+  const holdings=Object.entries(a.positions||{});
+  const parse=v=>typeof v==="string"&&/^(0|[1-9]\d*)(\.\d+)?$/.test(v)&&Number.isFinite(Number(v))?Number(v):null;
+  let total=0,cost=0,covered=0;
+  const cells=rows.map(row=>{
+    const qty=parse(row.quantity),mv=parse(row.market_value),avg=parse(row.average_price);
+    const valid=qty!==null&&qty>0&&mv!==null;
+    const basis=valid&&avg!==null?qty*avg:null;
+    const gain=basis===null?null:mv-basis;
+    if(valid)total+=mv;
+    if(gain!==null){cost+=basis;covered++;}
+    return '<tr><td>'+esc(row.symbol)+'</td><td>'+esc(row.quantity)+'</td><td>'+
+      (valid?money(mv):"Unavailable")+'</td><td>'+(avg===null?"Unavailable":money(avg))+
+      '</td><td>'+(gain===null?"Unavailable":money(gain))+'</td><td>'+
+      (gain===null||basis<=0?"Unavailable":(gain/basis*100).toFixed(2)+"%")+'</td></tr>';
+  });
+  const complete=rows.length===holdings.length&&covered===holdings.length;
+  value.textContent=rows.length===holdings.length?money(total):"Partial "+money(total);
+  pnl.textContent=complete?money(total-cost):"Unavailable";
+  pct.textContent=complete&&cost>0?((total-cost)/cost*100).toFixed(2)+"%":"Unavailable";
+  status.textContent=covered+" of "+holdings.length+" holdings with cost basis";
+  note.textContent=complete?"Unrealized estimates use broker average price and market value; taxes and fees may differ.":
+    "Cost basis is incomplete. Aggregate P/L and return are withheld.";
+  box.innerHTML=holdings.length?'<table class="rh-holdings-table"><thead><tr><th>Symbol</th><th>Shares</th><th>Market value</th><th>Avg cost</th><th>Unrealized P/L</th><th>Return</th></tr></thead><tbody>'+
+    cells.join("")+'</tbody></table>':"No open positions.";
+}
 function safeNewsUrl(value){
   try{
     const u=new URL(value);

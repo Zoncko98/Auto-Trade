@@ -76,8 +76,23 @@ def write_heartbeat(armed, mode):
     })
 
 
-def publish_account_snapshot(positions,exposure,cash,equity):
+def publish_account_snapshot(positions,exposure,cash,equity,account=None):
+    performance=[]
+    if isinstance(account,dict):
+        for pos in account.get("securitiesAccount",{}).get("positions",[]):
+            symbol=(pos.get("instrument") or {}).get("symbol")
+            if symbol not in positions:continue
+            try:
+                qty=Decimal(str(pos["longQuantity"]))
+                value=Decimal(str(pos["marketValue"]))
+                avg=Decimal(str(pos["averagePrice"])) if pos.get("averagePrice") is not None else None
+                if not qty.is_finite() or not value.is_finite() or qty<=0 or value<0:continue
+                if avg is not None and (not avg.is_finite() or avg<0):avg=None
+                performance.append({"symbol":symbol,"quantity":str(qty),"market_value":str(value),
+                    "average_price":str(avg) if avg is not None else None})
+            except (KeyError,ValueError,TypeError,ArithmeticError):continue
     write_private_json(STATE_DIR/"account_snapshot.json",{
+        "position_performance":performance,
         "at":datetime.now(timezone.utc).isoformat(),
         "positions":positions, "exposure":str(exposure),
         "cash":str(cash),"equity":str(equity)
@@ -175,7 +190,7 @@ def get_snapshot(client, account_hash):
     equity=equity_value(acct)
     if cash < 0 or equity < 0:
         raise LiveBlocked("Invalid broker account values")
-    publish_account_snapshot(positions,exposure,cash,equity)
+    publish_account_snapshot(positions,exposure,cash,equity,acct)
     return acct, positions, exposure, cash, equity
 
 

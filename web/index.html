@@ -575,7 +575,15 @@
           <div><strong id="live-warning-title">Checking the live worker</strong>
           <p id="live-warning-text">Brokerage trades remain disabled until the worker is explicitly activated.</p></div>
         </div>
-        <div class="stats-grid">
+        <section class="panel rh-portfolio-performance" aria-label="Schwab portfolio performance">
+<div class="panel-heading"><div><h2>Portfolio performance · Charles Schwab</h2><p>Broker-reported holdings and cost basis. Cash excluded.</p></div><span id="schwab-perf-status" class="time-label">Awaiting snapshot</span></div>
+<div class="rh-portfolio-metrics">
+<div><span>Stock holdings value</span><strong id="schwab-perf-value">—</strong><small>Broker market value, excludes cash</small></div>
+<div><span>Unrealized P/L</span><strong id="schwab-perf-pnl">—</strong><small>Based on available average purchase price</small></div>
+<div><span>Return on holdings</span><strong id="schwab-perf-return">—</strong><small>Since purchase, not today's return</small></div>
+</div><p class="panel-note" id="schwab-perf-note">Unrealized figures require complete broker cost coverage.</p>
+<div class="table-wrap" id="schwab-perf-holdings">Awaiting broker holdings…</div></section>
+<div class="stats-grid">
           <div class="stat-card"><div class="stat-top">BROKERAGE EQUITY <span class="stat-icon">◈</span></div><strong id="live-equity">—</strong><small id="live-snapshot-age">No recent broker snapshot</small></div>
           <div class="stat-card"><div class="stat-top">CASH ONLY <span class="stat-icon">◉</span></div><strong id="live-cash">—</strong><small>Conservative verified cash, not margin buying power</small></div>
           <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="live-holdings">—</strong><small id="live-holdings-detail">Awaiting broker positions</small></div>

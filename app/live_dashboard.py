@@ -153,7 +153,7 @@ def live_state(state_dir):
     # a stale heartbeat reported an armed worker.
     armed=online and heartbeat.get("armed") is True
     account={}
-    for key in ("at","cash","equity","exposure","positions"):
+    for key in ("at","cash","equity","exposure","positions","position_performance"):
         if key in snapshot:
             account[key]=snapshot[key]
     if not isinstance(account.get("positions",{}),dict):
