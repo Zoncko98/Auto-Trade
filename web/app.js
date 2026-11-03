@@ -322,7 +322,7 @@ function updateWebullTile(data){
   if(verified){
     const sandbox=data.environment==="sandbox";
     const types=[...new Set(accounts.map(a=>a.account_type).filter(x=>typeof x==="string" && x.trim()))];
-    main.textContent="Checking equity…";
+    main.textContent=accounts.length+" verified "+(accounts.length===1?"account":"accounts")+" · checking equity…";
     detail.textContent=(types.length?types.join(", ")+" · ":"")+"Verified · fetching broker equity · live orders disabled";
     refreshWebullEquity(accounts);
     statusNode.textContent=sandbox?"SANDBOX · ACCOUNT VERIFIED":"ACCOUNT VERIFIED";
