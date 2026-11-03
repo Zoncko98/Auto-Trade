@@ -20,7 +20,7 @@ def bars():
             for i in range(7,0,-1)]
 
 class FakeBroker:
-    environment="sandbox"
+    environment="production"
     def __init__(self):
         self.previews=[]
         self.submissions=[]
@@ -368,12 +368,20 @@ class Tests(unittest.TestCase):
         self.assertEqual(self.b.submissions[0][1]["support_trading_session"],"CORE")
         self.assertEqual(self.j.positions("stock1")[0],{})
         self.assertEqual(len(self.j.pending("stock1")),1)
-    def test_real_live_gate_remains_locked_until_broker_validation(self):
+    def test_real_live_gate_allows_authorized_cash_only_without_fake_broker_validation(self):
         self.arm()
         with patch("webull_worker.LIVE_EXECUTION_VERIFIED",False):
-            with self.assertRaises(WebullBlocked):
-                _live_gate(self.state,self.b,self.policy,self.risk,
-                           "stock1","EQUITY","F","BUY","1","10",self.j)
+            with patch("webull_worker.core_stock_session",return_value=True):
+                result=_live_gate(self.state,self.b,self.policy,self.risk,
+                                  "stock1","EQUITY","F","BUY","1","10",self.j)
+        self.assertEqual(result["asset"],"EQUITY")
+        self.assertEqual(self.b.submissions,[])
+    def test_live_gate_rejects_sandbox_environment_even_when_policy_armed(self):
+        self.arm()
+        self.b.environment="sandbox"
+        with self.assertRaisesRegex(WebullBlocked,"production API environment"):
+            _live_gate(self.state,self.b,self.policy,self.risk,
+                       "stock1","EQUITY","F","BUY","1","10",self.j)
         self.assertEqual(self.b.submissions,[])
     def test_no_implicit_live_order(self):
         with self.assertRaises(WebullBlocked):
@@ -383,7 +391,7 @@ class Tests(unittest.TestCase):
             report=run_cycle(self.state,self.b)
         self.assertEqual(report["execution_status"],"DISARMED")
         self.assertEqual(self.b.submissions,[])
-        self.assertEqual(report["environment"],"sandbox")
+        self.assertEqual(report["environment"],"production")
         self.assertIn("stock1",str(report["broker_accounts"]))
     def test_cash_only_and_daily_loss_limits(self):
         self.arm()
@@ -445,12 +453,35 @@ class Tests(unittest.TestCase):
         self.assertEqual(dummy.place("stock1",order),{"ok":True})
         with self.assertRaises(WebullError):dummy.place("stock1",dict(order,side="SHORT"))
         with self.assertRaises(WebullError):dummy.place("stock1",dict(order,support_trading_session="ALL"))
-    def test_live_activation_rejected_until_broker_sandbox_validated(self):
+    def test_live_activation_requires_explicit_consent_and_saved_risk_not_sandbox(self):
         proposed=dict(self.policy,enabled=True)
-        with self.assertRaises(WebullPolicyError) as caught:
+        with self.assertRaisesRegex(WebullPolicyError,"Explicit live order authorization"):
+            save_policy(self.state,proposed,self.accounts)
+        with patch("webull_trade_config.LIVE_EXECUTION_VERIFIED",False):
+            saved=save_policy(self.state,proposed,self.accounts,"ENABLE_WEBULL_LIVE")
+        self.assertTrue(saved["enabled"])
+        self.assertTrue(read_policy(self.state)["enabled"])
+        self.assertFalse(self.b.submissions)
+    def test_saving_only_default_risk_is_not_enough_to_arm(self):
+        proposed=dict(self.policy,enabled=True)
+        risk_file=self.state/"webull"/"risk_plan.json"
+        risk_file.unlink()
+        with self.assertRaisesRegex(WebullPolicyError,"Save Webull risk"):
             save_policy(self.state,proposed,self.accounts,"ENABLE_WEBULL_LIVE")
-        self.assertIn("sandbox order lifecycle",str(caught.exception))
         self.assertFalse(read_policy(self.state)["enabled"])
+    def test_live_margin_cash_funding_never_uses_borrowed_buying_power(self):
+        from webull_worker import verify_margin_cash_funding
+        baseline=FakeBroker().balance("stock1")
+        with self.assertRaises(WebullBlocked):
+            verify_margin_cash_funding(baseline)
+        allowed=dict(baseline,used_margin="0",margin_debit="0")
+        self.assertEqual(verify_margin_cash_funding(allowed),Decimal("500"))
+        for invalid in (
+            dict(allowed,used_margin="1"),dict(allowed,margin_debit="1"),
+            dict(allowed,account_currency_assets=[{"currency":"USD","cash_balance":"500","buying_power":"500"}])):
+            with self.assertRaises(WebullBlocked):
+                verify_margin_cash_funding(invalid)
+
     def test_open_market_exposure_cap(self):
         self.arm()
         self.b.balance=lambda id:dict(FakeBroker().balance(id),total_market_value="249")

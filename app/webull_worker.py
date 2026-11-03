@@ -113,6 +113,24 @@ def account_readiness(account,allow_margin_accounts=False):
                       if stock or crypto else
                       "No verified cash-stock or spot-crypto account class; live orders blocked")}
 
+def verify_margin_cash_funding(balance):
+    """No borrowing or unsettled buying power on an opted-in margin-class account."""
+    if not isinstance(balance,dict):
+        raise WebullBlocked("Broker cash balance unavailable")
+    if balance.get("used_margin") in (None,""):
+        raise WebullBlocked("Margin usage not independently verified as zero")
+    if positive(balance["used_margin"],allow_zero=True)!=0:
+        raise WebullBlocked("Margin usage must be zero")
+    if balance.get("margin_debit") not in (None,""):
+        if positive(balance["margin_debit"],allow_zero=True)!=0:
+            raise WebullBlocked("Outstanding margin debit blocks trading")
+    assets=balance.get("account_currency_assets")
+    settled=[a.get("settled_cash") for a in assets if isinstance(a,dict) and
+             a.get("currency")=="USD"] if isinstance(assets,list) else []
+    if len(settled)!=1 or settled[0] in (None,""):
+        raise WebullBlocked("Broker-confirmed settled USD cash required")
+    return positive(settled[0],allow_zero=True)
+
 def _funds(balance):
     if not isinstance(balance,dict) or balance.get("total_asset_currency")!="USD":
         raise WebullBlocked("USD account valuation not verified")
@@ -139,8 +157,9 @@ def _funds(balance):
     return equity,available,pnl
 
 def _live_gate(root,broker,policy,risk,account_id,asset,symbol,side,qty,price,journal):
-    if not LIVE_EXECUTION_VERIFIED:raise WebullBlocked("Webull sandbox order lifecycle not yet validated")
     if policy["enabled"] is not True:raise WebullBlocked("Webull live trading not armed")
+    if getattr(broker,"environment",None)!="production":
+        raise WebullBlocked("Real-money Webull execution requires production API environment")
     if risk.get("saved") is not True:raise WebullBlocked("Save Webull risk limits before live trading")
     kind="trade_stocks" if asset=="EQUITY" else "trade_crypto"
     selected="stock_account" if asset=="EQUITY" else "crypto_account"
@@ -156,20 +175,11 @@ def _live_gate(root,broker,policy,risk,account_id,asset,symbol,side,qty,price,jo
     orders=broker.open_orders(account_id)
     if orders:raise WebullBlocked("Existing open broker orders block autonomous execution")
     balance=broker.balance(account_id)
+    margin_settled=None
     if "MARGIN" in _account_class(account):
-        # No leverage, cross-collateral or unsettled margin buying power.
-        # Require an explicit broker zero margin figure and settled cash.
-        if balance.get("used_margin") in (None,""):
-            raise WebullBlocked("Margin usage not independently verified as zero")
-        cash_assets=balance.get("account_currency_assets")
-        settled=[r.get("settled_cash") for r in cash_assets if isinstance(r,dict)
-                 and r.get("currency")=="USD"] if isinstance(cash_assets,list) else []
-        if len(settled)!=1 or settled[0] in (None,""):
-            raise WebullBlocked("Margin-class account requires broker-verified settled cash")
-        if balance.get("margin_debit") not in (None,""):
-            if positive(balance["margin_debit"],allow_zero=True)>0:
-                raise WebullBlocked("Margin debit detected")
+        margin_settled=verify_margin_cash_funding(balance)
     equity,cash,pnl=_funds(balance)
+    if margin_settled is not None:cash=min(cash,margin_settled)
     if pnl<=-Decimal(str(risk["max_daily_loss_usd"])):
         raise WebullBlocked("Maximum broker-reported daily loss reached")
     bot_positions,_=journal.positions(account_id)
@@ -349,13 +359,12 @@ def run_cycle(root,broker,rotation=0):
     root=Path(root)
     journal=WebullJournal(root)
     policy=read_policy(root)
-    if not LIVE_EXECUTION_VERIFIED:
-        policy=dict(policy,enabled=False)
     risk=read_risk(root)
     report={"updated_at":_now().isoformat(),"worker":"RUNNING",
         "execution_status":"DISARMED" if not policy["enabled"] else "ARMED_NO_ORDER",
-        "live_orders_allowed":policy["enabled"] is True and LIVE_EXECUTION_VERIFIED,
+        "live_orders_allowed":policy["enabled"] is True and getattr(broker,"environment",None)=="production",
         "execution_verified":LIVE_EXECUTION_VERIFIED,
+        "operator_authorized_unvalidated":policy["enabled"] is True and not LIVE_EXECUTION_VERIFIED,
         "environment":getattr(broker,"environment","unknown"),
         "policy":policy,"risk_saved":risk.get("saved",False),
         "broker_accounts":[],"account_summaries":[],

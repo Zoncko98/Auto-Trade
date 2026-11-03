@@ -1222,7 +1222,7 @@ async function loadOperations(){
 }
 
 let webullTraderPolicy=null;
-let webullExecutionValidated=false;
+let webullActivationAvailable=false;
 function webullRow(root,key,value){
   const name=document.createElement("strong"),detail=document.createElement("span");
   name.textContent=key;detail.textContent=value==null?"Unavailable":String(value);
@@ -1310,9 +1310,11 @@ async function loadWebullTrader(){
         " · Crypto cash eligible: "+(a.crypto_cash_eligible===true?"yes":"no"));
     });
     webullRow(root,"Webull orders unresolved",Array.isArray(worker.pending_orders)?worker.pending_orders.length:"Unavailable");
-    webullRow(root,"Trading permission",data.execution_validated===true&&policy.enabled===true?
-      "Operator armed · broker risk and order checks required":
-      "DISARMED · broker order lifecycle validation required");
+    webullRow(root,"Trading permission",policy.enabled===true?
+      "ARMED FOR REAL-MONEY TRADING · broker checks and strict risk limits remain mandatory":
+      "DISARMED · no real-money orders");
+  webullRow(root,"Webull broker lifecycle validation",data.execution_validated===true?
+      "Verified with Webull":"NOT VERIFIED · authorization does not imply an accepted or filled order");
     webullRow(root,"Last block",worker.execution_reason||"None recorded");
     const broker=Array.isArray(worker.account_summaries)?worker.account_summaries:[];
     broker.forEach(row=>webullRow(root,
@@ -1372,7 +1374,7 @@ async function loadWebullPolicy(){
   const [data,accountData]=await Promise.all([request("/api/webull/trader"),request("/api/webull/status")]);
   const policy=data.policy||{};
   webullTraderPolicy=policy;
-  webullExecutionValidated=data.execution_validated===true;
+  webullActivationAvailable=data.activation_available===true;
   const entries=Array.isArray(accountData.accounts)?accountData.accounts:[];
   const checked=Array.isArray(data.worker?.account_readiness)?data.worker.account_readiness:[];
   for(const [field,eligibilityFlag] of [
@@ -1404,11 +1406,15 @@ async function loadWebullPolicy(){
   $("webull-live-policy-state").textContent=policy.enabled===true?
     "Webull policy ARMED · the worker can place orders only after independent checks":
     "Webull policy DISARMED · scanning only; no live orders"+accountNote;
-  $("webull-live-feedback").textContent=!data.execution_validated?
-    "Live orders locked until Webull sandbox order and reconciliation validation completes":
-    data.risk?.saved?"Webull risk plan saved · stock and crypto permissions are separate":
-    "Save Webull risk plan before arming";
-  $("webull-live-start").disabled=policy.enabled===true||!data.risk?.saved||!data.execution_validated;
+  const hasCrypto=checked.some(a=>a.crypto_cash_eligible===true);
+  const cryptoNote=hasCrypto?"Spot crypto account verified":
+    "No authorized Webull crypto account returned; do not select the margin brokerage account for crypto";
+  $("webull-live-crypto").disabled=!hasCrypto;
+  $("webull-live-feedback").textContent=policy.enabled===true?
+    "ARMED for REAL MONEY · no independent broker fill validation recorded · "+cryptoNote:
+    !data.risk?.saved?"Save Webull risk limits before activating live orders":
+    "Live stock activation available · explicit authorization required · "+cryptoNote;
+  $("webull-live-start").disabled=policy.enabled===true||!data.risk?.saved||!webullActivationAvailable;
   $("webull-live-pause").disabled=policy.enabled!==true;
 }
 async function webullChangePermission(enable){
@@ -1425,7 +1431,9 @@ async function webullChangePermission(enable){
     const yes=window.confirm(
       "Start AUTONOMOUS LIVE Webull trading with REAL MONEY in selected account(s)? "+
       "Cash-only stock and crypto limit orders may execute automatically. "+
-      "The separate risk plan and broker checks will apply. Continue?");
+      "The saved risk plan and broker checks apply. Sandbox validation is not a prerequisite, "+
+      "so the first qualifying order may use real funds even though Webull fills have not yet been "+
+      "independently validated. Crypto requires a separately authorized crypto account. Continue?");
     if(!yes)return;
   }
   const button=enable?$("webull-live-start"):$("webull-live-pause");
@@ -1437,12 +1445,12 @@ async function webullChangePermission(enable){
     await loadWebullPolicy();
     await loadWebullTrader();
     feedback.textContent=enable?
-      "Webull live policy armed. Worker must independently pass all risk and broker checks.":
+      "Real-money Webull trading ARMED. Execution still requires broker authentication, cash, risk, AI and order checks.":
       "Webull live execution paused. Pending broker orders still require reconciliation.";
   }catch(error){feedback.textContent="Webull authorization blocked: "+error.message;}
   finally{
     if(button){
-      if(enable){button.disabled=webullTraderPolicy?.enabled===true||!webullExecutionValidated;}
+      if(enable){button.disabled=webullTraderPolicy?.enabled===true||!webullActivationAvailable;}
       else{button.disabled=webullTraderPolicy?.enabled!==true;}
     }
   }

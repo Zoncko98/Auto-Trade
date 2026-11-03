@@ -8,9 +8,9 @@ from pathlib import Path
 
 class WebullPolicyError(ValueError):pass
 
-# Enabling live Webull orders requires separate broker-sandbox validation.
-# Simulated client tests are necessary but cannot establish that Webull will
-# accept, fill and correctly reconcile a real order. This stays fail-closed.
+# True only after independent broker order-lifecycle verification.
+# Real-money activation is separately operator-authorized with risk and
+# broker validation; activation is not a claim of verified fills.
 LIVE_EXECUTION_VERIFIED=False
 
 DEFAULT={"enabled":False,"stock_account":"","crypto_account":"",
@@ -49,13 +49,13 @@ def save(state,payload,accounts,confirmation=None):
     for key,asset_flag in (("stock_account","trade_stocks"),("crypto_account","trade_crypto")):
         if obj["enabled"] and obj[asset_flag] and obj[key] not in ids:
             raise WebullPolicyError("Selected Webull account was not authenticated")
-    if obj["enabled"] and not LIVE_EXECUTION_VERIFIED:
-        raise WebullPolicyError("Webull live execution remains locked until broker sandbox order lifecycle is verified")
     if obj["enabled"] and not current["enabled"] and confirmation!="ENABLE_WEBULL_LIVE":
         raise WebullPolicyError("Explicit live order authorization required")
     if obj["enabled"]:
         from webull_risk import read as risk_read
         risk=risk_read(state)
+        if risk.get("saved") is not True:
+            raise WebullPolicyError("Save Webull risk limits before enabling real-money trading")
         if (risk["max_order_usd"]>1000 or risk["max_position_pct"]>10 or
             risk["max_daily_loss_usd"]>250 or risk["max_open_positions"]>10):
             raise WebullPolicyError("Tighten Webull risk limits before enabling live orders")

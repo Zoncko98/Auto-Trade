@@ -371,7 +371,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200,{"policy":policy,"risk":risk,
                     "worker":worker,"stream_status":feed_status(STATE_DIR),"orders":orders,
                     "execution_validated":LIVE_EXECUTION_VERIFIED,
-                    "execution_enabled":policy.get("enabled") is True and LIVE_EXECUTION_VERIFIED})
+                    "activation_available":risk.get("saved") is True,
+                    "execution_enabled":policy.get("enabled") is True,
+                    "operator_authorized_unvalidated":policy.get("enabled") is True and not LIVE_EXECUTION_VERIFIED})
             if UNIFIED_APP and path == "/api/webull/evidence":
                 try:
                     evidence=json.loads((Path(STATE_DIR)/"webull"/"decision_history.json").read_text())
@@ -607,6 +609,8 @@ class Handler(BaseHTTPRequestHandler):
                 if isinstance(request,dict) and isinstance(request.get("policy"),dict) and request["policy"].get("enabled") is False:
                     return self._json(200,save(STATE_DIR,request["policy"],[]))
                 broker=WebullBroker(STATE_DIR)
+                if broker.environment!="production":
+                    raise WebullPolicyError("Production Webull connection required for live execution")
                 accounts=broker.accounts()
                 policy=request.get("policy") if isinstance(request,dict) else None
                 if not isinstance(policy,dict):raise WebullPolicyError("Missing trade policy")
@@ -622,7 +626,11 @@ class Handler(BaseHTTPRequestHandler):
                             raise WebullPolicyError("Unresolved Webull order intent")
                         if broker.open_orders(policy[id_key]):
                             raise WebullPolicyError("Existing broker open orders prevent arming")
-                        broker.balance(policy[id_key])
+                        b=broker.balance(policy[id_key])
+                        if asset=="EQUITY" and "MARGIN" in str(
+                               row.get("account_class") or row.get("account_type") or "").upper():
+                            from webull_worker import verify_margin_cash_funding
+                            verify_margin_cash_funding(b)
                 return self._json(200,save(STATE_DIR,policy,accounts,request.get("confirmation")))
             except (WebullPolicyError,WebullError,OSError,ValueError,TypeError,KeyError):
                 return self._json(400,{"error":"Webull authorization, account class, risk limits or pending orders not verified"})

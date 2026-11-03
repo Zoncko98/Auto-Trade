@@ -457,7 +457,8 @@
       </form>
       <section class="panel" style="padding:24px;max-width:760px;margin-top:20px">
         <div class="panel-heading"><div><h2>Live trading authorization</h2>
-          <p>Select a separate verified cash account for each applicable market.</p></div></div>
+          <p>Select a separately verified brokerage or crypto account for each market. An opted-in individual margin
+            brokerage account may trade stocks using only settled cash; it does not grant crypto access.</p></div></div>
         <p id="webull-live-policy-state" role="status">Webull live execution: checking…</p>
         <div class="setting-row"><label for="webull-live-stocks">Enable US stocks &amp; ETFs</label>
           <input type="checkbox" id="webull-live-stocks"></div>
@@ -467,9 +468,13 @@
           <input type="checkbox" id="webull-live-crypto"></div>
         <div class="setting-row"><label for="webull-crypto-account">Crypto brokerage account</label>
           <select id="webull-crypto-account"><option value="">Select verified Webull crypto account</option></select></div>
-        <p class="panel-note">The Webull worker scans while disarmed. Start requires explicit authorization and a saved
-          risk plan; only cash-funded limit BUY/SELL orders can pass the worker. Any unresolved order or
-          unavailable broker status blocks further orders. No margin, options, shorts or duplicate orders.</p>
+        <p class="panel-note">After saving risk limits, selecting an eligible account and authorizing REAL-MONEY trading,
+          Start can arm Webull without sandbox testing. The first qualifying order may use real funds. Broker order
+          lifecycle and fills are not independently validated. Cash-only limit BUY/SELL orders remain subject to
+          market-data freshness, broker account permissions, zero margin usage, settled cash, risk limits,
+          AI approval, open-order reconciliation and duplicate-order prevention. No borrowing, options or shorts.</p>
+        <p class="panel-note">Crypto needs a separate Webull crypto account returned by the official API.
+          A brokerage account labeled INDIVIDUAL_MARGIN is not a substitute, even if its buying power is linked.</p>
         <div class="form-actions">
           <button class="btn primary" type="button" id="webull-live-start">▶ Start Webull live trading</button>
           <button class="btn danger-outline" type="button" id="webull-live-pause">Ⅱ Pause Webull live trading</button>
