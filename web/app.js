@@ -220,7 +220,7 @@ function workspaceOrder(){
 }
 function applyWorkspaceOrder(){
   const grid=document.querySelector(".workspace-tile-grid");
-  if(!grid)return;
+  if(!grid||typeof grid.querySelectorAll!=="function")return;
   const order=workspaceOrder();
   [...grid.querySelectorAll("[data-workspace]")].sort((a,b)=>
     order.indexOf(a.dataset.workspace)-order.indexOf(b.dataset.workspace))
