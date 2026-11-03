@@ -37,6 +37,15 @@
     <button class="nav-item active overview-nav" type="button" data-view="workspaces">
       <span class="nav-icon" aria-hidden="true">▦</span> Account overview
     </button>
+    <div id="overview-shared-nav" class="workspace-menu overview-shared-nav" role="group" aria-label="Shared account overview tools">
+      <span class="sidebar-shared-heading">SHARED TOOLS</span>
+      <button class="nav-item" type="button" data-view="local">
+        <span class="nav-icon" aria-hidden="true">▣</span> AI workstation models
+      </button>
+      <button class="nav-item" type="button" data-view="operations">
+        <span class="nav-icon" aria-hidden="true">▤</span> Trading operations
+      </button>
+    </div>
     <div id="sidebar-account-context" class="sidebar-account-context hidden">
       <span class="sidebar-context-label">OPEN ACCOUNT</span>
       <strong id="sidebar-current-account">Schwab live</strong>
@@ -133,32 +142,6 @@
           <div class="workspace-command-stat"><span>Schwab worker</span><strong id="workspace-schwab-worker">Checking…</strong></div>
           <div class="workspace-command-stat"><span>Robinhood AI</span><strong id="workspace-robinhood-agent">Checking…</strong></div>
         </div>
-        <section class="shared-tools" aria-labelledby="shared-tools-heading">
-          <div class="workspace-section-bar shared-tools-heading">
-            <h2 id="shared-tools-heading">Shared tools</h2>
-            <p>One configuration and operations center across all accounts.</p>
-          </div>
-          <div class="shared-tools-grid" role="group" aria-label="Shared trading tools">
-            <button class="shared-tool" type="button" data-view="local"
-              aria-label="Open shared AI workstation models">
-              <span class="shared-tool-icon" aria-hidden="true">▣</span>
-              <span class="shared-tool-copy">
-                <strong>AI workstation models</strong>
-                <small>Manage the shared Ollama model selection used by trading agents.</small>
-              </span>
-              <span class="shared-tool-arrow" aria-hidden="true">↗</span>
-            </button>
-            <button class="shared-tool" type="button" data-view="operations"
-              aria-label="Open shared Trading Operations center">
-              <span class="shared-tool-icon" aria-hidden="true">▤</span>
-              <span class="shared-tool-copy">
-                <strong>Trading operations</strong>
-                <small>Review cross-account activity, orders, portfolio and decisions.</small>
-              </span>
-              <span class="shared-tool-arrow" aria-hidden="true">↗</span>
-            </button>
-          </div>
-        </section>
         <div class="workspace-section-bar"><h2>Available accounts</h2>
           <p>Real and simulated funds are always separate.</p></div>
     <div class="workspace-tile-grid" role="group" aria-label="Open a trading account">

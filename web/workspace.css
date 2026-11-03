@@ -213,20 +213,14 @@
 [data-workspace="robinhood_crypto"] .workspace-tile-balance{max-width:100%}
 [data-workspace="robinhood_crypto"] .workspace-tile-balance:not([title^="Estimated"]){font-size:21px;letter-spacing:-.3px}
 
-/* Cross-account features live on Account Overview, not individual broker sidebars. */
-.shared-tools{margin:0 0 25px}
-.shared-tools-heading{margin-bottom:12px}
-.shared-tools-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.shared-tool{display:flex;align-items:center;gap:14px;width:100%;min-width:0;min-height:91px;
- padding:16px 18px;text-align:left;color:#e3edff;background:linear-gradient(135deg,#162b47,#111e32);
- border:1px solid #355372;border-radius:14px;transition:background .15s,border-color .15s}
-.shared-tool:hover{background:#213d5c;border-color:#8cc6ff}
-.shared-tool:focus-visible{outline:3px solid #9bd5ff;outline-offset:3px}
-.shared-tool-icon{display:grid;place-items:center;flex:none;width:43px;height:43px;
- color:#a7d5ff;background:#254668;border:1px solid #426b95;border-radius:11px;font-size:24px}
-.shared-tool-copy{display:grid;gap:5px;min-width:0}
-.shared-tool-copy strong{font-size:14px;line-height:1.25}
-.shared-tool-copy small{font-size:11px;color:#98b5d2;line-height:1.45}
-.shared-tool-arrow{margin-left:auto;flex:none;font-size:20px;color:#8bc3ff}
-@media(max-width:760px){.shared-tools-grid{grid-template-columns:1fr}
- .shared-tool{min-height:80px;padding:13px}.shared-tool-icon{height:38px;width:38px}}
+/* Account Overview sidebar is the single navigation home for shared tools. */
+.overview-shared-nav{margin:2px 3px 15px;padding:0 3px 12px;border-bottom:1px solid #293b53;gap:3px}
+.sidebar-shared-heading{display:block;padding:6px 10px;color:#83a3c5;font-weight:800;
+ font-size:9px;letter-spacing:1.15px}
+.overview-shared-nav .nav-item{min-height:42px;padding:10px 12px;font-size:12px}
+@media(max-width:760px){
+ .overview-shared-nav{margin:4px 0 10px;padding:5px 0 10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .overview-shared-nav .sidebar-shared-heading{grid-column:1/-1;padding:3px 6px}
+ .overview-shared-nav .nav-item{min-width:0;justify-content:flex-start;font-size:11px}
+}
+@media(max-width:420px){.overview-shared-nav .nav-item{font-size:10px}}

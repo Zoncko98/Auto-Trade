@@ -997,6 +997,8 @@ function showView(view) {
   $("live-nav-group").classList.toggle("hidden",context!=="live");
   $("paper-nav-group").classList.toggle("hidden",context!=="paper");
   $("robinhood-nav-group")?.classList.toggle("hidden",context!=="robinhood_crypto");
+  // The overview sidebar owns shared tools; keep them visible while either tool is open.
+  $("overview-shared-nav")?.classList.toggle("hidden",!["workspaces","local","operations"].includes(view));
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!=="view-"+view));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
   const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
