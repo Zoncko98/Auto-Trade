@@ -171,6 +171,39 @@ function robinhoodEffective(data){
     detail:data.effective_detail||"Latest worker status unavailable",
     armed:data.policy_enabled===true,state};
 }
+function formatAge(seconds){
+  if(!Number.isFinite(seconds)||seconds<0)return "age unavailable";
+  if(seconds<60)return Math.floor(seconds)+" sec";
+  if(seconds<3600)return Math.floor(seconds/60)+" min";
+  return Math.floor(seconds/3600)+"h "+Math.floor((seconds%3600)/60)+"m";
+}
+function renderRobinhoodPendingOrder(data){
+  const panel=$("rh-pending-order-panel");
+  const rows=Array.isArray(data.pending_orders)?data.pending_orders:[];
+  if(!panel)return;
+  if(!rows.length){
+    panel.classList.add("hidden");
+    return;
+  }
+  panel.classList.remove("hidden");
+  const order=rows[0]||{};
+  $("rh-pending-symbol").textContent=(order.symbol||"Unknown")+" · "+String(order.side||"unknown").toUpperCase();
+  $("rh-pending-size").textContent=(order.quantity||"unknown")+" @ limit "+(order.limit_price||"unknown");
+  $("rh-pending-local").textContent=(order.local_status||"unknown")+" · "+formatAge(Number(order.age_seconds));
+  $("rh-pending-broker").textContent=order.broker_matched?
+    "Matched · "+(order.broker_state||"state unavailable"):
+    "Not matched · "+(order.broker_lookup_detail||"Robinhood record not found");
+  $("rh-pending-fill").textContent=
+    "Filled qty: "+(order.filled_asset_quantity??"not reported")+
+    " · Avg price: "+(order.average_price??"not reported")+
+    " · Broker updated: "+(order.broker_updated_at||order.broker_created_at||"not reported");
+  $("rh-pending-ids").textContent=
+    "Client: "+(order.client_order_id||"unavailable")+
+    " · Robinhood: "+(order.broker_order_id||"unavailable");
+  $("rh-pending-detail").textContent=order.broker_matched?
+    "Auto Trader will keep the order lock until this broker state is final and required fill fields are reconciled.":
+    "Auto Trader has a durable local intent but cannot currently match it to a Robinhood order. New orders remain blocked to prevent duplicates.";
+}
 async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
   const effective=robinhoodEffective(data);
@@ -179,6 +212,7 @@ async function loadRobinhoodDecisionEvidence(){
     (data.worker?.ai_connection_status||"not checked")+" · Model: "+
     (data.worker?.ai_model||"unavailable")+
     " · AI gate: "+(data.worker?.ai_review_status||"not evaluated");
+  renderRobinhoodPendingOrder(data);
   const rows=Array.isArray(data.decision_evidence)?data.decision_evidence:[];
   $("rh-decision-rows").innerHTML=rows.length?rows.slice().reverse().map(x=>
     "<tr><td>"+esc(x.at||"—")+"</td><td>"+esc(x.signal||"—")+
@@ -304,9 +338,20 @@ async function loadRobinhoodWorkspace(){
       " · Broker-supported universe: "+(worker.universe_size??"unavailable")+
       " · Last checked: "+lastSeen+
       ". Quote checks are not trading signals.";
-    if(orderEl)orderEl.textContent="Unreconciled Auto Trader intents: "+
-      (Number.isInteger(worker.pending_order_intents)?worker.pending_order_intents:"unavailable")+
-      ". Broker historical orders are separate from bot-confirmed fills.";
+    if(orderEl){
+      const pending=Array.isArray(result.pending_orders)?result.pending_orders:[];
+      if(pending.length){
+        const p=pending[0];
+        orderEl.textContent="LOCKED · "+(p.symbol||"unknown")+" "+String(p.side||"").toUpperCase()+
+          " · local "+(p.local_status||"unknown")+" · Robinhood "+
+          (p.broker_matched?(p.broker_state||"state unavailable"):(p.broker_lookup_detail||"not matched"))+
+          " · "+formatAge(Number(p.age_seconds));
+      }else{
+        orderEl.textContent="Unreconciled Auto Trader intents: "+
+          (Number.isInteger(worker.pending_order_intents)?worker.pending_order_intents:"unavailable")+
+          ". Broker historical orders are separate from bot-confirmed fills.";
+      }
+    }
     if(executionEl)executionEl.textContent=effective.detail+
       " · Worker status: "+(worker.execution_status||"unavailable")+
       " · Risk: "+(worker.risk_check||"unavailable")+

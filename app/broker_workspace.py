@@ -153,6 +153,64 @@ def _robinhood_client(state):
         return RobinhoodCryptoAdapter.from_environment()
 
 
+
+
+def _pending_order_diagnostics(state,client):
+    """Expose one safe, read-only view of the duplicate-order lock."""
+    from datetime import datetime,timezone
+    from robinhood_order_journal import OrderJournal,UnreconciledOrder
+    try:
+        pending=OrderJournal(state).pending()
+    except (OSError,ValueError,TypeError,UnreconciledOrder):
+        return []
+    result=[]
+    for row in pending[:5]:
+        if not isinstance(row,dict):continue
+        account=row.get("account")
+        client_id=row.get("client_order_id")
+        broker_match=None
+        broker_error=None
+        if isinstance(account,str) and isinstance(client_id,str):
+            try:
+                matches=[o for o in client.orders(account)
+                         if isinstance(o,dict) and o.get("client_order_id")==client_id]
+                if len(matches)==1:broker_match=matches[0]
+                elif len(matches)>1:broker_error="Multiple broker records matched this client order id"
+                else:broker_error="No matching Robinhood order found yet"
+            except Exception:
+                broker_error="Robinhood order lookup unavailable"
+        created=row.get("created_at")
+        broker_created=broker_match.get("created_at") if isinstance(broker_match,dict) else None
+        reference=created or broker_created
+        age_seconds=None
+        if isinstance(reference,str):
+            try:
+                stamp=datetime.fromisoformat(reference.replace("Z","+00:00"))
+                if stamp.tzinfo is not None:
+                    age_seconds=max(0,int((datetime.now(timezone.utc)-stamp).total_seconds()))
+            except (ValueError,TypeError,AttributeError):
+                pass
+        result.append({
+            "symbol":row.get("symbol"),
+            "side":row.get("side"),
+            "quantity":row.get("quantity"),
+            "limit_price":row.get("limit_price"),
+            "local_status":row.get("status"),
+            "created_at":created,
+            "age_seconds":age_seconds,
+            "client_order_id":client_id,
+            "broker_matched":broker_match is not None,
+            "broker_state":(broker_match.get("state",broker_match.get("status"))
+                            if isinstance(broker_match,dict) else None),
+            "broker_order_id":broker_match.get("id") if isinstance(broker_match,dict) else None,
+            "broker_created_at":broker_created,
+            "broker_updated_at":broker_match.get("updated_at") if isinstance(broker_match,dict) else None,
+            "filled_asset_quantity":broker_match.get("filled_asset_quantity") if isinstance(broker_match,dict) else None,
+            "average_price":broker_match.get("average_price") if isinstance(broker_match,dict) else None,
+            "broker_lookup_detail":broker_error,
+        })
+    return result
+
 def robinhood_status(state):
     """Verify broker account access, never sending a secret to the browser."""
     from robinhood_crypto_gateway import RobinhoodUnavailable
@@ -174,7 +232,8 @@ def robinhood_status(state):
             last=datetime.fromisoformat(worker.get("updated_at","").replace("Z","+00:00"))
             fresh=last.tzinfo is not None and 0<=(datetime.now(timezone.utc)-last).total_seconds()<600
         except (ValueError,TypeError,AttributeError):fresh=False
-        pending=int(worker.get("pending_order_intents") or 0)
+        pending_orders=_pending_order_diagnostics(state,_robinhood_client(state))
+        pending=len(pending_orders) if pending_orders else int(worker.get("pending_order_intents") or 0)
         if not armed:
             effective="PAUSED"; detail="Live order permission is off"
         elif not fresh or worker.get("worker")!="monitoring":
@@ -199,7 +258,8 @@ def robinhood_status(state):
                                     "exit_signal_reason","entry_candidate_symbol","entry_momentum_pct")}
                  for row in history[-100:] if isinstance(row,dict)]
         return {"effective_state":effective,"effective_detail":detail,"worker_fresh":fresh,
-                "decision_evidence":history,"policy_enabled":armed,"worker":{k:worker.get(k) for k in
+                "decision_evidence":history,"pending_orders":pending_orders,
+                "policy_enabled":armed,"worker":{k:worker.get(k) for k in
                     ("updated_at","worker","quotes_checked","pairs_checked","universe_size","scan_batch","coinbase_feed","coinbase_live_pairs","coinbase_scanned_pairs","market_data_source",
                      "pending_order_intents","risk_check", "last_signal","observations","signal_diagnostics","ai_review_status","ai_connection_status","ai_model","ai_reason","execution_status","live_orders_allowed",
                       "last_order_confirmed","reason","execution_reason","exit_candidate_symbol",

@@ -235,6 +235,17 @@
         <strong id="rh-decision-status">Loading recorded crypto decisions…</strong>
         <p id="rh-ai-connectivity">Checking configured Ollama model connectivity…</p>
         <p>Technical scan observations do not by themselves authorize orders.</p></div></div>
+      <section class="panel list-panel hidden" id="rh-pending-order-panel">
+        <div class="panel-heading"><div><h2>Pending order reconciliation</h2>
+          <p>The duplicate-order lock remains active until Robinhood reports a final order state and any fill can be reconciled.</p></div></div>
+        <div class="readiness-item"><span>Symbol / side</span><strong id="rh-pending-symbol">—</strong></div>
+        <div class="readiness-item"><span>Quantity / limit</span><strong id="rh-pending-size">—</strong></div>
+        <div class="readiness-item"><span>Local intent status</span><strong id="rh-pending-local">—</strong></div>
+        <div class="readiness-item"><span>Robinhood match</span><strong id="rh-pending-broker">—</strong></div>
+        <div class="readiness-item"><span>Broker fill evidence</span><strong id="rh-pending-fill">—</strong></div>
+        <div class="readiness-item"><span>Order identifiers</span><strong id="rh-pending-ids">—</strong></div>
+        <p class="panel-note" id="rh-pending-detail">No unresolved bot order intent.</p>
+      </section>
       <section class="panel list-panel"><div class="panel-heading"><div><h2>Robinhood scan evidence</h2>
         <p>Most recent 100 worker evaluations</p></div><button class="btn secondary" id="rh-evidence-refresh">Refresh evidence</button></div>
         <div class="table-wrap"><table><thead><tr><th>Evaluated UTC</th><th>Signal</th><th>AI review</th><th>Model</th><th>Reason</th><th>Execution</th></tr></thead>

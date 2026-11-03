@@ -56,7 +56,7 @@ class OrderJournal:
             raise UnreconciledOrder("Duplicate client order identifier")
         doc["orders"].append({"account":account,"client_order_id":client_id,
             "symbol":symbol,"side":side,"quantity":str(quantity),"limit_price":str(limit_price),
-            "status":"intent_unconfirmed"})
+            "status":"intent_unconfirmed","created_at":datetime.now(timezone.utc).isoformat()})
         self._save(doc)
 
     @staticmethod
