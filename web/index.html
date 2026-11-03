@@ -280,6 +280,7 @@
             <div class="readiness-item"><span>Market intelligence feed</span><strong id="robinhood-market-feed">Checking Coinbase WebSocket…</strong></div>
             <div class="readiness-item"><span>Technical qualification</span><strong id="robinhood-signal-diagnostics">Awaiting scan diagnostics</strong></div>
             <div class="readiness-item"><span>Duplicate and reconciliation safeguards</span><strong id="robinhood-order-state">Checking…</strong></div>
+            <div class="readiness-item"><span>Broker holdings versus bot journal</span><strong id="robinhood-holdings-reconciliation">Checking broker holdings…</strong></div>
             <p class="panel-note">An AI approval is not a verified broker fill or a prediction of profit.</p>
           </section>
           <section class="panel">
@@ -326,6 +327,11 @@
         <div class="panel-actions">
           <button class="btn danger hidden" type="button" id="rh-pending-resolve">Resolve verified orphan intent</button>
         </div>
+      </section>
+      <section class="panel list-panel" id="rh-external-holdings-audit">
+        <div class="panel-heading"><div><h2>Broker holdings reconciliation</h2>
+          <p>Bot journal inventory is reconciled against confirmed Robinhood holdings and externally executed broker sells. External sales are not attributed to bot performance.</p></div></div>
+        <p class="panel-note" id="rh-external-holdings-status">Loading broker reconciliation evidence…</p>
       </section>
       <section class="panel list-panel" id="rh-ai-review-diagnostics">
         <div class="panel-heading"><div><h2>AI review timing & evidence gates</h2>

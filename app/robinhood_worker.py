@@ -229,6 +229,7 @@ def run_once(state,client,feed=None):
     journal_accounts={row.get("account") for row in journal.load()["orders"]
                       if isinstance(row,dict) and isinstance(row.get("account"),str)}
     authorized={a.get("account_number") for a in account_rows if isinstance(a,dict)}
+    external_updates=[]
     for account_ref in journal_accounts & authorized:
         broker_rows=client.orders(account_ref)
         known_clients={row.get("client_order_id") for row in broker_rows if isinstance(row,dict)}
@@ -245,6 +246,24 @@ def run_once(state,client,feed=None):
             except (OSError,ValueError,TypeError,RobinhoodUnavailable):
                 pass
         journal.reconcile(account_ref,broker_rows)
+        # An external broker sale can close a bot-acquired position without
+        # appearing among the bot's own client order identifiers. Require
+        # both authoritative holdings AND actual filled external sell evidence.
+        try:
+            verified=journal.reconcile_external_sells(
+                account_ref,broker_rows,client.positions(account_ref))
+            external_updates.append(verified)
+        except (OSError,ValueError,TypeError,KeyError,RobinhoodUnavailable,UnreconciledOrder) as exc:
+            external_updates.append({"status":"BROKER_RECONCILIATION_UNAVAILABLE",
+                                     "reason":type(exc).__name__,"adjustments":[]})
+    result["external_holding_reconciliation"]=external_updates
+    result["external_closed_positions"]=[{
+        "symbol":row.get("symbol"),"quantity":row.get("quantity"),
+        "broker_remaining_quantity":row.get("broker_remaining_quantity"),
+        "filled_at":row.get("filled_at"),
+        "source":row.get("source")}
+        for row in journal.load()["orders"]
+        if row.get("side")=="external_reduction" and row.get("status")=="externally_reconciled"][-6:]
     pending=journal.pending()
     positions=journal.positions()
     result["bot_open_positions"]=len(positions)
@@ -476,7 +495,9 @@ def run_once(state,client,feed=None):
         "ai_candidate_reviews":result.get("ai_candidate_reviews",[]),
         "ai_review_duration_seconds":result.get("ai_review_duration_seconds"),
         "ai_selected_model":result.get("ai_selected_model"),
-        "entry_signal_revalidated":result.get("entry_signal_revalidated")})
+        "entry_signal_revalidated":result.get("entry_signal_revalidated"),
+        "external_holding_reconciliation":result.get("external_holding_reconciliation",[]),
+        "external_closed_positions":result.get("external_closed_positions",[])})
     write_atomic(evidence_path,evidence[-100:])
     return result
 

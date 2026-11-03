@@ -1,10 +1,11 @@
 """Durable account-scoped Robinhood order journal and verified cost basis."""
 import json,os,tempfile
 from datetime import datetime,timezone
+from uuid import uuid4
 from decimal import Decimal,InvalidOperation
 from pathlib import Path
 
-FINAL={"filled","canceled","cancelled","failed","rejected","expired"}
+FINAL={"filled","canceled","cancelled","failed","rejected","expired","externally_reconciled"}
 
 class UnreconciledOrder(RuntimeError):pass
 
@@ -106,10 +107,26 @@ class OrderJournal:
             match.get("created_at") if _timestamp(match.get("created_at")) else None)
         return qty,price,fee,filled_at
 
-    def _recompute_realized(self,doc):
+    def _recompute_realized(self,doc,account=None):
         positions={}
         for row in doc["orders"]:
+            if account is not None and row.get("account")!=account:
+                continue
             row.pop("realized_pnl_usd",None)
+            if row.get("side")=="external_reduction" and row.get("status")=="externally_reconciled":
+                qty=_dec(row.get("quantity"),positive=True)
+                symbol=row.get("symbol")
+                state=positions.get(symbol)
+                if qty is None or state is None or qty>state["quantity"]:
+                    if state is not None:state["verified"]=False
+                    continue
+                unit=state["cost"]/state["quantity"]
+                state["quantity"]-=qty
+                state["cost"]-=unit*qty
+                if state["quantity"]==0:
+                    state["cost"]=Decimal("0")
+                    state["opened_at"]=None
+                continue
             if row.get("status")!="filled":continue
             qty=_dec(row.get("filled_quantity"),positive=True)
             price=_dec(row.get("average_fill_price"),positive=True)
@@ -184,9 +201,112 @@ class OrderJournal:
         self._save(doc)
         return len(self.pending())==0
 
-    def positions(self):
+    def reconcile_external_sells(self,account,broker_orders,broker_holdings):
+        """Correct stale bot inventory only when *both* broker holdings and
+        broker-confirmed external sell fills prove the reduction.
+
+        This records an external adjustment without pretending that Auto Trader
+        executed the sale, or attributing an unknown realized P/L to the bot.
+        """
+        if not isinstance(account,str) or not account:
+            raise UnreconciledOrder("External reconciliation account invalid")
+        if not isinstance(broker_orders,list) or not isinstance(broker_holdings,list):
+            raise UnreconciledOrder("Complete broker holdings and orders required")
+        if self.pending():
+            return {"status":"PENDING_BOT_ORDER","adjustments":[]}
+        if any(isinstance(o,dict) and str(o.get("state","")).lower() in
+               ("open","pending","partially_filled","queued") for o in broker_orders):
+            return {"status":"PENDING_BROKER_ORDER","adjustments":[]}
+        totals={}
+        for item in broker_holdings:
+            if not isinstance(item,dict):
+                raise UnreconciledOrder("Broker holdings response invalid")
+            asset=item.get("asset_code")
+            qty=_dec(item.get("total_quantity"))
+            if not isinstance(asset,str) or not asset or qty is None or asset in totals:
+                raise UnreconciledOrder("Broker holdings missing unique asset or quantity")
+            totals[asset+"-USD"]=qty
+
         doc=self.load()
-        states=self._recompute_realized(doc)
+        bot_orders=[r for r in doc["orders"] if r.get("account")==account
+                    and r.get("side") in ("buy","sell")]
+        owned_client_ids={r.get("client_order_id") for r in bot_orders}
+        previously_imported=set()
+        for r in doc["orders"]:
+            if r.get("side")=="external_reduction" and r.get("account")==account:
+                previously_imported.update(r.get("external_broker_order_ids") or [])
+        bot_positions=self.positions(account)
+        if not bot_positions:
+            return {"status":"NO_BOT_POSITIONS","adjustments":[]}
+        pending_adjustments=[]
+        unmatched=[]
+        for symbol,pos in bot_positions.items():
+            held=pos["quantity"]
+            broker_qty=totals.get(symbol,Decimal("0"))
+            difference=held-broker_qty
+            if difference<=max(Decimal("0.00000001"),held*Decimal("0.0000000001")):
+                continue
+            latest_fill=None
+            for row in bot_orders:
+                if row.get("symbol")!=symbol or row.get("side")!="buy" or row.get("status")!="filled":
+                    continue
+                stamp=_timestamp(row.get("filled_at"))
+                if stamp is None:
+                    # Without a verified buy time, chronological external-sell
+                    # attribution is unsafe.
+                    latest_fill=None
+                    break
+                if latest_fill is None or stamp>latest_fill:
+                    latest_fill=stamp
+            if latest_fill is None:
+                unmatched.append(symbol)
+                continue
+            eligible=[]
+            for row in broker_orders:
+                if not isinstance(row,dict) or row.get("symbol")!=symbol:continue
+                if str(row.get("side","")).lower()!="sell" or str(row.get("state","")).lower()!="filled":
+                    continue
+                broker_id=row.get("id")
+                if not isinstance(broker_id,str) or not broker_id or broker_id in previously_imported:
+                    continue
+                if row.get("client_order_id") in owned_client_ids:continue
+                fill_qty=_dec(row.get("filled_asset_quantity"),positive=True)
+                when=_timestamp(row.get("updated_at")) or _timestamp(row.get("created_at"))
+                if fill_qty is None or when is None or when<=latest_fill:continue
+                eligible.append((broker_id,fill_qty,when))
+            eligible_qty=sum((q for _,q,_ in eligible),Decimal("0"))
+            if eligible_qty<difference:
+                unmatched.append(symbol)
+                continue
+            evidence_ids=[broker_id for broker_id,_,_ in eligible]
+            external_sell_at=max(when for _,_,when in eligible)
+            pending_adjustments.append((symbol,difference,broker_qty,evidence_ids,external_sell_at))
+        if not pending_adjustments:
+            return {"status":"BROKER_HOLDINGS_MISMATCH" if unmatched else "NO_ADJUSTMENT_NEEDED",
+                    "adjustments":[],"unmatched":unmatched}
+        for symbol,quantity,broker_qty,ids,external_sell_at in pending_adjustments:
+            doc["orders"].append({
+                "account":account,
+                "client_order_id":"external-reconcile-"+str(uuid4()),
+                "symbol":symbol,"side":"external_reduction",
+                "status":"externally_reconciled",
+                "quantity":str(quantity),
+                "broker_remaining_quantity":str(broker_qty),
+                "external_broker_order_ids":ids,
+                "source":"broker_verified_external_sale",
+                "realized_pnl_usd":None,
+                "filled_at":external_sell_at.isoformat(),
+                "created_at":datetime.now(timezone.utc).isoformat(),
+                "note":"Manual/external sale corroborated by broker holdings; not a bot order"})
+        self._save(doc)
+        return {"status":"EXTERNAL_SALE_RECONCILED","adjustments":[
+            {"symbol":sym,"quantity":str(qty),"broker_remaining_quantity":str(remaining)}
+            for sym,qty,remaining,_,_ in pending_adjustments],
+                "unmatched":unmatched}
+
+    def positions(self,account=None):
+        doc=self.load()
+        states=self._recompute_realized(doc,account=account)
         result={}
         for symbol,state in states.items():
             if state["quantity"]<=0:continue
@@ -209,6 +329,8 @@ class OrderJournal:
 
     def last_exit_at(self,symbol):
         times=[_timestamp(row.get("filled_at")) for row in self.load()["orders"]
-               if row.get("symbol")==symbol and row.get("side")=="sell" and row.get("status")=="filled"]
+               if row.get("symbol")==symbol and
+               ((row.get("side")=="sell" and row.get("status")=="filled") or
+                (row.get("side")=="external_reduction" and row.get("status")=="externally_reconciled"))]
         times=[t for t in times if t is not None]
         return max(times) if times else None

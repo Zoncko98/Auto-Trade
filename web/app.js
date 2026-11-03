@@ -244,6 +244,24 @@ function formatAge(seconds){
   if(seconds<3600)return Math.floor(seconds/60)+" min";
   return Math.floor(seconds/3600)+"h "+Math.floor((seconds%3600)/60)+"m";
 }
+function renderRobinhoodExternalHoldings(data){
+  const worker=data?.worker||{};
+  const checks=Array.isArray(worker.external_holding_reconciliation)?
+    worker.external_holding_reconciliation:[];
+  const closed=Array.isArray(worker.external_closed_positions)?
+    worker.external_closed_positions:[];
+  const el=$("rh-external-holdings-status");
+  if(!el)return;
+  el.textContent=(checks.length?checks.map(x=>(x.status||"unknown")+
+    (Array.isArray(x.unmatched)&&x.unmatched.length?
+      " (unmatched: "+x.unmatched.join(", ")+")":"")).join(" | "):
+    "No broker holdings reconciliation recorded")+
+    (closed.length?" · Confirmed externally closed bot inventory: "+
+      closed.map(x=>(x.symbol||"?")+" "+(x.quantity||"unknown")+
+        " units, broker remainder "+(x.broker_remaining_quantity||"0")+
+        ", sale "+(x.filled_at||"time unavailable")).join(" | "):
+      " · No documented external sale adjustments");
+}
 function renderRobinhoodScanDiagnostics(data){
   const worker=data?.worker||{};
   const source=$("rh-scan-source"),coverage=$("rh-scan-coverage"),
@@ -349,6 +367,7 @@ async function loadRobinhoodDecisionEvidence(){
     " · Workstation selection: "+(data.worker?.ai_selected_model||"unavailable")+
     " · AI gate: "+(data.worker?.ai_review_status||"not evaluated");
   renderRobinhoodAIReview(data);
+  renderRobinhoodExternalHoldings(data);
   renderRobinhoodScanDiagnostics(data);
   renderRobinhoodPendingOrder(data);
   const rows=Array.isArray(data.decision_evidence)?data.decision_evidence:[];
@@ -640,6 +659,17 @@ async function loadRobinhoodWorkspace(){
       "Scan: "+(worker.worker||"unavailable")+
       " · Signal: "+(worker.last_signal||"NOT_VERIFIED")+
       " · Trading permission: "+effective.label;
+    const reconcileEl=$("robinhood-holdings-reconciliation");
+    if(reconcileEl){
+      const checks=Array.isArray(worker.external_holding_reconciliation)?
+        worker.external_holding_reconciliation:[];
+      const imported=Array.isArray(worker.external_closed_positions)?
+        worker.external_closed_positions:[];
+      reconcileEl.textContent=(checks.length?checks.map(x=>x.status||"unknown").join(" | "):
+        "No broker reconciliation recorded")+
+        (imported.length?" · Confirmed external sells: "+
+          imported.map(x=>(x.symbol||"?")+" "+(x.quantity||"unknown")+" units").join(", "):"");
+    }
     const riskEl=$("robinhood-risk-status");
     if(riskEl)riskEl.textContent="Account preflight: "+(worker.risk_check||"not reported")+
       " · Unreconciled intents: "+(Number.isInteger(worker.pending_order_intents)?worker.pending_order_intents:"unavailable")+
