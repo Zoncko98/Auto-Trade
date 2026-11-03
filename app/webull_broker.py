@@ -100,6 +100,41 @@ class WebullBroker:
         self.verify_account(account)
         self._validate_order(order)
         return _data(self.trade.order_v3.place_order(account,[order]))
+    def stock_api_probe(self):
+        """Read-only, minimal AAPL permission probe; no order APIs or credential disclosure."""
+        methods={
+            "snapshot": lambda:self.data.market_data.get_snapshot("AAPL","US_STOCK"),
+            "best_bid_ask": lambda:self.data.market_data.get_quotes(
+                "AAPL","US_STOCK",depth=1,overnight_required=False),
+            "minute_bars": lambda:self.data.market_data.get_history_bar(
+                "AAPL","US_STOCK","M1")}
+        result={}
+        for label,call in methods.items():
+            try:
+                response=call()
+                code=getattr(response,"status_code",None)
+                if isinstance(code,int) and 100<=code<=599:
+                    result[label]={"http_status":code,
+                                   "status":"OK" if code==200 else "HTTP_"+str(code)}
+                else:
+                    result[label]={"status":"UNEXPECTED_HTTP_RESPONSE"}
+            except Exception as exc:
+                # Sanitized exception codes only, never signed SDK error text.
+                match=re.search(r"HTTP (?:Status: )?([45]\d\d)",str(exc))
+                status="HTTP_"+match.group(1) if match else type(exc).__name__.upper()
+                result[label]={"status":status if len(status)<=48 else "SDK_ERROR"}
+        codes=[row["status"] for row in result.values()]
+        if all(x=="OK" for x in codes):
+            state="ALL_STOCK_ENDPOINTS_AUTHORIZED"
+        elif all(x=="HTTP_403" for x in codes):
+            state="ALL_STOCK_ENDPOINTS_FORBIDDEN"
+        elif any(x=="OK" for x in codes):
+            state="PARTIAL_STOCK_ENDPOINT_ACCESS"
+        else:
+            state="STOCK_ENDPOINTS_UNVERIFIED"
+        return {"state":state,"endpoints":result,
+                "symbol":"AAPL","orders_submitted":False}
+
     def bars(self,symbol,asset):
         if asset=="EQUITY" and STOCK.fullmatch(symbol):
             raw=_data(self.data.market_data.get_history_bar(symbol,"US_STOCK","M1"))

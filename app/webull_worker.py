@@ -38,8 +38,8 @@ def market_readiness(signals):
             state,detail="NOT_SCANNED","No market observations recorded"
         elif permission==len(rows):
             state,detail="MARKET_DATA_PERMISSION_REQUIRED",(
-                "Webull OpenAPI stock quote subscription or permissions unavailable; "
-                "do not infer live prices or use other broker quotes as Webull executions")
+                "Webull stock quote API returns HTTP 403; check app-key entitlements, "
+                "individual endpoint status and request authentication before concluding subscription is missing")
         elif spread==len(rows):
             state,detail="BROKER_SPREAD_TOO_WIDE",(
                 "Webull bid/ask spread exceeds the existing 0.5% strategy limit; "
@@ -357,6 +357,21 @@ def run_cycle(root,broker,rotation=0):
            "account_type":_account_class(a)} for a in accounts]
     allow_margin=read_account_preferences(root)["allow_margin_accounts"]
     report["account_readiness"]=[account_readiness(a,allow_margin) for a in accounts]
+    # Stock OpenAPI entitlement probe checks three read-only endpoints.
+    # A portal authorization alone cannot identify which SDK call receives 403.
+    probe_path=root/"webull"/"stock_api_probe.json"
+    if rotation%len(STOCKS)==0 and hasattr(broker,"stock_api_probe"):
+        try:
+            result=broker.stock_api_probe()
+            result["checked_at"]=_now().isoformat()
+            write_atomic(probe_path,result)
+        except Exception:
+            # Never interfere with account reconciliation or order safeguards.
+            pass
+    try:
+        report["stock_api_probe"]=json.loads(probe_path.read_text())
+    except (OSError,ValueError,TypeError):
+        report["stock_api_probe"]={"state":"PENDING_FIRST_CHECK"}
     account_ids={a["account_id"] for a in accounts}
     # Reconcile all journal accounts, including disabled ones and after restarts.
     found={r["account"] for r in journal.recent(100)}
@@ -471,7 +486,7 @@ def _persist(root,report):
     entry={k:report.get(k) for k in (
         "updated_at","execution_status","execution_reason","scan_universe",
         "scanned_symbols","signals","ai_reviews","approved_candidates",
-        "reconciliation","pending_orders","last_submission","market_readiness","stream_feeds")}
+        "reconciliation","pending_orders","last_submission","market_readiness","stream_feeds","stock_api_probe")}
     write_atomic(history,(old+[entry])[-120:])
 
 def main():

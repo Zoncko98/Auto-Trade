@@ -79,6 +79,45 @@ class Tests(unittest.TestCase):
     def signal(self):
         return {"at":NOW().isoformat(),"symbol":"F","asset":"EQUITY",
                 "bid":"9.99","ask":"10","technical_approved":True,"ai_approved":True}
+    def test_readonly_stock_data_probe_classifies_three_endpoints(self):
+        from types import SimpleNamespace
+        broker=WebullBroker.__new__(WebullBroker)
+        calls=[]
+        def reply(method,status):
+            def invoke(*args,**kwargs):
+                calls.append((method,args,kwargs))
+                return SimpleNamespace(status_code=status)
+            return invoke
+        market=SimpleNamespace(
+            get_snapshot=reply("snapshot",200),
+            get_quotes=reply("quote",403),
+            get_history_bar=reply("bars",200))
+        broker.data=SimpleNamespace(market_data=market)
+        result=broker.stock_api_probe()
+        self.assertEqual(result["state"],"PARTIAL_STOCK_ENDPOINT_ACCESS")
+        self.assertEqual(result["endpoints"]["snapshot"]["status"],"OK")
+        self.assertEqual(result["endpoints"]["best_bid_ask"]["status"],"HTTP_403")
+        self.assertEqual(result["endpoints"]["minute_bars"]["status"],"OK")
+        self.assertFalse(result["orders_submitted"])
+        self.assertEqual([r[0] for r in calls],["snapshot","quote","bars"])
+        self.assertEqual(calls[1][2]["depth"],1)
+        self.assertEqual(calls[0][1],("AAPL","US_STOCK"))
+    def test_readonly_stock_data_probe_sanitizes_403_and_signed_sdk_errors(self):
+        from types import SimpleNamespace
+        broker=WebullBroker.__new__(WebullBroker)
+        secret="TEST_PRIVATE_KEY_MUST_NEVER_LEAK"
+        def forbidden(*args,**kwargs):
+            raise RuntimeError("HTTP Status: 403 "+secret)
+        market=SimpleNamespace(
+            get_snapshot=forbidden,
+            get_quotes=forbidden,
+            get_history_bar=forbidden)
+        broker.data=SimpleNamespace(market_data=market)
+        result=broker.stock_api_probe()
+        self.assertEqual(result["state"],"ALL_STOCK_ENDPOINTS_FORBIDDEN")
+        self.assertTrue(all(v["status"]=="HTTP_403" for v in result["endpoints"].values()))
+        self.assertNotIn(secret,json.dumps(result))
+        self.assertFalse(result["orders_submitted"])
     def test_real_market_blockers_are_distinguished_without_weakening_risk(self):
         from webull_worker import market_readiness
         summary=market_readiness([

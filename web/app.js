@@ -1272,6 +1272,15 @@ async function loadWebullTrader(){
     const signalSources=Array.isArray(worker.signals)?worker.signals:[];
     const sourceNames=[...new Set(signalSources.map(s=>s.source).filter(Boolean))];
     if(sourceNames.length)webullRow(root,"Scan observation source",sourceNames.join(" · "));
+    const probe=worker.stock_api_probe||{};
+    webullRow(root,"Webull OpenAPI stock check",probe.state||"NOT_CHECKED");
+    for(const [label,name] of [["snapshot","AAPL stock snapshot"],
+       ["best_bid_ask","AAPL Level 1 bid / ask"],
+       ["minute_bars","AAPL 1-minute bars"]]){
+      const check=probe.endpoints?.[label];
+      if(check)webullRow(root,name,check.status||"UNAVAILABLE");
+    }
+    if(probe.checked_at)webullRow(root,"Stock API last checked",webullReadableDate(probe.checked_at));
     const ready=worker.market_readiness||{};
     for(const [asset,label] of [["stocks","Stocks"],["crypto","Crypto"]]){
       const item=ready[asset];
