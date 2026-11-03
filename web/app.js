@@ -189,7 +189,8 @@ function positionWebullTile(verified){
   if(label)label.hidden=!verified;
 }
 function updateWebullTile(data){
-  const tile=document.querySelector('[data-workspace="webull"]');
+  const tile=typeof document.querySelector==="function"?
+    document.querySelector('[data-workspace="webull"]'):null;
   const statusNode=$("workspace-webull-status");
   const main=$("workspace-webull-balance"),detail=$("workspace-webull-detail");
   if(!tile||!statusNode||!main||!detail)return;
