@@ -1989,7 +1989,12 @@ function orderBudget(account,s) {
 }
 function renderChart(points,currentEquity) {
   let series=points.filter(p=>Number.isFinite(Number(p.equity))).slice(-100).map(p=>Number(p.equity));
-  if(!series.length){$("equity-chart").innerHTML='<div class="chart-empty">Equity history will appear after the monitor records snapshots.</div>';return;}
+  if(!series.length){
+    $("equity-chart").classList.add("empty-history");
+    $("equity-chart").innerHTML='<div class="chart-empty">Equity history will appear after the monitor records snapshots.</div>';
+    return;
+  }
+  $("equity-chart").classList.remove("empty-history");
   if(series.length===1)series=[series[0],series[0]];
   const low=Math.min(...series),high=Math.max(...series),range=Math.max(1,high-low);
   const w=850,h=180,pad=12;

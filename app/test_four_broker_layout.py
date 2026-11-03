@@ -30,4 +30,7 @@ class FourBrokerLayoutTests(unittest.TestCase):
               'paper-holdings-coverage','stat-open-holdings','paper-last-decision'):
    self.assertIn('$("'+id_+'")',js)
   self.assertIn('hasCosts',js)
+  self.assertIn('classList.add("empty-history")',js)
+  self.assertIn('classList.remove("empty-history")',js)
+  self.assertIn('height:64px;min-height:64px', (ROOT/'web/workspace.css').read_text())
   self.assertNotIn('data-ops-target=',html)
