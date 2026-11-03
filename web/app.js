@@ -1114,6 +1114,12 @@ function bindEvents(){
     }
   });
 }
+function opsCompactNumber(value,digits=6){
+  if(value==null||value==="")return null;
+  const n=Number(value);
+  if(!Number.isFinite(n))return "Unavailable";
+  return n.toLocaleString(undefined,{maximumFractionDigits:digits});
+}
 let operationsHistoryPoints=[];
 function opsHistoryDraw(){
   const chart=$("ops-history-chart"),note=$("ops-history-note");
@@ -1297,9 +1303,9 @@ async function loadOperations(){
   ];
   if(rhHoldings)for(const h of rhHoldings.slice(0,30)){
     exitRows.push(opsRecord("Robinhood position · "+(h.symbol||h.asset_code||"Unknown"),[
-      ["Held quantity",h.quantity],
-      ["Estimated unrealized P/L",h.unrealized_pnl_usd],
-      ["Estimated return",h.unrealized_pnl_pct],
+      ["Held quantity",opsCompactNumber(h.quantity,8)],
+      ["Estimated unrealized P/L",opsCompactNumber(h.unrealized_pnl_usd,4)],
+      ["Estimated return",opsCompactNumber(h.unrealized_pnl_pct,4)],
       ["Cost basis",h.cost_basis_verified===true?"Verified":h.cost_basis_verified===false?"Not verified":"Not established"],
       ["Take-profit trigger","Not verified for this position"],
       ["Trailing high-water mark","Not available in broker holdings response"]
@@ -1307,7 +1313,7 @@ async function loadOperations(){
   }
   if(Array.isArray(live?.positions))for(const h of live.positions.slice(0,30)){
     exitRows.push(opsRecord("Schwab position · "+(h.symbol||h.asset||"Unknown"),[
-      ["Held quantity",h.quantity??h.shares],
+      ["Held quantity",opsCompactNumber(h.quantity??h.shares,8)],
       ["Average cost",h.average_cost??h.avg_cost],
       ["Unrealized P/L",h.unrealized_pnl],
       ["Take-profit and trailing protection","Not independently verified from position data"]
@@ -1315,7 +1321,7 @@ async function loadOperations(){
   }
   if(wbHoldings)for(const h of wbHoldings.slice(0,30)){
     exitRows.push(opsRecord("Webull position · "+(h.symbol||h.ticker||h.instrument_id||"Unknown"),[
-      ["Held quantity",h.quantity??h.position??h.total_quantity],
+      ["Held quantity",opsCompactNumber(h.quantity??h.position??h.total_quantity,8)],
       ["Average cost",h.average_cost??h.cost_price],
       ["Unrealized P/L",h.unrealized_pnl??h.unrealized_profit_loss],
       ["Take-profit and trailing protection","Not independently verified from position data"]
