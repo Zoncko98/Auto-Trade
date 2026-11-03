@@ -157,7 +157,7 @@ function clearWorkspaceBalances(){
   // Invalidate in-flight authenticated Robinhood portfolio responses on sign-out.
   robinhoodTileRefreshId++;
   webullTileRefreshId++;
-  updateWebullTile({});
+  if(typeof document.querySelector==="function")updateWebullTile({});
   const rh=$("workspace-robinhood-balance"), note=$("workspace-robinhood-value-note");
   if(rh){rh.textContent="Account value unavailable";rh.title="Sign in to view verified Robinhood holdings and USD buying power";}
   if(note)note.textContent="Holdings + USD buying power · verification required";
