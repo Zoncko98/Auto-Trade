@@ -330,3 +330,27 @@
 /* Shared navigation affordances across broker workspaces */
 .nav-item[data-ops-target]{width:100%;text-align:left;cursor:pointer}.nav-item[data-ops-target]:focus-visible,.ops-tabs .btn:focus-visible{outline:2px solid #76baff;outline-offset:2px}
 @media(max-width:720px){.ops-account-links{display:flex;flex-wrap:wrap;gap:8px}.ops-account-links .btn{min-height:40px}.ops-history-toolbar select{max-width:100%}}
+
+
+/* Broker dashboard design contract: consistent header, metrics and controls.
+   This affects presentation only; all broker-specific IDs and permissions remain intact. */
+[data-broker-dashboard] { --broker-panel-gap:16px; }
+[data-broker-dashboard] > .hero-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:16px; }
+[data-broker-dashboard] > .hero-head > div:first-child { min-width:0; flex:1; }
+[data-broker-dashboard] > .hero-head .control-panel { flex:0 1 390px; min-width:0; }
+[data-broker-dashboard] > .notice { margin-bottom:16px; }
+[data-broker-dashboard] > .rh-portfolio-performance { margin-bottom:16px; }
+[data-broker-dashboard] .rh-portfolio-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+[data-broker-dashboard] .stats-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+[data-broker-dashboard] .panel-heading { gap:12px; }
+@media(max-width:1000px) {
+ [data-broker-dashboard] > .hero-head { flex-direction:column; }
+ [data-broker-dashboard] > .hero-head .control-panel { flex:initial; width:100%; }
+ [data-broker-dashboard] .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:600px) {
+ [data-broker-dashboard] .rh-portfolio-metrics { grid-template-columns:1fr; }
+ [data-broker-dashboard] .stats-grid { grid-template-columns:1fr; }
+ [data-broker-dashboard] .control-buttons { flex-wrap:wrap; }
+ [data-broker-dashboard] .control-buttons .btn { min-height:40px; }
+}
