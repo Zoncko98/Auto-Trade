@@ -51,6 +51,12 @@ class StreamingTests(unittest.TestCase):
         snap=self._write_book(book)
         self.assertIsNone(market_observation(snap,"CRYPTO","BTCUSD"))
         self.assertEqual(snap["quotes"]["CRYPTO"]["BTCUSD"]["source"],"COINBASE_WS")
+        status=feed_status(self.root)
+        self.assertEqual(len(status["crypto_spreads"]),1)
+        self.assertEqual(status["crypto_spreads"][0]["symbol"],"BTCUSD")
+        self.assertLess(status["crypto_spreads"][0]["spread_pct"],0.5)
+        self.assertFalse(status["crypto_spreads"][0]["executable_webull_quote"])
+        self.assertNotIn("key",status["crypto_spreads"][0])
         # Only after six actual completed minute observations can this source
         # be used for momentum discovery. It cannot submit an order.
         now=NOW()

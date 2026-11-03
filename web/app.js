@@ -1261,6 +1261,14 @@ async function loadWebullTrader(){
     webullRow(root,"Stock discovery feed", "Alpaca IEX WebSocket · "+(feeds.stocks?.status||"NOT_CONFIGURED")+
       (feeds.stock_feed_configured?" · configured":" · configure free feed in Broker Connections"));
     webullRow(root,"Execution quote source","Webull broker only · independent fresh bid/ask required");
+    const liveSpreads=Array.isArray(feeds.crypto_spreads)?feeds.crypto_spreads:[];
+    liveSpreads.forEach(x=>{
+      if(typeof x.symbol!=="string"||!Number.isFinite(x.spread_pct))return;
+      webullRow(root,"Coinbase "+x.symbol+" indicative spread",
+        x.spread_pct.toFixed(4)+"% · "+(x.quote_age_seconds??"?")+"s old · "+
+        (x.fresh?"fresh":"older observation")+
+        " · NOT the Webull executable spread");
+    });
     const signalSources=Array.isArray(worker.signals)?worker.signals:[];
     const sourceNames=[...new Set(signalSources.map(s=>s.source).filter(Boolean))];
     if(sourceNames.length)webullRow(root,"Scan observation source",sourceNames.join(" · "));

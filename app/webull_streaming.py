@@ -106,9 +106,27 @@ def read_snapshot(root):
 def feed_status(root):
     snapshot = read_snapshot(root)
     feeds = snapshot.get("feeds", {})
+    spreads = []
+    for symbol, quote in sorted(snapshot.get("quotes", {}).get("CRYPTO", {}).items()):
+        if symbol not in COINS or not isinstance(quote,dict):
+            continue
+        try:
+            bid,ask=Decimal(str(quote["bid"])),Decimal(str(quote["ask"]))
+            age=time.time()-float(quote["event_epoch"])
+            if not 0<=age<=90 or not 0<bid<=ask or not ask.is_finite():
+                continue
+            spread=float((ask-bid)/ask*100)
+            if not 0<=spread<=100:continue
+            spreads.append({"symbol":symbol,"source":"COINBASE_WS",
+                            "spread_pct":round(spread,4),
+                            "quote_age_seconds":round(age,1),
+                            "fresh":age<=30,"executable_webull_quote":False})
+        except (KeyError,TypeError,ValueError,InvalidOperation,OverflowError):
+            continue
     return {"stock_feed_configured": stock_feed_configured(root),
             "stocks": feeds.get("alpaca", {"status": "NOT_CONFIGURED" if not stock_feed_configured(root) else "STARTING"}),
             "crypto": feeds.get("coinbase", {"status": "STARTING"}),
+            "crypto_spreads":spreads,
             "execution_quote_source": "WEBULL_BROKER_ONLY",
             "discovery_only": True}
 
