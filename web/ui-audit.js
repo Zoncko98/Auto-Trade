@@ -37,9 +37,14 @@
      NO_SIGNAL:"No qualifying signal",
      NOT_INVOKED:"AI not invoked",
      RECONCILIATION_PENDING:"Reconciliation pending",
-     SUBMITTED_UNCONFIRMED:"Submitted; fill unconfirmed"};
+     SUBMITTED_UNCONFIRMED:"Submitted; fill unconfirmed",
+     "MARKET_DATA_SIGNAL_BROKER_SPREAD_ABOVE_0.5":"Broker spread exceeds 0.5% entry ceiling",
+     NOT_ARMED:"Worker did not authorize an order",
+     NO_WORKER_REPORT:"No current worker report"};
    if(names[raw])return names[raw];
-   return raw.replace(/_/g," ").replace(/([a-z])([A-Z])/g,"$1 $2").replace(/\s+/g," ").trim();
+   const human=raw.replace(/_/g," ").replace(/([a-z])([A-Z])/g,"$1 $2").replace(/\s+/g," ").trim();
+   if(/^[A-Z0-9_.-]+$/.test(raw)&&raw.includes("_"))return human.charAt(0)+human.slice(1).toLowerCase();
+   return human;
  }
  function moneySigned(raw){
    if(raw===null||raw===undefined||raw==="")return "Unavailable";
@@ -366,7 +371,14 @@
    const slots=$("rh-risk-positions-preview");
    if(slots)slots.textContent=$( "robinhood-risk-positions")?.value||"Unavailable";
    const permission=$("rh-risk-permission-preview");
-   if(permission)permission.textContent=$("robinhood-risk-activate")?.checked?"Selected (not yet saved)":"Not enabled in form";
+   if(permission){
+     const form=$("robinhood-risk-form");
+     const selected=$("robinhood-risk-activate")?.checked===true;
+     const saved=form?.dataset.savedPolicyEnabled;
+     permission.textContent=saved===undefined?"Current saved policy unavailable":
+       selected!== (saved==="true")?"Unsaved permission selection":
+       saved==="true"?"Saved policy armed; all broker checks required":"Saved policy disarmed";
+   }
    const result=$("robinhood-risk-preview");
    if(result)result.textContent=buying===null||!Number.isFinite(max)||!Number.isFinite(exposure)?"Unavailable":
      new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(
@@ -406,7 +418,7 @@
      const model=r.invoked===true?(r.model||"Model not recorded"):
        r.invoked===false?"AI not invoked":"Invocation unverified";
      const values=[date.label,r.asset||"Unavailable",r.stage||"Unclassified",
-       statusText(r.result||"Not recorded"),String(r.reason||"No recorded rationale").slice(0,220),
+       statusText(r.result||"Not recorded"),statusText(r.reason||"No recorded rationale").slice(0,220),
        model,r.sourceAge||"Not recorded",r.order||"No order evidence"];
      values.forEach((value,i)=>{
        const cell=document.createElement("td");cell.textContent=value;

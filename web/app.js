@@ -671,7 +671,12 @@ function renderRobinhoodAIReview(data){
 async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
   const effective=robinhoodEffective(data);
-  $("rh-decision-status").textContent=effective.label+" · "+effective.detail;
+  const lastWorkerState=String(data.worker?.execution_status||"");
+  const workerBlocked=/^(NOT_ARMED|BLOCKED|RECONCILIATION_PENDING)/.test(lastWorkerState);
+  $("rh-decision-status").textContent=effective.label+" · "+effective.detail+
+    (data.policy_enabled===true&&workerBlocked?
+       " · Last worker order state: "+(window.AutoTraderAudit?.statusText(lastWorkerState)||lastWorkerState)+
+       ". Armed policy does not override this block.":"");
   $("rh-ai-connectivity").textContent="Latest recorded AI gate: "+
     (window.AutoTraderAudit?.statusText(data.worker?.ai_review_status||"not evaluated")||"not evaluated")+
     ". Model availability is shown only in the global top bar; this is historical trade evidence.";
@@ -740,6 +745,7 @@ async function loadRobinhoodRisk(){
   $("robinhood-risk-feedback").textContent=effective.label+" · "+effective.detail+" · "+
     (policy.configured?"Saved risk settings loaded":"No risk policy saved");
   $("robinhood-risk-form").dataset.effectiveState=effective.state;
+  $("robinhood-risk-form").dataset.savedPolicyEnabled=policy.enabled===true?"true":"false";
   window.AutoTraderAudit?.roRisk();
 }
 async function saveRobinhoodRisk(event){
@@ -908,6 +914,17 @@ function renderRobinhoodPortfolio(portfolio){
   }
   table.append(body);box.append(table);
   window.AutoTraderAudit?.robinhoodPortfolio(portfolio);
+}
+async function loadRobinhoodOrderAudit(){
+  await loadRobinhoodWorkspace();
+  try{
+    const portfolio=await request("/api/robinhood/portfolio");
+    window.AutoTraderAudit?.robinhoodPortfolio(portfolio);
+  }catch(err){
+    const text=$("audit-robinhood-history");
+    if(text)text.textContent="Broker history is currently unavailable; no bot fills are inferred.";
+    throw err;
+  }
 }
 async function loadRobinhoodWorkspace(){
   const statusNode=$("robinhood-workspace-status");
@@ -1498,7 +1515,9 @@ async function loadWebullTrader(){
     mode.textContent=armed?(brokerBlocked?"POLICY ARMED · ORDER BLOCKED":
       data.execution_validated===true?"POLICY ARMED · BROKER-GATED":
       "POLICY ARMED · FILLS UNVERIFIED"):"DISARMED / NOT VERIFIED";
-    mode.className="mode-tag "+(armed?"running":"stopped");
+    // An armed policy is not a green verified-fill state.
+    mode.className="mode-tag "+(armed&&data.execution_validated===true&&!brokerBlocked?
+      "running":armed?"":"stopped");
   }
   const orders=$("webull-orders-count");
   if(orders)orders.textContent=Array.isArray(worker.pending_orders)?String(worker.pending_orders.length):"Unavailable";
@@ -2006,7 +2025,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="webull-decisions")loadWebullEvidence().catch(err=>toast(err.message,true));
   if(view==="webull-orders")loadWebullOrders().catch(err=>toast(err.message,true));
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
-  if(view==="robinhood-orders") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
+  if(view==="robinhood-orders") loadRobinhoodOrderAudit().catch(err=>toast(err.message,true));
   if(view==="robinhood-risk") loadRobinhoodRisk().catch(err=>toast(err.message,true));
   if(view==="robinhood-decisions") loadRobinhoodDecisionEvidence().catch(err=>toast(err.message,true));
   if(view==="robinhood-forecast") loadRobinhoodExtras().catch(err=>toast(err.message,true));
@@ -2053,7 +2072,7 @@ function currentViewRefreshJobs(view){
     case "operations":return [["Trading operations",loadOperations]];
     case "brokers":return [["Broker connections",loadBrokerWorkspace]];
     case "robinhood":return [["Robinhood dashboard",loadRobinhoodWorkspace]];
-    case "robinhood-orders":return [["Robinhood order evidence",loadRobinhoodWorkspace]];
+    case "robinhood-orders":return [["Robinhood order evidence",loadRobinhoodOrderAudit]];
     case "live-orders":return [];
     case "robinhood-risk":return [["Robinhood risk controls",loadRobinhoodRisk]];
     case "robinhood-decisions":return [["Robinhood decisions",loadRobinhoodDecisionEvidence]];

@@ -51,6 +51,8 @@ assert(ui);
 assert.equal(ui.mask("112233445566"),"••••5566");
 assert.equal(ui.statusText("ARMED_NO_ORDER"),"Armed; no qualifying order");
 assert.equal(ui.statusText("TECHNICAL_ONLY_NEWS_OPTIONAL"),"Technical-only news-optional review");
+assert.equal(ui.statusText("MARKET_DATA_SIGNAL_BROKER_SPREAD_ABOVE_0.5"),
+ "Broker spread exceeds 0.5% entry ceiling");
 assert.match(ui.moneySigned(0.000117915),/\+\$0\.00011792/);
 assert.match(ui.moneySigned(-1.5),/−\$1\.50/);
 assert.match(ui.percentSigned(0.5),/\+0\.50%/);
