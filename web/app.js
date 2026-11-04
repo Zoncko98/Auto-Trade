@@ -1203,6 +1203,11 @@ function bindEvents(){
   $("robinhood-configure")?.addEventListener("click",()=>showView("brokers"));
   $("rh-pending-resolve")?.addEventListener("click",()=>resolveRobinhoodPendingOrder()
     .catch(err=>toast(err.message,true)));
+  for(const id of ["robinhood-export-performance","rh-export-performance"]){
+    $(id)?.addEventListener("click",()=>downloadWorkbook(
+      "/api/robinhood/performance.xlsx",
+      "autotrader-robinhood-performance.xlsx",$(id)));
+  }
   document.querySelectorAll(".workspace-tile:not(:disabled)").forEach(tile=>
     tile.addEventListener("click",()=>{
       if(!AVAILABLE_WORKSPACES.includes(tile.dataset.workspace))return;

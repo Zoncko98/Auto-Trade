@@ -433,6 +433,19 @@ class Handler(BaseHTTPRequestHandler):
                 try:return self._json(200,portfolio(STATE_DIR,account_id))
                 except (WebullError,OSError,ValueError) as exc:
                     return self._json(503,{"error":str(exc)[:160]})
+            if UNIFIED_APP and path == "/api/robinhood/performance.xlsx":
+                # Session authentication occurs above. Export is read-only and
+                # never supplies broker credentials or sends an order.
+                if urlparse(self.path).query:
+                    return self._json(400,{"error":"Unsupported Robinhood export filter"})
+                from robinhood_performance_export import build_robinhood_performance_workbook
+                from robinhood_order_journal import UnreconciledOrder
+                from robinhood_policy import PolicyError
+                try:
+                    data=build_robinhood_performance_workbook(STATE_DIR)
+                except (OSError,ValueError,TypeError,UnreconciledOrder,PolicyError):
+                    return self._json(503,{"error":"Robinhood trade report evidence unavailable"})
+                return self._excel("autotrader-robinhood-performance.xlsx",data)
             if UNIFIED_APP and path == "/api/robinhood/status":
                 return self._json(200,robinhood_status(STATE_DIR))
             if UNIFIED_APP and path == "/api/robinhood/risk":
