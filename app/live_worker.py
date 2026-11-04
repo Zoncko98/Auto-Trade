@@ -625,9 +625,6 @@ def wait_for_schwab_network_recovery():
 
 
 def main():
-    # Import only in the live process; the read-only dashboard has no need for
-    # Schwab's HTTP stack and does not require httpx at module import time.
-    import httpx
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--account",choices=("schwab","paper"),default="schwab",
                         help="Account execution adapter")
@@ -645,6 +642,8 @@ def main():
             return
         from paper_account_runtime import paper_main
         return paper_main(run=args.run)
+    # Only the Schwab adapter uses httpx; paper trading must not require it.
+    import httpx
     account_hash=os.getenv("LIVE_ACCOUNT_HASH","").strip()
     mode=os.getenv("LIVE_MODE","").strip()
     activated=os.getenv("LIVE_TRADING","false").lower()=="true"
