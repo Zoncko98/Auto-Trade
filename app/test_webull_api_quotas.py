@@ -100,7 +100,7 @@ class TestWebullQuotaAndEligibility(unittest.TestCase):
         self.assertEqual(result["execution_status"],"ARMED_ACCOUNT_DATA_UNAVAILABLE")
         self.assertEqual(result["execution_reason"],"BROKER_RATE_LIMITED_HTTP_429")
         self.assertEqual(result["approved_candidates"],[])
-    def test_crypto_candidate_uses_optional_news_technical_review_not_news_only(self):
+    def test_crypto_candidate_uses_existing_validated_ai_research(self):
         import webull_worker
         class FakeScanBroker:
             def quote(self,sym,asset):return {"bid":"10","ask":"10.02","quote_time":time.time()}
@@ -117,15 +117,13 @@ class TestWebullQuotaAndEligibility(unittest.TestCase):
                     "reason":"NO_SIGNAL"}
         with patch("webull_worker.evaluate",side_effect=evaluate),\
              patch("webull_worker.time.sleep",return_value=None),\
-             patch("ai_research.review_technical_crypto_entry",return_value=(True,"PASS")) as ai,\
              patch("ai_research.research_evidence",return_value={"model":"fixture"}),\
-             patch("ai_research.approve_entry") as news_only:
+             patch("ai_research.approve_entry",return_value=(True,"PASS")) as ai:
             result=_scan(self.root,FakeScanBroker(),0,{})
             self.assertEqual(len(result),1)
             self.assertEqual(result[0]["symbol"],"BTCUSD")
             self.assertTrue(result[0]["ai_approved"])
-            self.assertEqual(ai.call_args.args[0]["symbol"],"BTC-USD")
-            self.assertEqual(ai.call_args.args[0]["signal"],"MOMENTUM_BUY")
-            news_only.assert_not_called()
+            ai.assert_called_once()
+            self.assertEqual(ai.call_args.args[0],"BTC-USD")
 
 if __name__=="__main__":unittest.main()

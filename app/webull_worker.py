@@ -324,7 +324,7 @@ def _exit_reason(root,account,symbol,row,signal,risk):
     return None
 
 def _scan(root,broker,rotation,report):
-    from ai_research import approve_entry,research_evidence,review_technical_crypto_entry
+    from ai_research import approve_entry,research_evidence
     # Discover-only / monitor scans continue whether live execution is armed.
     symbols=[(sym,"EQUITY") for sym in
         (STOCKS[(rotation+i)%len(STOCKS)] for i in range(MAX_SCAN_PER_CLASS))]
@@ -366,19 +366,10 @@ def _scan(root,broker,rotation,report):
         name=row["symbol"][:-3]+"-USD" if row["asset"]=="CRYPTO" else row["symbol"]
         started=time.monotonic()
         try:
-            if row["asset"]=="CRYPTO":
-                technical={
-                    "symbol":name,"technical_approved":True,
-                    "signal":"MOMENTUM_BUY",
-                    "momentum_pct":row.get("momentum_pct"),
-                    "spread_pct":row.get("spread_pct"),
-                    "trend_up":True,"source":row.get("source"),
-                    "signal_reason":row.get("reason"),
-                    "history_points":row.get("bars"),
-                }
-                accepted,reason=review_technical_crypto_entry(technical,_now())
-            else:
-                accepted,reason=approve_entry(name,_now())
+            # Use the currently deployed common AI news reviewer. A future
+            # technical-only crypto reviewer must be deployed and separately
+            # validated before changing this gate on a live account.
+            accepted,reason=approve_entry(name,_now())
             evidence=research_evidence(name,_now())
             model=evidence.get("model")
         except Exception as exc:
