@@ -1534,6 +1534,11 @@ async function loadWebullTrader(){
     webullRow(root,"AI approvals",Array.isArray(worker.ai_reviews)?
       worker.ai_reviews.filter(x=>x.approved===true).length+" of "+worker.ai_reviews.length+" reviewed":"No reviews");
     webullRow(root,"Market symbols checked",Array.isArray(worker.signals)?worker.signals.length:"Unavailable");
+    webullRow(root,"Stock entry strategy",
+      worker.stock_strategy==="SCHWAB_SHARED_M5_CROSSOVER_AND_CONTINUATION"?
+      "Shared with Schwab · five-minute 3/5 crossover or continued momentum":
+      "Pending worker strategy confirmation");
+    webullRow(root,"Stock scanner scope","Shared Schwab stock universe · Webull broker quotes and M5 bars");
     const feeds=data.stream_status||worker.stream_feeds||{};
     webullRow(root,"Crypto discovery feed", "Coinbase public WebSocket · "+(feeds.crypto?.status||"NOT_CONNECTED"));
     webullRow(root,"Stock discovery feed","Webull native OpenAPI · quotes and one-minute bars");

@@ -19,10 +19,13 @@ from webull_journal import WebullJournal,JournalBlocked
 from webull_signals import evaluate,_quote,core_stock_session,WebullSignalError
 from dashboard_control import write_atomic
 from webull_streaming import read_snapshot, market_observation, feed_status
+from webull_shared_stock import (STOCK_SCAN_SYMBOLS, SHARED_STOCK_SOURCE,
+                                 scan_shared_stock,revalidate_shared_stock)
 
-STOCKS=("F","SOFI","AAPL","MSFT","AMD","NVDA","TSLA","PLTR","PFE","SNAP","NIO","AAL")
+STOCKS=STOCK_SCAN_SYMBOLS  # Same equity universe as Schwab.
 CRYPTOS=("BTCUSD","ETHUSD","SOLUSD","DOGEUSD","XRPUSD","AVAXUSD")
-MAX_SCAN_PER_CLASS=3
+MAX_STOCKS_PER_CYCLE=len(STOCKS)  # Rank full Schwab universe; selector keeps top 8.
+MAX_SCAN_PER_CLASS=3  # Crypto retains its existing one-minute strategy.
 
 class WebullBlocked(RuntimeError):pass
 
@@ -52,7 +55,9 @@ def market_readiness(signals):
                 "One or more broker market-data checks failed")
         else:
             state,detail="SCANNING_NO_SIGNAL",(
-                "Quotes checked; no approved momentum entry")
+                "Quotes checked; no qualifying shared Schwab M5 stock entry"
+                if asset=="EQUITY" else
+                "Quotes checked; no approved crypto momentum entry")
         result[label]={"status":state,"detail":detail,"checked":len(rows),
                        "candidates":eligible,"permission_errors":permission,
                        "spread_blocks":spread}
@@ -326,32 +331,42 @@ def _exit_reason(root,account,symbol,row,signal,risk):
 def _scan(root,broker,rotation,report):
     from ai_research import approve_entry,research_evidence
     # Discover-only / monitor scans continue whether live execution is armed.
-    symbols=[(sym,"EQUITY") for sym in
-        (STOCKS[(rotation+i)%len(STOCKS)] for i in range(MAX_SCAN_PER_CLASS))]
-    symbols +=[(sym,"CRYPTO") for sym in
-        (CRYPTOS[(rotation+i)%len(CRYPTOS)] for i in range(MAX_SCAN_PER_CLASS))]
+    stocks=list(STOCKS)  # Match Schwab: rank all configured equities per cycle.
+    cryptos=[CRYPTOS[(rotation+i)%len(CRYPTOS)]
+             for i in range(MAX_SCAN_PER_CLASS)]
     report["scan_universe"]={"stocks":len(STOCKS),"crypto":len(CRYPTOS)}
-    report["scanned_symbols"]=[s for s,_ in symbols]
+    report["scanned_symbols"]=stocks+cryptos
     report["signals"]=[]
+    report["stock_strategy"]="SCHWAB_SHARED_M5_CROSSOVER_AND_CONTINUATION"
     stream=read_snapshot(root)
     report["stream_feeds"]=feed_status(root)
     observed=[]
-    for symbol,asset in symbols:
+    # Stock entry ranking/3-vs-5 completed M5 crossover and continuing-trend
+    # selection are the very same pure functions Schwab executes.
+    try:
+        stock_rows,stock_candidate=scan_shared_stock(broker,stocks,_now())
+        report["signals"].extend(stock_rows)
+        if stock_candidate:observed.append(stock_candidate)
+    except Exception as exc:
+        report["signals"].extend({"symbol":symbol,"asset":"EQUITY",
+             "source":SHARED_STOCK_SOURCE,"technical_approved":False,
+             "reason":"MARKET_DATA_"+_safe_public(exc)} for symbol in stocks)
+    # Existing Webull crypto strategy is unchanged. Coinbase is still
+    # discovery-only; Webull independently verifies quotes before an order.
+    for symbol in cryptos:
+        asset="CRYPTO"
         origin="WEBULL_M1"
         try:
             external=market_observation(stream,asset,symbol)
             if external:
-                # Exchange WebSockets are discovery-only, never Webull order
-                # prices. The order path rechecks Webull quote and spread.
                 origin=external["source"]
                 result=evaluate(symbol,asset,external["quote"],
                     external["bars"],source=origin)
             else:
                 q=broker.quote(symbol,asset)
-                # Crypto REST quote endpoint enforces <=1 request/s per key.
-                if asset=="CRYPTO":time.sleep(1.05)
+                time.sleep(1.05)
                 bars=broker.bars(symbol,asset)
-                if asset=="CRYPTO":time.sleep(1.05)
+                time.sleep(1.05)
                 result=evaluate(symbol,asset,q,bars)
             report["signals"].append({k:result.get(k) for k in
                 ("symbol","asset","technical_approved","momentum_pct","spread_pct","reason","source")})
@@ -501,9 +516,12 @@ def run_cycle(root,broker,rotation=0):
             try:
                 elapsed=(_now()-datetime.fromisoformat(sig["at"].replace("Z","+00:00"))).total_seconds()
                 if elapsed>60:
-                    fresh=evaluate(sig["symbol"],sig["asset"],
-                                   broker.quote(sig["symbol"],sig["asset"]),
-                                   broker.bars(sig["symbol"],sig["asset"]))
+                    if sig["asset"]=="EQUITY" and sig.get("source")==SHARED_STOCK_SOURCE:
+                        fresh=revalidate_shared_stock(broker,sig["symbol"],_now())
+                    else:
+                        fresh=evaluate(sig["symbol"],sig["asset"],
+                                       broker.quote(sig["symbol"],sig["asset"]),
+                                       broker.bars(sig["symbol"],sig["asset"]))
                     if fresh.get("technical_approved") is not True:
                         raise WebullBlocked("Signal no longer qualifies after AI review")
                     previous=positive(sig["mid"]);current=positive(fresh["mid"])
@@ -527,7 +545,9 @@ def run_cycle(root,broker,rotation=0):
                 if qty<=0:raise WebullBlocked("Account risk budget too small")
                 receipt=_order(root,broker,policy,risk,journal,account,
                        sig["symbol"],sig["asset"],"BUY",sig,qty,ask,
-                       "Technical momentum + Webull-specific shared AI approval")
+                       ("Schwab shared M5 stock signal + Webull AI review"
+                        if sig["asset"]=="EQUITY" else
+                        "Webull crypto momentum + AI approval"))
                 report["execution_status"]="ENTRY_SUBMITTED_UNCONFIRMED"
                 report["last_submission"]=receipt
                 break
@@ -546,7 +566,7 @@ def _persist(root,report):
     if not isinstance(old,list):old=[]
     entry={k:report.get(k) for k in (
         "updated_at","execution_status","execution_reason","scan_universe",
-        "scanned_symbols","signals","ai_reviews","approved_candidates",
+        "scanned_symbols","stock_strategy","signals","ai_reviews","approved_candidates",
         "reconciliation","pending_orders","last_submission","market_readiness","stream_feeds","stock_api_probe")}
     write_atomic(history,(old+[entry])[-120:])
 

@@ -239,10 +239,32 @@ class WebullBroker:
         return {"state":state,"endpoints":result,
                 "symbol":"AAPL","orders_submitted":False}
 
-    def bars(self,symbol,asset):
-        if asset=="EQUITY" and STOCK.fullmatch(symbol):
-            raw=_data(self.data.market_data.get_history_bar(symbol,"US_STOCK","M1"))
-        elif asset=="CRYPTO" and CRYPTO.fullmatch(symbol):
+    def stock_snapshot(self,symbol):
+        """Read authenticated Webull stock market snapshot for real volume/change."""
+        if not isinstance(symbol,str) or not STOCK.fullmatch(symbol):
+            raise WebullError("Invalid stock snapshot symbol")
+        raw=_data(self.data.market_data.get_snapshot(symbol,"US_STOCK"))
+        if isinstance(raw,dict) and raw.get("symbol")==symbol:
+            return raw
+        candidates=raw if isinstance(raw,list) else (
+            raw.get("data",raw.get("result",[])) if isinstance(raw,dict) else [])
+        if isinstance(candidates,dict):
+            candidates=[candidates]
+        if not isinstance(candidates,list):
+            raise WebullError("Unexpected stock snapshot response")
+        matches=[row for row in candidates if isinstance(row,dict) and row.get("symbol")==symbol]
+        if len(matches)!=1:
+            raise WebullError("Webull stock snapshot symbol missing or ambiguous")
+        return matches[0]
+
+    def bars(self,symbol,asset,period="M1"):
+        if asset=="EQUITY" and STOCK.fullmatch(symbol) and period in ("M1","M5"):
+            if period=="M5":
+                raw=_data(self.data.market_data.get_history_bar(
+                    symbol,"US_STOCK","M5",trading_sessions="RTH"))
+            else:
+                raw=_data(self.data.market_data.get_history_bar(symbol,"US_STOCK","M1"))
+        elif asset=="CRYPTO" and CRYPTO.fullmatch(symbol) and period=="M1":
             raw=_data(self.data.crypto_market_data.get_crypto_history_bar(symbol,"US_CRYPTO","M1"))
         else:raise WebullError("Asset not supported for bars")
         # Webull stock M1 currently returns an outer "result" container

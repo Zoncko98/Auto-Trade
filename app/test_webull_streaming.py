@@ -163,7 +163,10 @@ class StreamingTests(unittest.TestCase):
         with patch("ai_research.approve_entry",return_value=(True,"Allowed")),\
              patch("ai_research.research_evidence",return_value={"model":"fixture"}):
             _scan(root,ScanBroker(),0,report)
-        self.assertEqual(report["signals"][3]["source"],"COINBASE_WS")
+        crypto_rows=[r for r in report["signals"] if r.get("asset")=="CRYPTO"]
+        self.assertEqual(crypto_rows[0]["source"],"COINBASE_WS")
+        stock_rows=[r for r in report["signals"] if r.get("asset")=="EQUITY"]
+        self.assertTrue(all(r.get("source")=="WEBULL_SHARED_SCHWAB_M5" for r in stock_rows))
         self.assertEqual(fake.place_calls,0)
         # Even if downstream AI approves, Webull's 10% executable spread
         # blocks the real order before any intent or broker write.

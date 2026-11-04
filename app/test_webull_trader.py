@@ -194,7 +194,10 @@ class Tests(unittest.TestCase):
             report={}
             approved=_scan(self.state,self.b,0,report)
         self.assertTrue(approved)
-        self.assertEqual(report["candidates"],6)
+        # Stock discovery is now independently selected by the shared
+        # five-minute Schwab strategy; the old M1 evaluate fixture only
+        # applies to three crypto symbols.
+        self.assertEqual(report["candidates"],3)
         self.assertEqual(len(report["ai_reviews"]),2)
         self.assertEqual(ai.call_count,2)
         self.assertEqual(self.b.submissions,[])
