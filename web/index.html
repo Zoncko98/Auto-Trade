@@ -291,7 +291,7 @@
             <div class="readiness-item"><span>Technical qualification</span><strong id="robinhood-signal-diagnostics">Awaiting scan diagnostics</strong></div>
             <div class="readiness-item"><span>Duplicate and reconciliation safeguards</span><strong id="robinhood-order-state">Checking…</strong></div>
             <div class="readiness-item"><span>Broker holdings versus bot journal</span><strong id="robinhood-holdings-reconciliation">Checking broker holdings…</strong></div>
-            <p class="panel-note">An AI approval is not a verified broker fill or a prediction of profit.</p>
+            <p class="panel-note">Entries require a qualified technical signal and risk approval. Missing asset-specific news may permit a technical-only entry, which is not an AI endorsement. Broker order acknowledgment is not proof of fill.</p>
           </section>
           <section class="panel">
             <div class="panel-heading"><div><h2>Investment operation</h2><p>Your connected Robinhood Crypto account</p></div></div>
@@ -351,7 +351,7 @@
       </section>
       <section class="panel list-panel" id="rh-ai-review-diagnostics">
         <div class="panel-heading"><div><h2>AI review timing & evidence gates</h2>
-          <p>News missing means the model was not called; an actual model veto is reported separately. New orders require a fresh technical signal.</p></div></div>
+          <p>No matching asset news is neutral for qualified Robinhood crypto momentum entries: these may use technical-only approval without an AI call. When asset news exists, the existing AI veto remains in place. News-feed errors, stale signals and broker risk checks still block orders.</p></div></div>
         <div class="readiness-item"><span>Latest AI gate result</span><strong id="rh-ai-outcome">Loading…</strong></div>
         <div class="readiness-item"><span>Total review time</span><strong id="rh-ai-duration">Loading…</strong></div>
         <div class="readiness-item"><span>Verified classifier model</span><strong id="rh-ai-classifier">Loading…</strong></div>
@@ -412,7 +412,7 @@
             <div class="setting-control"><input type="number" id="robinhood-risk-cooldown" min="0" max="1440" step="1" required><span>min</span></div></div>
           <div class="setting-item"><div><label>Verified exchange order minimum</label><p>Must come from Robinhood trading-pair metadata; cannot be bypassed in this form.</p></div>
             <div class="setting-control"><strong id="robinhood-risk-minimum">Not verified</strong></div></div>
-          <div class="setting-item"><div><label for="robinhood-risk-activate">Authorize autonomous live crypto orders</label><p>Real-money orders may execute without further confirmation when technical, AI and broker risk checks pass.</p></div>
+          <div class="setting-item"><div><label for="robinhood-risk-activate">Authorize autonomous live crypto orders</label><p>Real-money orders may execute without further confirmation after technical and broker risk checks, using the existing AI news review when relevant headlines exist or explicit technical-only approval when no relevant asset news exists. Feed failures and AI vetoes remain blocking.</p></div>
             <div class="setting-control"><input type="checkbox" id="robinhood-risk-activate"></div></div>
           <div class="setting-item"><div><label>Live submission permission</label><p>Read-only until broker minimum and execution safeguards pass.</p></div>
             <div class="setting-control"><strong id="robinhood-risk-enabled">OFF</strong></div></div>

@@ -34,4 +34,15 @@ assert.match(nodes["rh-ai-duration"].textContent,/4\.8 seconds/);
 assert.match(nodes["rh-ai-classifier"].textContent,/local:qwen3\.5:9b/);
 assert.match(nodes["rh-ai-candidate-explanations"].textContent,/NO TRADE/);
 assert.ok(js.includes('NEWS_EVIDENCE_MISSING:"Relevant news missing"'));
-console.log("Robinhood AI evidence UI: news-missing vs model-veto, timing and classifier identity passed");
+context.render({worker:{ai_review_status:"TECHNICAL_ONLY_NEWS_OPTIONAL",
+  ai_review_duration_seconds:0.14,ai_candidate_reviews:[{
+    symbol:"MEW-USD",outcome:"TECHNICAL_ONLY_NEWS_OPTIONAL",
+    review_type:"TECHNICAL_ONLY_NO_AI",news_status:"NO_RELEVANT_HEADLINES",
+    elapsed_seconds:0.14,model:null,
+    reason:"TECHNICAL_ONLY_NEWS_OPTIONAL: no asset-specific headlines"}]}});
+assert.equal(nodes["rh-ai-outcome"].textContent,"TECHNICAL_ONLY_NEWS_OPTIONAL");
+assert.match(nodes["rh-ai-duration"].textContent,/Ollama NOT invoked/);
+assert.match(nodes["rh-ai-classifier"].textContent,/NO AI CALL/);
+assert.match(nodes["rh-ai-candidate-explanations"].textContent,/TECHNICAL_ONLY_NEWS_OPTIONAL/);
+assert.ok(html.includes("Missing asset-specific news may permit a technical-only entry"));
+console.log("Robinhood AI evidence UI: optional-news technical-only status, prior model veto, timing and model identity passed");

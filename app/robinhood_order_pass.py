@@ -43,8 +43,31 @@ def _current_exposure(client,positions,current_symbol,current_bid):
 def review_order(state,client,policy,signal,now=None):
     """Independent buy checks. No submission occurs here."""
     now=now or datetime.now(timezone.utc)
-    if not isinstance(signal,dict) or signal.get("technical_approved") is not True or signal.get("ai_approved") is not True:
-        raise OrderPassBlocked("Approved technical and AI decisions required")
+    if not isinstance(signal,dict) or signal.get("technical_approved") is not True:
+        raise OrderPassBlocked("Qualified technical signal required")
+    ai_approved=signal.get("ai_approved") is True
+    no_news_approved=(signal.get("news_optional_technical_approved") is True
+        and signal.get("news_evidence_status")=="NO_RELEVANT_HEADLINES"
+        and signal.get("ai_approved") is False)
+    if no_news_approved:
+        # No-news entries have NO AI endorsement. Require the original
+        # technical momentum, coverage, and spread limits explicitly.
+        try:
+            momentum=Decimal(str(signal["momentum_pct"]))
+            spread_pct=Decimal(str(signal["spread_pct"]))
+            span=Decimal(str(signal["history_span_seconds"]))
+            points=int(signal["history_points"])
+        except (KeyError,ValueError,TypeError,ArithmeticError):
+            raise OrderPassBlocked("No-news technical proof incomplete") from None
+        if not (momentum.is_finite() and spread_pct.is_finite() and span.is_finite()
+                and Decimal("0.5")<=momentum<=Decimal("2")
+                and Decimal("0")<=spread_pct<=Decimal("0.5")
+                and span>=Decimal("300") and points>=4
+                and signal.get("trend_up") is True
+                and signal.get("signal")=="MOMENTUM_CANDIDATE"):
+            raise OrderPassBlocked("No-news technical proof did not meet entry rules")
+    if not ai_approved and not no_news_approved:
+        raise OrderPassBlocked("Validated AI approval or verified news-optional technical approval required")
     at=signal.get("at")
     try:age=(now-datetime.fromisoformat(at.replace("Z","+00:00"))).total_seconds()
     except (ValueError,TypeError,AttributeError):raise OrderPassBlocked("Signal timestamp invalid") from None

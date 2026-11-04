@@ -123,7 +123,7 @@ class WorkerEvidenceTests(unittest.TestCase):
             return {"results":[{"symbol":symbol,"bid":"9.99","ask":"10.00"}]}
         def orders(self,account):return []
         def positions(self,account):return []
-    def test_missing_news_not_recorded_as_ai_veto_or_model_request(self):
+    def test_missing_news_is_distinct_technical_only_and_not_ai_veto(self):
         now=datetime.now(timezone.utc)
         with tempfile.TemporaryDirectory() as root:
             sub=Path(root)/"robinhood";sub.mkdir()
@@ -134,9 +134,10 @@ class WorkerEvidenceTests(unittest.TestCase):
             with patch("local_ai_gateway.installed_models",return_value=["qwen3.5:4b"]),                 patch("ai_research.approve_entry",return_value=(
                     False,"AI research unavailable: No headlines explicitly tied to this crypto asset")):
                 result=run_once(root,self.Broker())
-            self.assertEqual(result["ai_review_status"],"NEWS_EVIDENCE_MISSING")
+            self.assertEqual(result["ai_review_status"],"TECHNICAL_ONLY_NEWS_OPTIONAL")
             self.assertEqual(result["ai_model"],"NOT_INVOKED")
-            self.assertIn("model NOT invoked",result["execution_reason"])
+            self.assertEqual(result["ai_connection_status"],"NOT_INVOKED_NEWS_OPTIONAL")
+            self.assertEqual(result["ai_candidate_reviews"][0]["review_type"],"TECHNICAL_ONLY_NO_AI")
             self.assertEqual(result["ai_candidate_reviews"][0]["model"],None)
             self.assertIsNotNone(result["ai_review_duration_seconds"])
 

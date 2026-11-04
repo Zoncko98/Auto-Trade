@@ -13,6 +13,8 @@ PAIRS=("BTC-USD","ETH-USD","SOL-USD","DOGE-USD")
 
 def ai_review_category(approved,reason):
     """Never conflate a missing news source, a model failure and an AI veto."""
+    if isinstance(reason,str) and reason.startswith("TECHNICAL_ONLY_NEWS_OPTIONAL"):
+        return "TECHNICAL_ONLY_NEWS_OPTIONAL"
     if approved:return "PASS"
     if not isinstance(reason,str):return "AI_UNAVAILABLE"
     if "No headlines explicitly tied" in reason or "No independently timestamped news" in reason:
@@ -67,8 +69,12 @@ def revalidate_buy_signal(state,client,signal,now=None):
     refreshed_mid=Decimal(str(refreshed["mid"]))
     if original<=0 or abs(refreshed_mid/original-1)*100>Decimal("0.75"):
         raise OrderPassBlocked("Signal price drift exceeded 0.75% during AI review")
-    refreshed.update(ai_approved=True,ai_revalidated=True,
-                     revalidated_after_ai_seconds=round(age,2))
+    refreshed.update(
+        ai_approved=signal.get("ai_approved") is True,
+        news_optional_technical_approved=signal.get("news_optional_technical_approved") is True,
+        news_evidence_status=signal.get("news_evidence_status"),
+        ai_revalidated=True,
+        revalidated_after_ai_seconds=round(age,2))
     return refreshed
 
 def snapshot(client):
@@ -445,6 +451,17 @@ def run_once(state,client,feed=None):
         for target in signal_candidates[:3]:
             began=time.monotonic()
             approved,reason=approve_entry(target["symbol"],datetime.now(timezone.utc))
+            no_news=(not approved and isinstance(reason,str)
+                and ("No headlines explicitly tied to this crypto asset" in reason
+                     or "No independently timestamped news" in reason))
+            if no_news:
+                # No relevant published asset news is neutral, not evidence
+                # of a bad trade. Preserve original momentum qualification,
+                # separate this approval from AI, and keep broker risk limits.
+                approved=True
+                reason=("TECHNICAL_ONLY_NEWS_OPTIONAL: qualified +0.5% to +2% "
+                        "rising momentum; no relevant asset-specific news; "
+                        "AI was NOT invoked; broker risk and freshness checks still apply")
             elapsed=round(time.monotonic()-began,3)
             evidence=research_evidence(target["symbol"],datetime.now(timezone.utc))
             category=ai_review_category(approved,reason)
@@ -456,18 +473,25 @@ def run_once(state,client,feed=None):
                 "model":evidence.get("model"),
                 "model_inference_seconds":evidence.get("inference_seconds"),
                 "classifier_model_source":evidence.get("classifier_model_source"),
+                "news_status":"NO_RELEVANT_HEADLINES" if no_news else "NEWS_REVIEWED",
+                "review_type":"TECHNICAL_ONLY_NO_AI" if no_news else "AI_NEWS_REVIEW",
                 "reason":reason[:240]})
             if evidence.get("model"):
                 result["ai_model"]=evidence["model"]
             result["ai_review_duration_seconds"]=round(
                 sum(r["elapsed_seconds"] for r in result["ai_candidate_reviews"]),3)
             if approved:
-                approved_signal=dict(target,ai_approved=True)
-                result["ai_review_status"]="PASS"
+                approved_signal=dict(target,ai_approved=not no_news,
+                    news_optional_technical_approved=no_news,
+                    news_evidence_status="NO_RELEVANT_HEADLINES" if no_news else "NEWS_REVIEWED")
+                result["ai_review_status"]="TECHNICAL_ONLY_NEWS_OPTIONAL" if no_news else "PASS"
                 result["ai_reason"]=reason[:500]
                 result["entry_candidate_symbol"]=target["symbol"]
                 result["entry_momentum_pct"]=target.get("momentum_pct")
-                result["last_signal"]=target["symbol"]+": PASS"
+                result["last_signal"]=(target["symbol"]+
+                    (": TECHNICAL_ONLY_NEWS_OPTIONAL" if no_news else ": PASS"))
+                if no_news:
+                    result["ai_model"]="NOT_INVOKED"
                 break
         if approved_signal is None:
             result["ai_review_status"]=(outcomes[0] if len(set(outcomes))==1
@@ -477,8 +501,10 @@ def run_once(state,client,feed=None):
             result["entry_momentum_pct"]=signal_candidates[0].get("momentum_pct")
         if any(x=="AI_UNAVAILABLE" for x in outcomes):
             result["ai_connection_status"]="MODEL_RESPONSE_UNAVAILABLE"
-        elif any(x not in ("NEWS_EVIDENCE_MISSING","NEWS_FEED_UNAVAILABLE")
-                 for x in outcomes):
+        elif outcomes and all(x=="TECHNICAL_ONLY_NEWS_OPTIONAL" for x in outcomes):
+            result["ai_connection_status"]="NOT_INVOKED_NEWS_OPTIONAL"
+        elif any(x not in ("NEWS_EVIDENCE_MISSING","NEWS_FEED_UNAVAILABLE",
+                           "TECHNICAL_ONLY_NEWS_OPTIONAL") for x in outcomes):
             if result.get("ai_connection_status")=="READY":
                 result["ai_connection_status"]="REVIEW_PERFORMED"
         elif result.get("ai_connection_status")=="READY":
@@ -500,7 +526,10 @@ def run_once(state,client,feed=None):
             prepared=receipt.get("prepared",{})
             risk=prepared.get("risk",{})
             result["execution_reason"]=(
-                "Ranked technical candidate + asset-specific AI approval; order "+
+                ("Ranked technical candidate + no-news technical-only approval"
+                 if approved_signal.get("news_optional_technical_approved") else
+                 "Ranked technical candidate + asset-specific AI approval")+
+                "; order "+
                 str(prepared.get("notional","?"))+" USD; exposure before order "+
                 str(risk.get("current_exposure_usd","?"))+" USD; broker acknowledged="+
                 str(receipt["broker_acknowledged"]))

@@ -464,6 +464,7 @@ function robinhoodEffective(data){
     NEWS_EVIDENCE_MISSING:"Relevant news missing",
     AI_UNAVAILABLE:"AI service unavailable",
     AI_REVIEW_BLOCKED:"AI/news review blocked",
+    TECHNICAL_ONLY_NEWS_OPTIONAL:"Technical-only · news optional",
     ARMED_WAITING_SIGNAL:"Armed · waiting for signal"};
   return {label:descriptions[state]||state.replaceAll("_"," "),
     detail:data.effective_detail||"Latest worker status unavailable",
@@ -589,13 +590,16 @@ function renderRobinhoodAIReview(data){
   const outcome=$("rh-ai-outcome"),duration=$("rh-ai-duration"),
         classifier=$("rh-ai-classifier"),details=$("rh-ai-candidate-explanations");
   if(outcome)outcome.textContent=worker.ai_review_status||"No AI review recorded";
+  const technicalOnly=worker.ai_review_status==="TECHNICAL_ONLY_NEWS_OPTIONAL";
   if(duration)duration.textContent=worker.ai_review_duration_seconds==null?
     "No review timed":"Total "+Number(worker.ai_review_duration_seconds).toFixed(1)+" seconds"+
-    " · Ollama request timeout 150 s · technical signal TTL 90 s, refreshed if needed";
+    (technicalOnly?" · news check only; Ollama NOT invoked":
+      " · Ollama request timeout 150 s · technical signal TTL 90 s, refreshed if needed");
   const withModel=outcomes.find(x=>x.model);
   const failedModel=outcomes.some(x=>x.outcome==="AI_UNAVAILABLE");
-  if(classifier)classifier.textContent=withModel?
-    (withModel.model+" · "+(withModel.classifier_model_source||"selected")):
+  if(classifier)classifier.textContent=technicalOnly?
+    "NO AI CALL · approved by technical momentum rules, not Ollama":
+    withModel?(withModel.model+" · "+(withModel.classifier_model_source||"selected")):
     (failedModel?"Model request attempted but response unavailable":
      "Model not invoked on this scan");
   if(details)details.textContent=outcomes.length?
