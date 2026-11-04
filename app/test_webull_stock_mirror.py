@@ -9,7 +9,7 @@ from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from webull_shared_stock import scan_shared_stock,revalidate_shared_stock,SHARED_STOCK_SOURCE
+from webull_stock_strategy import scan_webull_stock,revalidate_webull_stock,STOCK_SOURCE
 from shared_strategy import select_entry
 from webull_signals import WebullSignalError
 from webull_broker import WebullBroker,WebullError
@@ -47,18 +47,18 @@ class BrokerFixture:
 class SharedStockTests(unittest.TestCase):
     def test_same_schwab_m5_selection_continuation_under_webull_market_data(self):
         broker=BrokerFixture()
-        diagnostics,selected=scan_shared_stock(broker,[SYMBOL],NOW)
+        diagnostics,selected=scan_webull_stock(broker,[SYMBOL],NOW)
         self.assertIsNotNone(selected)
         self.assertEqual(selected["symbol"],SYMBOL)
-        self.assertEqual(selected["source"],SHARED_STOCK_SOURCE)
+        self.assertEqual(selected["source"],STOCK_SOURCE)
         self.assertTrue(selected["technical_approved"])
         self.assertIn("continuing momentum",selected["reason"])
         self.assertEqual(selected["bars"],6)
         self.assertEqual(selected["spread_pct"],0.1927)
         self.assertIn(("bars","F","EQUITY","M5"),broker.calls)
         self.assertEqual(broker.orders,[])
-        # Choose entry with exactly the shared module, not an independently
-        # reimplemented Webull moving-average calculation.
+        # Schwab's reference selector is imported ONLY in this parity test.
+        # Production Webull must have a separate local implementation.
         quote_map={"F":{"assetMainType":"EQUITY","quote":{
            "bidPrice":"5.18","askPrice":"5.19","quoteTime":int(NOW.timestamp()*1000),
            "totalVolume":"1000000","netPercentChange":"1.2"}}}
@@ -67,18 +67,20 @@ class SharedStockTests(unittest.TestCase):
         reference,_=select_entry(quote_map,lambda _:converted,NOW,universe=(SYMBOL,))
         self.assertIsNotNone(reference)
         self.assertEqual(selected["shared_candle"],reference.candle)
-        self.assertEqual(selected["reason"],reference.reason)
+        self.assertEqual(selected["reason"],
+                         reference.reason.replace("shared stock strategy",
+                                                  "Webull mirrored stock strategy"))
         self.assertEqual(diagnostics[0]["technical_approved"],True)
-    def test_revalidation_uses_shared_5_minute_signal_not_old_1_minute_screen(self):
+    def test_revalidation_uses_own_mirrored_5_minute_signal(self):
         broker=BrokerFixture()
-        selected=revalidate_shared_stock(broker,"F",NOW)
-        self.assertEqual(selected["source"],SHARED_STOCK_SOURCE)
+        selected=revalidate_webull_stock(broker,"F",NOW)
+        self.assertEqual(selected["source"],STOCK_SOURCE)
         self.assertTrue(selected["technical_approved"])
         self.assertEqual([x for x in broker.calls if x[0]=="bars"][0][-1],"M5")
         stale=BrokerFixture(bars=[{"time":(NOW-timedelta(minutes=40+i*5)).isoformat(),
                                    "close":"5.2"} for i in range(6)])
         with self.assertRaises(WebullSignalError):
-            revalidate_shared_stock(stale,"F",NOW)
+            revalidate_webull_stock(stale,"F",NOW)
     def test_bad_market_data_never_generates_trade(self):
         broken=(
           BrokerFixture(depth=dict(DEPTH,quote_time=(NOW-timedelta(seconds=80)).isoformat())),
@@ -90,7 +92,7 @@ class SharedStockTests(unittest.TestCase):
         )
         for broker in broken:
             with self.subTest(broker=broker.__dict__):
-                rows,candidate=scan_shared_stock(broker,[SYMBOL],NOW)
+                rows,candidate=scan_webull_stock(broker,[SYMBOL],NOW)
                 self.assertIsNone(candidate)
                 self.assertFalse(rows[0]["technical_approved"])
                 self.assertFalse(broker.orders)

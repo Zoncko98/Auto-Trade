@@ -19,8 +19,8 @@ from webull_journal import WebullJournal,JournalBlocked
 from webull_signals import evaluate,_quote,core_stock_session,WebullSignalError
 from dashboard_control import write_atomic
 from webull_streaming import read_snapshot, market_observation, feed_status
-from webull_shared_stock import (STOCK_SCAN_SYMBOLS, SHARED_STOCK_SOURCE,
-                                 scan_shared_stock,revalidate_shared_stock)
+from webull_stock_strategy import (STOCK_SCAN_SYMBOLS, STOCK_SOURCE,
+                                   scan_webull_stock, revalidate_webull_stock)
 
 STOCKS=STOCK_SCAN_SYMBOLS  # Same equity universe as Schwab.
 CRYPTOS=("BTCUSD","ETHUSD","SOLUSD","DOGEUSD","XRPUSD","AVAXUSD")
@@ -337,19 +337,19 @@ def _scan(root,broker,rotation,report):
     report["scan_universe"]={"stocks":len(STOCKS),"crypto":len(CRYPTOS)}
     report["scanned_symbols"]=stocks+cryptos
     report["signals"]=[]
-    report["stock_strategy"]="SCHWAB_SHARED_M5_CROSSOVER_AND_CONTINUATION"
+    report["stock_strategy"]="WEBULL_INDEPENDENT_SCHWAB_MIRROR_M5"
     stream=read_snapshot(root)
     report["stream_feeds"]=feed_status(root)
     observed=[]
-    # Stock entry ranking/3-vs-5 completed M5 crossover and continuing-trend
-    # selection are the very same pure functions Schwab executes.
+    # Independent Webull stock engine MIRRORS (but never imports) the Schwab
+    # 3/5-bar crossover, candidate ranking, and continuation thresholds.
     try:
-        stock_rows,stock_candidate=scan_shared_stock(broker,stocks,_now())
+        stock_rows,stock_candidate=scan_webull_stock(broker,stocks,_now())
         report["signals"].extend(stock_rows)
         if stock_candidate:observed.append(stock_candidate)
     except Exception as exc:
         report["signals"].extend({"symbol":symbol,"asset":"EQUITY",
-             "source":SHARED_STOCK_SOURCE,"technical_approved":False,
+             "source":STOCK_SOURCE,"technical_approved":False,
              "reason":"MARKET_DATA_"+_safe_public(exc)} for symbol in stocks)
     # Existing Webull crypto strategy is unchanged. Coinbase is still
     # discovery-only; Webull independently verifies quotes before an order.
@@ -516,8 +516,8 @@ def run_cycle(root,broker,rotation=0):
             try:
                 elapsed=(_now()-datetime.fromisoformat(sig["at"].replace("Z","+00:00"))).total_seconds()
                 if elapsed>60:
-                    if sig["asset"]=="EQUITY" and sig.get("source")==SHARED_STOCK_SOURCE:
-                        fresh=revalidate_shared_stock(broker,sig["symbol"],_now())
+                    if sig["asset"]=="EQUITY" and sig.get("source")==STOCK_SOURCE:
+                        fresh=revalidate_webull_stock(broker,sig["symbol"],_now())
                     else:
                         fresh=evaluate(sig["symbol"],sig["asset"],
                                        broker.quote(sig["symbol"],sig["asset"]),
@@ -545,7 +545,7 @@ def run_cycle(root,broker,rotation=0):
                 if qty<=0:raise WebullBlocked("Account risk budget too small")
                 receipt=_order(root,broker,policy,risk,journal,account,
                        sig["symbol"],sig["asset"],"BUY",sig,qty,ask,
-                       ("Schwab shared M5 stock signal + Webull AI review"
+                       ("Webull independent M5 mirror signal + Webull AI review"
                         if sig["asset"]=="EQUITY" else
                         "Webull crypto momentum + AI approval"))
                 report["execution_status"]="ENTRY_SUBMITTED_UNCONFIRMED"
