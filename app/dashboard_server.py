@@ -35,7 +35,8 @@ from broker_market_data import read_snapshot as broker_market_snapshot
 from broker_workspace import (workspace_summary as broker_workspace_summary,
                               robinhood_status, robinhood_portfolio,
                               resolve_robinhood_orphan, install_robinhood_credentials)
-from ai_readiness import summary as ai_readiness_summary, verify_ollama_model
+from ai_readiness import (summary as ai_readiness_summary,
+    verify_ollama_model, effective_selected_model)
 from forecast_engine import (forecast as selected_forecast,
     connection as selected_forecast_connection, models as selected_forecast_models)
 from forecast_connection import (
@@ -366,9 +367,13 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if UNIFIED_APP and path == "/api/ai/readiness":
                 cfg=integration_settings(STATE_DIR)
-                result=ai_readiness_summary(cfg)
+                model=effective_selected_model(cfg,STATE_DIR)
+                # The shared model selection overrides the installation
+                # default in local_ai_gateway; report what workers actually use.
+                result=ai_readiness_summary({**cfg,"ai_model":model})
+                result["model"]=model
                 if cfg.get("ai_provider")=="ollama" and cfg.get("ollama_url"):
-                    result.update(verify_ollama_model(cfg["ollama_url"],cfg.get("ai_model","")))
+                    result.update(verify_ollama_model(cfg["ollama_url"],model))
                 return self._json(200,result)
             if UNIFIED_APP and path == "/api/profile/webull-margin":
                 from webull_account_preferences import read

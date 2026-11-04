@@ -433,3 +433,24 @@
  [data-broker-dashboard] .panel-heading > .btn {max-width:100%;white-space:normal}
  [data-broker-dashboard] > .stats-grid > .stat-card {min-height:116px}
 }
+
+/* Shared AI service presence in persistent top bar, next to Profile. */
+.ai-header-status{display:flex;align-items:center;gap:9px;min-width:0;max-width:270px;
+  padding:7px 11px;border-radius:10px;border:1px solid #33435b;background:#172438}
+.ai-header-dot{width:8px;height:8px;flex:none;border-radius:100%;background:#9ca9bd}
+.ai-header-copy{display:flex;flex-direction:column;min-width:0;gap:2px;line-height:1.25}
+.ai-header-copy strong{font-size:11px;font-weight:800;color:#d1dded;white-space:nowrap}
+.ai-header-copy span{font-size:11px;color:#a3b8d0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-header-status.is-online{border-color:#315e53;background:#162e2d}
+.ai-header-status.is-online .ai-header-dot{background:#4fd4a6;box-shadow:0 0 7px #4fd4a64d}
+.ai-header-status.is-online .ai-header-copy strong{color:#80e0bf}
+.ai-header-status.is-offline{border-color:#5f4554;background:#30202e}
+.ai-header-status.is-offline .ai-header-dot{background:#fb8292}
+.ai-header-status.is-offline .ai-header-copy strong{color:#ffadb8}
+#refresh-btn[aria-busy="true"]{opacity:.55;cursor:progress}
+@media(max-width:760px){
+ .top-actions{margin-left:auto}
+ .ai-header-status{max-width:min(48vw,230px);padding:6px 9px}
+ .ai-header-copy strong,.ai-header-copy span{font-size:10px}
+}
+@media(max-width:420px){.ai-header-status{max-width:42vw}}

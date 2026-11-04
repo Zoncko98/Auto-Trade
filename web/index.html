@@ -93,7 +93,14 @@
         <span id="live-mode-banner" class="paper-label hidden">LIVE WORKER NOT ARMED</span>
         <a id="update-banner" class="paper-label hidden" href="#" target="_blank" rel="noopener noreferrer"
           aria-live="polite" title="Read release details before installing">Update available</a>
-        <button id="refresh-btn" class="icon-button" aria-label="Refresh dashboard" title="Refresh">↻</button>
+        <button id="refresh-btn" class="icon-button" type="button"
+          aria-label="Refresh current screen" title="Refresh current screen and shared connection status">↻</button>
+        <div id="ai-header-status" class="ai-header-status is-checking" role="status"
+          aria-live="polite" title="Checking AI workstation connectivity and selected model">
+          <span class="ai-header-dot" aria-hidden="true"></span>
+          <span class="ai-header-copy"><strong id="ai-header-state">AI checking</strong>
+            <span id="ai-header-model">Checking selected model…</span></span>
+        </div>
         <button id="profile-btn" class="btn secondary tiny" data-view="profile" aria-label="Open user profile">◉ Profile</button>
       </div>
     </header>
@@ -280,8 +287,7 @@
           <section class="panel">
             <div class="panel-heading"><div><h2>Execution status</h2><p>Real Robinhood API worker, separate from paper simulation</p></div>
               <span class="time-label" id="robinhood-execution-pill">NOT ARMED</span></div>
-            <div class="readiness-item"><span>Shared AI model</span><strong id="robinhood-ai-readiness">Checking…</strong></div>
-            <div class="readiness-item"><span>Latest model decision</span><strong id="robinhood-ai-decisions">Awaiting evaluation</strong></div>
+            <div class="readiness-item"><span>Latest AI decision</span><strong id="robinhood-ai-decisions">Awaiting evaluation</strong></div>
             <div class="readiness-item"><span>Live order permission</span><strong id="robinhood-order-permission">Not armed</strong></div>
             <div class="readiness-item"><span>Last scanner activity</span><strong id="robinhood-scanner-state">Checking…</strong></div>
             <div class="readiness-item"><span>Markets</span><strong>Broker-supported USD crypto pairs (rotating batch)</strong></div>
@@ -300,7 +306,6 @@
             <div class="readiness-item"><span>Risk policy</span><strong id="robinhood-risk-status">Checking…</strong></div>
             <div class="readiness-item"><span>Trade performance</span><strong id="robinhood-trade-activity">No bot-confirmed fills verified</strong></div>
             <div class="readiness-item"><span>Current positions</span><strong id="robinhood-positions-status">Checking…</strong></div>
-            <div class="readiness-item"><span>AI model controls</span><strong>Shared · Account Overview → AI workstation models</strong></div>
             <div class="readiness-item"><span>Account connectivity</span><strong>Robinhood signed API</strong></div>
           </section>
         </div>
@@ -663,8 +668,6 @@
         <div class="content-grid">
           <section class="panel">
             <div class="panel-heading"><div><h2>Execution status</h2><p>Real Schwab worker; distinct from the paper simulator</p></div><span id="live-execution-pill" class="time-label">NOT ARMED</span></div>
-            <div class="readiness-item"><span>Local inference</span><strong id="live-local-inference">Checking…</strong></div>
-            <div class="readiness-item"><span>Current model</span><strong id="live-current-model">qwen2.5:1.5b</strong></div>
             <div class="readiness-item"><span>Order submission permission</span><strong id="live-order-permission">Paused</strong></div>
             <div class="readiness-item"><span>Last worker heartbeat</span><strong id="live-heartbeat">Unavailable</strong></div>
             <div class="readiness-item"><span>Trading instruments</span><strong>Cash-funded equities &amp; ETFs</strong></div>
@@ -676,9 +679,6 @@
             <div class="readiness-item"><span>Initial holding</span><strong>Read from broker account</strong></div>
             <div class="readiness-item"><span>First intended order</span><strong>Only after explicit order authorization</strong></div>
             <div class="readiness-item"><span>Future candidates</span><strong>Live price, volume, trend and dated news</strong></div>
-            <div class="readiness-item"><span>Model provider</span><strong>Your configured AI provider</strong></div>
-            <div class="readiness-item"><span>Cloud inference fees</span><strong>$0 per local request</strong></div>
-            <div class="readiness-item"><span>AI model controls</span><strong>Shared · Account Overview → AI workstation models</strong></div>
             <p class="panel-note">The existing investment is not separated from the automated account. No forced purchase is made when the strategy lacks a qualifying signal.</p>
           </section>
         </div>

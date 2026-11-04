@@ -28,8 +28,6 @@ function renderLiveView(data) {
   $("live-pause-btn").disabled=!armed||paused;
   $("live-order-permission").textContent=present(data.order_permission);
   $("live-heartbeat").textContent=heartbeat===null?"No heartbeat":heartbeat+" seconds ago";
-  $("live-current-model").textContent=present(data.selected_model);
-  $("live-local-inference").textContent=data.selected_model?"Local Ollama: "+data.selected_model:"Not selected";
 
   const a=data.account||{};
   const hasSnapshot=Boolean(a.at);
@@ -302,6 +300,7 @@ async function saveLocalModel(ev){
     $("local-model-message").textContent=model+" selected for the next local AI evaluation.";
     toast("Local model selection saved.");
     await loadLocalModels();
+    await refreshAIHeader();
     await refreshAll();
   }catch(err){toast(err.message,true);$("local-model-message").textContent=err.message;}
   finally{button.disabled=false;updateLocalModelDetails();}

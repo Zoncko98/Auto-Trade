@@ -13,6 +13,8 @@ const AVAILABLE_WORKSPACES = Object.freeze(["live","paper","robinhood_crypto","w
 let robinhoodTileRefreshId=0;
 let webullTileRefreshId=0;
 let verifiedBrokerRequestId=0;
+let aiHeaderRequestId=0;
+let manualRefreshRunning=false;
 // Do not format missing numbers as $0.00, and never render stale broker
 // snapshots as current. Values are only read from authenticated APIs.
 function finiteUsd(value){
@@ -151,6 +153,50 @@ async function refreshVerifiedConnectedAccounts(){
   renderVerifiedConnectedAccounts(verifiedConnectedAccounts(...data));
   if(data[2])updateWebullTile(data[2]);
   else updateWebullTile({check_failed:true});
+}
+
+function renderAIHeader(result){
+  const root=$("ai-header-status"),label=$("ai-header-state"),modelNode=$("ai-header-model");
+  if(!root||!label||!modelNode)return;
+  const provider=typeof result?.provider==="string"?result.provider:"unknown";
+  const model=typeof result?.model==="string" &&
+    /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}$/.test(result.model)?result.model:"";
+  const online=provider==="ollama" && result?.connection_tested===true &&
+    ["metadata_verified","below_minimum"].includes(result.status);
+  const unconfigured=provider==="none"||result?.status==="not_configured";
+  root.classList.toggle("is-online",online);
+  root.classList.toggle("is-offline",!online && !unconfigured);
+  root.classList.toggle("is-checking",false);
+  label.textContent=online?"AI online":unconfigured?"AI not configured":
+    provider==="ollama"?"AI offline":"AI unverified";
+  modelNode.textContent=model||"No verified model selection";
+  root.title=online?
+    ("Ollama model metadata reachable: "+model+
+     (result.status==="below_minimum"?". Below configured model-size guidance.":"")+
+     ". Inference capability is not verified by this indicator."):
+    ("AI status: "+String(result?.status||"unavailable")+
+     ". No successful live model verification is available.");
+}
+function clearAIHeader(){
+  aiHeaderRequestId++;
+  const root=$("ai-header-status"),label=$("ai-header-state"),model=$("ai-header-model");
+  if(root){
+    root.classList.remove("is-online","is-offline");
+    root.classList.add("is-checking");
+  }
+  if(label)label.textContent="AI checking";
+  if(model)model.textContent="Checking selected model…";
+}
+async function refreshAIHeader(){
+  const id=++aiHeaderRequestId;
+  try{
+    const result=await request("/api/ai/readiness");
+    if(id!==aiHeaderRequestId||!csrf)return;
+    renderAIHeader(result);
+  }catch(err){
+    if(id===aiHeaderRequestId&&csrf)renderAIHeader({provider:"ollama",status:"unavailable"});
+    throw err;
+  }
 }
 
 function clearWorkspaceBalances(){
@@ -957,15 +1003,6 @@ async function loadRobinhoodWorkspace(){
       accountsNode.append(action);
       return;
     }
-    const ai=$("robinhood-ai-readiness");
-    if(ai){
-      request("/api/ai/readiness").then(d=>{
-        ai.textContent="Shared AI provider: "+(d.provider||"not configured")+
-          " · Model verification: "+(d.status||"unknown")+
-          " · Crypto AI review: "+(worker.ai_review_status||"no candidate")+
-          " · Model: "+(worker.ai_model||"not recorded");
-      }).catch(()=>{ai.textContent="Shared AI model status unavailable";});
-    }
     const positionState=$("robinhood-positions-status");
     if(positionState){
       positionState.textContent="Fetching Robinhood holdings and reconciled fill history…";
@@ -1023,7 +1060,7 @@ async function loadRobinhoodWorkspace(){
 }
 let page = {trades:1,reviews:1};
 let pageData = {trades:null,reviews:null};
-let refreshing = false;
+let refreshing = null;
 let toastTimer = null;
 
 function toast(text, error=false) {
@@ -1051,6 +1088,7 @@ async function request(url, options={}) {
   return payload;
 }
 function showLogin(){
+  clearAIHeader();
   clearVerifiedConnectedAccounts();
   clearWorkspaceBalances();
   $("app").classList.add("hidden");
@@ -1066,6 +1104,7 @@ function showApp(){
   // Use the local installed version, not the remote GitHub release.
   loadWorkspaceAvailability().catch(()=>{});
   refreshVerifiedConnectedAccounts().catch(()=>{});
+  refreshAIHeader().catch(()=>{});
   request("/api/profile").then(profile=>{
     const version=profile.version;
     const label=$("sidebar-app-version");
@@ -1089,6 +1128,7 @@ async function init(){
   setInterval(()=>{if(csrf) refreshAll().catch(err=>toast(err.message,true));},15000);
   setInterval(()=>{if(csrf) checkForUpdate().catch(()=>{});},60000);
   setInterval(()=>{if(csrf) refreshVerifiedConnectedAccounts().catch(()=>{});},30000);
+  setInterval(()=>{if(csrf) refreshAIHeader().catch(()=>{});},45000);
 }
 function bindEvents(){
   $("login-form").addEventListener("submit", async (ev)=>{
@@ -1109,10 +1149,7 @@ function bindEvents(){
     try{await request("/api/logout",{method:"POST",body:"{}"});}catch(_){}
     csrf=null;showLogin();
   });
-  $("refresh-btn").addEventListener("click",()=>{
-    refreshAll().catch(err=>toast(err.message,true));
-    refreshVerifiedConnectedAccounts().catch(()=>{});
-  });
+  $("refresh-btn").addEventListener("click",()=>refreshCurrentScreen());
   document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>showView(button.dataset.view)));
   document.querySelectorAll("[data-mode]").forEach(button=>button.addEventListener("click",()=>setMode(button.dataset.mode)));
   $("settings-form").addEventListener("submit",saveSettings);
@@ -1907,9 +1944,8 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   }).catch(err=>toast(err.message,true));
 }
 async function refreshAll(){
-  if(refreshing)return;
-  refreshing=true;
-  try{
+  if(refreshing)return refreshing;
+  const task=(async()=>{
     const [response,performance,trades,live] = await Promise.all([
       request("/api/status"),request("/api/performance"),
       request("/api/trades?page=1&limit=5"),request("/api/live")
@@ -1929,8 +1965,73 @@ async function refreshAll(){
     if(activeView==="settings" && !document.activeElement.closest("form")) {
       populateSettings(response.control.settings);
     }
-  }finally{refreshing=false;}
+  })();
+  refreshing=task;
+  try{return await task;}finally{if(refreshing===task)refreshing=null;}
 }
+function currentViewRefreshJobs(view){
+  switch(view){
+    case "workspaces":return [
+      ["workspace availability",loadWorkspaceAvailability],
+      ["Robinhood overview",refreshRobinhoodTile],
+      ["Webull overview",refreshWebullTile]];
+    case "local":return [["AI workstation models",loadLocalModels]];
+    case "operations":return [["Trading operations",loadOperations]];
+    case "brokers":return [["Broker connections",loadBrokerWorkspace]];
+    case "robinhood":return [["Robinhood dashboard",loadRobinhoodWorkspace]];
+    case "robinhood-risk":return [["Robinhood risk controls",loadRobinhoodRisk]];
+    case "robinhood-decisions":return [["Robinhood decisions",loadRobinhoodDecisionEvidence]];
+    case "robinhood-forecast":return [["Robinhood forecast",loadRobinhoodExtras]];
+    case "webull":return [["Webull dashboard",loadWebullWorkspace]];
+    case "webull-risk":return [["Webull risk controls",loadWebullRisk]];
+    case "webull-decisions":return [["Webull decisions",loadWebullEvidence]];
+    case "webull-orders":return [["Webull orders",loadWebullOrders]];
+    case "forecast":return [["Market forecast",loadForecast]];
+    case "profile":return [
+      ["Profile",async()=>{
+        const p=await request("/api/profile");
+        if($("profile-version"))$("profile-version").textContent="Installed v"+p.version;
+      }],
+      ["Webull account preference",loadWebullMarginPreference]];
+    case "settings":return [["Paper service",loadPaperService]];
+    case "live-risk":return []; // The shared Schwab response updates risk controls.
+    default:return []; // Paper history and Schwab are loaded by refreshAll.
+  }
+}
+async function refreshCurrentScreen(){
+  if(manualRefreshRunning||!csrf)return;
+  const btn=$("refresh-btn");
+  manualRefreshRunning=true;
+  if(btn){
+    btn.disabled=true;btn.setAttribute("aria-busy","true");
+    btn.title="Refreshing current screen…";
+  }
+  const screen=activeView;
+  const jobs=[
+    ["Dashboard",refreshAll],
+    ["Verified broker connections",refreshVerifiedConnectedAccounts],
+    ["AI model",refreshAIHeader],
+    ...currentViewRefreshJobs(screen)
+  ];
+  try{
+    const results=await Promise.allSettled(jobs.map(([,callback])=>Promise.resolve().then(callback)));
+    if(!csrf)return;
+    const failed=results.flatMap((r,i)=>r.status==="rejected"?[jobs[i][0]]:[]);
+    if(failed.length){
+      toast("Refresh incomplete: "+failed.join(", ")+".",true);
+    }else{
+      toast("Updated "+(screen==="workspaces"?"account overview":"current screen")+
+        ", broker connections and AI status.");
+    }
+  }finally{
+    manualRefreshRunning=false;
+    if(btn){
+      btn.disabled=false;btn.removeAttribute("aria-busy");
+      btn.title="Refresh current screen and shared connection status";
+    }
+  }
+}
+
 function renderOverview(data,points,recent){
   const {account:a,control:c,runtime:r}=data;
   const active=r.online;

@@ -26,8 +26,39 @@ def summary(config):
             "capability_tested":False,"trading_enforcement_active":False}
 
 
+def effective_selected_model(config, state_dir):
+    """Report the same selected news model that local_ai_gateway will use.
+
+    A stored shared selection overrides the integration default. Invalid
+    selection data must not be misrepresented as a functioning fallback.
+    """
+    import json
+    from pathlib import Path
+    provider=config.get("ai_provider")
+    if provider!="ollama":
+        return config.get("oauth_model","") if provider in ("chatgpt-oauth","gemini-oauth") else ""
+    fallback=config.get("ai_model","")
+    selection=Path(state_dir)/"live"/"model_selection.json"
+    try:
+        if not selection.exists():
+            return fallback
+        if not 0 < selection.stat().st_size <= 512:
+            return ""
+        record=json.loads(selection.read_text(encoding="utf-8"))
+        model=record.get("model") if isinstance(record,dict) and record.get("version")==1 else None
+        if not isinstance(model,str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}",model):
+            return ""
+        return model
+    except (OSError,ValueError,TypeError,UnicodeError):
+        return ""
+
+
 def verify_ollama_model(base, model, opener=None):
-    """Read authoritative /api/show metadata, no inference and no credentials."""
+    """Check installed Ollama model metadata via bounded /api/tags, without inference.
+
+    /api/show can include hundreds of KB of templates and sometimes exceeds
+    a small readiness payload limit, falsely reporting a healthy model offline.
+    """
     import json
     from urllib.request import Request, urlopen
     from unified_config import private_url
@@ -35,13 +66,18 @@ def verify_ollama_model(base, model, opener=None):
         return {"status":"invalid_model","connection_tested":False,"capability_tested":False}
     try:
         endpoint=private_url(base)
-        request=Request(endpoint+"/api/show",data=json.dumps({"model":model}).encode(),
-                        headers={"Content-Type":"application/json"},method="POST")
+        request=Request(endpoint+"/api/tags",headers={"Accept":"application/json"},method="GET")
         with (opener or urlopen)(request,timeout=5) as response:
-            data=response.read(16385)
-        if len(data)>16384:raise ValueError("response size")
+            data=response.read(131073)
+        if len(data)>131072:raise ValueError("response size")
         doc=json.loads(data)
-        details=doc.get("details",{})
+        catalog=doc.get("models")
+        if not isinstance(catalog,list):raise ValueError("invalid model catalog")
+        matches=[x for x in catalog if isinstance(x,dict)
+                 and (x.get("name")==model or x.get("model")==model)]
+        if len(matches)!=1:raise ValueError("selected model missing or ambiguous")
+        details=matches[0].get("details",{})
+        if not isinstance(details,dict):raise ValueError("model metadata missing")
         raw=details.get("parameter_size")
         if not isinstance(raw,str):raise ValueError("parameter size missing")
         match=re.fullmatch(r"\s*([0-9]+(?:\.[0-9]+)?)\s*([BM])\s*",raw,re.I)
@@ -51,7 +87,7 @@ def verify_ollama_model(base, model, opener=None):
                 "provider":"ollama","model":model,"verified_parameter_billions":size,
                 "connection_tested":True,"capability_tested":False,
                 "meets_minimum":size>=4,"trading_enforcement_active":False,
-                "note":"Metadata verified; structured-response capability still untested."}
+                "note":"Installed-model metadata verified; inference capability still untested."}
     except Exception:
         return {"status":"unavailable_or_invalid_metadata","provider":"ollama","model":model,
                 "connection_tested":False,"capability_tested":False,

@@ -19,8 +19,12 @@ class Tests(unittest.TestCase):
   class Reply:
    def __enter__(self):return self
    def __exit__(self,*args):pass
-   def read(self,n):return json.dumps({"details":{"parameter_size":"4.7B"}}).encode()
-  x=verify_ollama_model("http://192.168.1.2:11434","demo:4b",opener=lambda req,timeout:Reply())
+   def read(self,n):return json.dumps({"models":[{"name":"demo:4b","details":{"parameter_size":"4.7B"}}]}).encode()
+  def api(req,timeout):
+   self.assertEqual(req.full_url,"http://192.168.1.2:11434/api/tags")
+   self.assertEqual(req.get_method(),"GET")
+   return Reply()
+  x=verify_ollama_model("http://192.168.1.2:11434","demo:4b",opener=api)
   self.assertEqual(x["status"],"metadata_verified")
   self.assertTrue(x["meets_minimum"])
   self.assertFalse(x["capability_tested"])
