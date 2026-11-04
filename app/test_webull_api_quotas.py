@@ -20,6 +20,56 @@ class TestWebullQuotaAndEligibility(unittest.TestCase):
         (self.root/"webull").mkdir(mode=0o700)
         (self.root/"config").mkdir(mode=0o700)
         (self.root/"config"/"webull_openapi.json").write_text("TEST ONLY NO CREDENTIAL")
+    def _write_worker_account_proof(self,age_seconds=0,worker_state="RUNNING"):
+        from datetime import datetime,timezone,timedelta
+        credentials=self.root/"config"/"webull_openapi.json"
+        credentials.write_text(json.dumps({"app_key":"test-no-secret","app_secret":"test-no-secret",
+                                           "environment":"production"}))
+        credentials.chmod(0o600)
+        observed=(datetime.now(timezone.utc)-timedelta(seconds=age_seconds)).isoformat()
+        report={"worker":worker_state,"environment":"production",
+                "updated_at":observed,"broker_accounts":[
+                    {"account_id":"cash1","account_type":"INDIVIDUAL_CASH"},
+                    {"account_id":"crypto1","account_type":"CRYPTO"},
+                    {"account_id":"margin1","account_type":"INDIVIDUAL_MARGIN"}]}
+        record=self.root/"webull"/"worker_status.json"
+        record.write_text(json.dumps(report))
+        record.chmod(0o600)
+        return credentials,record
+    def test_fresh_worker_proof_prevents_broker_account_rate_limit_on_dashboard(self):
+        from webull_openapi import status
+        self._write_worker_account_proof()
+        save_risk(self.root,dict(RISK_DEFAULT))
+        save_prefs(self.root,{"allow_margin_accounts":True})
+        save_policy(self.root,{"enabled":True,"stock_account":"margin1",
+            "crypto_account":"","trade_stocks":True,"trade_crypto":False},[
+                {"account_id":"margin1"}],"ENABLE_WEBULL_LIVE")
+        with patch("webull_broker.WebullBroker",
+                   side_effect=AssertionError("unnecessary broker account call")):
+            response=status(self.root)
+        self.assertTrue(response["connected"])
+        self.assertEqual(response["account_verification_source"],"recent_authenticated_worker")
+        self.assertTrue(response["operator_live_policy_armed"])
+        self.assertEqual(response["selected_stock_account"],"margin1")
+        self.assertEqual(response["selected_crypto_account"],"")
+        self.assertEqual({a["account_type"] for a in response["accounts"]},
+                         {"INDIVIDUAL_CASH","CRYPTO","INDIVIDUAL_MARGIN"})
+    def test_stale_worker_or_rotated_credential_never_claims_verified_connection(self):
+        from webull_openapi import _verified_worker_accounts
+        credentials,record=self._write_worker_account_proof(age_seconds=240)
+        self.assertIsNone(_verified_worker_accounts(self.root,"production"))
+        credentials,record=self._write_worker_account_proof()
+        self.assertIsNotNone(_verified_worker_accounts(self.root,"production"))
+        updated=record.stat().st_mtime_ns+1000000000
+        os.utime(credentials,ns=(updated,updated))
+        self.assertIsNone(_verified_worker_accounts(self.root,"production"))
+    def test_degraded_worker_and_public_file_never_count_as_recent_verification(self):
+        from webull_openapi import _verified_worker_accounts
+        credentials,record=self._write_worker_account_proof(worker_state="DEGRADED")
+        self.assertIsNone(_verified_worker_accounts(self.root,"production"))
+        credentials,record=self._write_worker_account_proof()
+        record.chmod(0o644)
+        self.assertIsNone(_verified_worker_accounts(self.root,"production"))
     def test_shared_quota_token_is_atomic_private_and_serialized(self):
         a=WebullBroker.__new__(WebullBroker)
         b=WebullBroker.__new__(WebullBroker)

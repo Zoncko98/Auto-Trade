@@ -124,17 +124,72 @@ def _accounts(data):
                 if isinstance(data[k].get(sub),list):return data[k][sub]
     raise WebullError("Unexpected Webull account list format")
 
+def _verified_worker_accounts(state, environment):
+    """Read-only account verification from a fresh, authenticated worker cycle.
+
+    The worker calls the real Webull account list every 90 seconds. Reusing that
+    signed-broker result for the *dashboard only* avoids hammering Webull when
+    several widgets refresh simultaneously. Broker writes still run their own
+    full live checks; worker snapshots never authorize an order.
+    """
+    from datetime import datetime,timezone
+    root=Path(state)
+    file=root/"webull"/"worker_status.json"
+    credential=_file(state)
+    try:
+        st=file.stat()
+        if (not stat.S_ISREG(st.st_mode) or st.st_mode & 0o077
+                or st.st_size>131072 or st.st_mtime_ns<credential.stat().st_mtime_ns):
+            return None
+        report=json.loads(file.read_text())
+        if (not isinstance(report,dict) or report.get("worker")!="RUNNING"
+                or report.get("environment")!=environment):
+            return None
+        at=datetime.fromisoformat(str(report["updated_at"]).replace("Z","+00:00"))
+        if at.tzinfo is None:return None
+        age=(datetime.now(timezone.utc)-at.astimezone(timezone.utc)).total_seconds()
+        if not 0<=age<=180:return None
+        accounts=report.get("broker_accounts")
+        if not isinstance(accounts,list) or not 1<=len(accounts)<=20:return None
+        safe=[]
+        for row in accounts:
+            if not isinstance(row,dict):return None
+            ident=row.get("account_id")
+            kind=row.get("account_type")
+            if (not isinstance(ident,str) or not 1<=len(ident)<=80
+                    or any(ord(c)<32 for c in ident)
+                    or not isinstance(kind,str) or not 1<=len(kind)<=80
+                    or any(ord(c)<32 for c in kind)):
+                return None
+            safe.append({"account_id":ident,"account_type":kind})
+        if len({a["account_id"] for a in safe})!=len(safe):return None
+        return safe,at.isoformat()
+    except (OSError,ValueError,TypeError,KeyError,OverflowError,AttributeError):
+        return None
+
+
 def status(state):
     if not saved(state):
         return {"provider":"webull","credentials_saved":False,"connected":False,
                 "execution_enabled":False,"reason":"Add approved Webull OpenAPI app credentials"}
     try:
-        from webull_broker import WebullBroker
-        broker=WebullBroker(state)
-        accounts=broker.accounts()
-        env=broker.environment
-        safe=[{"account_id":str(a.get("account_id","")), "account_type":str(a.get("account_type",""))}
-              for a in accounts if isinstance(a,dict)]
+        # A recent worker's independently verified account list is sufficient
+        # for read-only UI status. Stale records and credential rotations force
+        # fresh SDK verification instead of claiming an old account is live.
+        environment=_load(state)["environment"]
+        worker=_verified_worker_accounts(state,environment)
+        if worker is not None:
+            safe,verified_at=worker
+            verification_source="recent_authenticated_worker"
+        else:
+            from webull_broker import WebullBroker
+            broker=WebullBroker(state)
+            raw=broker.accounts()
+            safe=[{"account_id":a["account_id"],
+                   "account_type":str(a.get("account_class") or a.get("account_type") or "")}
+                  for a in raw]
+            verified_at=None
+            verification_source="direct_webull_api"
         from webull_trade_config import read as read_policy
         policy=read_policy(state)
         selected_stock=policy["stock_account"] if policy["trade_stocks"] else ""
@@ -142,23 +197,28 @@ def status(state):
         known={a["account_id"] for a in safe}
         if selected_stock not in known:selected_stock=""
         if selected_crypto not in known:selected_crypto=""
-        # Authorization is not equivalent to broker fill validation or a
-        # qualifying entry signal. The worker supplies actual execution state.
-        live=bool(policy["enabled"] and env=="production")
+        # A live-policy flag is user authorization, not a broker ACK or fill.
+        live=bool(policy["enabled"] and environment=="production")
         return {"provider":"webull","credentials_saved":True,"connected":True,
-                "environment":env,"accounts":safe,
+                "environment":environment,"accounts":safe,
+                "account_verification_source":verification_source,
+                "account_verified_at":verified_at,
                 "selected_stock_account":selected_stock,
                 "selected_crypto_account":selected_crypto,
                 "operator_live_policy_armed":live,
                 "execution_enabled":live,
-                "reason":("User-authorized live stock/crypto policy; broker risk, quote and signal checks remain mandatory"
-                          if live else "Account access verified; live order permission is disarmed")}
-    except (WebullError,ValueError,TypeError,KeyError,OSError) as e:
+                "reason":("Recent Webull worker account verification; broker risk and order checks still required"
+                          if verification_source=="recent_authenticated_worker"
+                          else "Webull API account verification succeeded; broker risk and order checks still required")}
+    except (WebullError,ValueError,TypeError,KeyError,OSError) as exc:
+        reason=("Webull API rate limit while verifying account (HTTP 429)"
+                if "429" in str(exc) else "Webull account lookup or saved policy unavailable")
         return {"provider":"webull","credentials_saved":True,"connected":False,
-                "execution_enabled":False,"reason":str(e)[:180]}
+                "execution_enabled":False,"reason":reason}
     except Exception:
         return {"provider":"webull","credentials_saved":True,"connected":False,
-                "execution_enabled":False,"reason":"Webull authentication or account lookup failed"}
+                "execution_enabled":False,
+                "reason":"Webull authentication or account lookup failed"}
 
 def portfolio(state,account_id):
     from webull_broker import WebullBroker
