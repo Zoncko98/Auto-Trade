@@ -88,7 +88,10 @@ def _can_trade_account(account,asset,allow_margin_accounts=False):
         # It allows cash-funded equity trades, never borrowing or crypto here.
         return bool(allow_margin_accounts) and role=="INDIVIDUAL_MARGIN" and asset=="EQUITY"
     if asset=="CRYPTO":return "CRYPTO" in role
-    return any(x in role for x in ("CASH","STOCK","EQUITY")) and "CRYPTO" not in role
+    # Hide and exclude cash-classified stock accounts from Webull autonomous
+    # account selection as requested; never delete accounts at the broker.
+    if "CASH" in role:return False
+    return any(x in role for x in ("STOCK","EQUITY")) and "CRYPTO" not in role
 
 def account_readiness(account,allow_margin_accounts=False):
     """Account verification never implies order eligibility or live authorization."""
@@ -100,11 +103,14 @@ def account_readiness(account,allow_margin_accounts=False):
             "stocks_cash_eligible":stock,"crypto_cash_eligible":crypto,
             "margin_cash_only_opt_in":bool(allow_margin_accounts),
             "margin_borrowing_enabled":False,
-            "status":("MARGIN_CASH_ONLY_ELIGIBLE" if margin and stock else
+            "status":("CASH_ACCOUNT_EXCLUDED_FROM_TRADING" if "CASH" in label and "CRYPTO" not in label else
+                      "MARGIN_CASH_ONLY_ELIGIBLE" if margin and stock else
                       "MARGIN_ACCOUNT_BLOCKED" if margin else
                       "ACCOUNT_CLASS_ELIGIBLE" if (stock or crypto) else
                       "ACCOUNT_CLASS_UNVERIFIED"),
-            "reason":("Margin-classified Webull stock account opted into CASH-ONLY eligibility; "
+            "reason":("Cash-classified account excluded from Webull trading controls by operator request; broker connection preserved"
+                      if "CASH" in label and "CRYPTO" not in label else
+                      "Margin-classified Webull stock account opted into CASH-ONLY eligibility; "
                       "broker-reported positive cash, no reported margin debt or calls, market data, risk and execution checks required; absence of optional margin/settlement fields is not proof of zero borrowing"
                       if margin and stock else
                       "Margin account opt-in is off or account type unsupported; no orders"
@@ -318,7 +324,7 @@ def _exit_reason(root,account,symbol,row,signal,risk):
     return None
 
 def _scan(root,broker,rotation,report):
-    from ai_research import approve_entry,research_evidence
+    from ai_research import approve_entry,research_evidence,review_technical_crypto_entry
     # Discover-only / monitor scans continue whether live execution is armed.
     symbols=[(sym,"EQUITY") for sym in
         (STOCKS[(rotation+i)%len(STOCKS)] for i in range(MAX_SCAN_PER_CLASS))]
@@ -360,7 +366,19 @@ def _scan(root,broker,rotation,report):
         name=row["symbol"][:-3]+"-USD" if row["asset"]=="CRYPTO" else row["symbol"]
         started=time.monotonic()
         try:
-            accepted,reason=approve_entry(name,_now())
+            if row["asset"]=="CRYPTO":
+                technical={
+                    "symbol":name,"technical_approved":True,
+                    "signal":"MOMENTUM_BUY",
+                    "momentum_pct":row.get("momentum_pct"),
+                    "spread_pct":row.get("spread_pct"),
+                    "trend_up":True,"source":row.get("source"),
+                    "signal_reason":row.get("reason"),
+                    "history_points":row.get("bars"),
+                }
+                accepted,reason=review_technical_crypto_entry(technical,_now())
+            else:
+                accepted,reason=approve_entry(name,_now())
             evidence=research_evidence(name,_now())
             model=evidence.get("model")
         except Exception as exc:
@@ -412,7 +430,14 @@ def run_cycle(root,broker,rotation=0):
     found={r["account"] for r in journal.recent(100)}
     for account in sorted(found & account_ids):
         report["reconciliation"].extend(journal.reconcile(account,broker))
-    for account in accounts[:5]:
+    # Read balances for accounts selected for trading. Querying every linked
+    # broker account each cycle previously hit the 2-per-2-second API quota,
+    # hiding the actual reason that eligible orders were not reached.
+    active_ids={policy["stock_account"] if policy["trade_stocks"] else "",
+                policy["crypto_account"] if policy["trade_crypto"] else ""}
+    for account in accounts:
+        if account["account_id"] not in active_ids:
+            continue
         try:
             b=broker.balance(account["account_id"])
             report["account_summaries"].append({
@@ -424,6 +449,16 @@ def run_cycle(root,broker,rotation=0):
         except Exception as exc:
             report["account_summaries"].append({"account_id":account["account_id"],
                "status":"BALANCE_UNAVAILABLE","reason":_safe_public(exc)})
+    # A selected account with an unavailable balance is not ready to execute,
+    # even if a policy flag is armed. Report this before scanning candidates.
+    if policy["enabled"]:
+        for status in report["account_summaries"]:
+            if status.get("status")=="BALANCE_UNAVAILABLE":
+                report["execution_status"]="ARMED_ACCOUNT_DATA_UNAVAILABLE"
+                report["execution_reason"]=(
+                    "BROKER_RATE_LIMITED_HTTP_429" if status.get("reason")=="WEBULL_HTTP_429"
+                    else "SELECTED_ACCOUNT_BALANCE_UNAVAILABLE")
+                break
     all_positions={}
     for account in sorted(found | {policy["stock_account"],policy["crypto_account"]}):
         if not account or account not in account_ids:continue

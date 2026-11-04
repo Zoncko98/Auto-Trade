@@ -129,8 +129,10 @@ def status(state):
         return {"provider":"webull","credentials_saved":False,"connected":False,
                 "execution_enabled":False,"reason":"Add approved Webull OpenAPI app credentials"}
     try:
-        client,env=_client(state)
-        accounts=_accounts(_data(client.account_v2.get_account_list()))
+        from webull_broker import WebullBroker
+        broker=WebullBroker(state)
+        accounts=broker.accounts()
+        env=broker.environment
         safe=[{"account_id":str(a.get("account_id","")), "account_type":str(a.get("account_type",""))}
               for a in accounts if isinstance(a,dict)]
         return {"provider":"webull","credentials_saved":True,"connected":True,
@@ -144,11 +146,10 @@ def status(state):
                 "execution_enabled":False,"reason":"Webull authentication or account lookup failed"}
 
 def portfolio(state,account_id):
-    client,env=_client(state)
-    accounts=_accounts(_data(client.account_v2.get_account_list()))
-    if not isinstance(account_id,str) or not any(a.get("account_id")==account_id for a in accounts if isinstance(a,dict)):
-        raise WebullError("Account not authorized")
-    return {"account_id":account_id,"environment":env,
-            "balances":_data(client.account_v2.get_account_balance(account_id)),
-            "positions":_data(client.account_v2.get_account_position(account_id)),
+    from webull_broker import WebullBroker
+    broker=WebullBroker(state)
+    broker.verify_account(account_id)
+    return {"account_id":account_id,"environment":broker.environment,
+            "balances":broker.balance(account_id),
+            "positions":broker.positions(account_id),
             "execution_enabled":False}

@@ -25,7 +25,7 @@ class FakeBroker:
         self.previews=[]
         self.submissions=[]
         self.details={}
-        self.available=[{"account_id":"stock1","account_class":"CASH"},
+        self.available=[{"account_id":"stock1","account_class":"EQUITY"},
                         {"account_id":"crypto1","account_class":"CRYPTO"}]
         self.holdings=[]
         self.existing=[]
@@ -288,7 +288,10 @@ class Tests(unittest.TestCase):
         self.assertEqual(margin["status"],"MARGIN_ACCOUNT_BLOCKED")
         self.assertFalse(margin["stocks_cash_eligible"])
         self.assertFalse(margin["crypto_cash_eligible"])
-        self.assertTrue(account_readiness({"account_id":"s","account_class":"CASH"})["stocks_cash_eligible"])
+        self.assertFalse(account_readiness({"account_id":"s","account_class":"CASH"})["stocks_cash_eligible"])
+        self.assertEqual(account_readiness({"account_id":"s","account_class":"CASH"})["status"],
+                         "CASH_ACCOUNT_EXCLUDED_FROM_TRADING")
+        self.assertTrue(account_readiness({"account_id":"s","account_class":"EQUITY"})["stocks_cash_eligible"])
         self.assertTrue(account_readiness({"account_id":"c","account_class":"CRYPTO"})["crypto_cash_eligible"])
         self.assertFalse(account_readiness({"account_id":"x","account_type":"UNVERIFIED"})["stocks_cash_eligible"])
     def test_stock_order_must_preview_before_journal_or_place(self):

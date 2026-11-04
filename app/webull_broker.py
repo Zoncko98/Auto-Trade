@@ -1,5 +1,6 @@
 """Official Webull v3 broker adapter. No implicit account selection or orders."""
 import re
+from pathlib import Path
 from decimal import Decimal,InvalidOperation
 from webull_openapi import _api,_data,_accounts,WebullError
 
@@ -26,18 +27,83 @@ def _rows(data):
     raise WebullError("Unexpected broker list response")
 
 class WebullBroker:
+    _shared_accounts={}
+    _shared_accounts_lock=None
+    # Broker quota is per Webull application key, not per account. Files shared
+    # by worker and dashboard stop each process from overpolling the same API.
+    def _limit(self,endpoint,seconds):
+        state=getattr(self,"_state",None)
+        if state is None:return  # in-memory mock broker in unit tests
+        import fcntl,os,stat,time
+        folder=Path(state)/"webull"
+        if folder.is_symlink() or not folder.is_dir() or folder.stat().st_mode & 0o077:
+            raise WebullError("Unsafe Webull rate-limit state directory")
+        name={"accounts":"accounts","balance":"balance","positions":"positions",
+              "open_orders":"open_orders","order_detail":"order_detail"}[endpoint]
+        file=folder/(".throttle_"+name)
+        fd=os.open(str(file),os.O_RDWR|os.O_CREAT|getattr(os,"O_NOFOLLOW",0),0o600)
+        with os.fdopen(fd,"r+") as handle:
+            if handle.seek(0,2)>32 or os.fstat(handle.fileno()).st_mode & 0o077:
+                raise WebullError("Unsafe API rate-limit state")
+            fcntl.flock(handle.fileno(),fcntl.LOCK_EX)
+            try:
+                handle.seek(0)
+                try:next_at=float(handle.read().strip())
+                except ValueError:next_at=0.0
+                now=time.monotonic()
+                if now<next_at<now+60:
+                    time.sleep(next_at-now)
+                handle.seek(0)
+                handle.truncate()
+                handle.write(repr(time.monotonic()+seconds))
+                handle.flush()
+                os.fsync(handle.fileno())
+            finally:
+                fcntl.flock(handle.fileno(),fcntl.LOCK_UN)
+
     def __init__(self,state):
         from webull.trade.trade_client import TradeClient
         from webull.data.data_client import DataClient
         api,self.environment=_api(state)
+        self._state=Path(state)
+        self._account_cache=None
+        self._account_cache_at=0.0
         self.trade=TradeClient(api)
         self.data=DataClient(api)
     def accounts(self):
+        import time,threading,os
+        if WebullBroker._shared_accounts_lock is None:
+            WebullBroker._shared_accounts_lock=threading.RLock()
+        state=getattr(self,"_state",None)
+        credential=Path(state)/"config"/"webull_openapi.json" if state else None
+        with WebullBroker._shared_accounts_lock:
+            try:
+                key=(str(Path(state).resolve()),credential.stat().st_mtime_ns) if credential else None
+            except OSError:
+                key=None
+            if key:
+                entry=WebullBroker._shared_accounts.get(key)
+                if entry and 0<=time.monotonic()-entry[0]<=15:
+                    return [dict(r) for r in entry[1]]
+        cached=getattr(self,"_account_cache",None)
+        age=time.monotonic()-getattr(self,"_account_cache_at",0.0)
+        if isinstance(cached,list) and 0<=age<=20:
+            return [dict(row) for row in cached]
+        self._limit("accounts",3.2)  # Webull 10 requests / 30 seconds
         rows=_accounts(_data(self.trade.account_v2.get_account_list()))
         if not all(isinstance(x,dict) and isinstance(x.get("account_id"),str) and
                    x["account_id"] for x in rows):
             raise WebullError("Broker account list invalid")
-        return rows
+        self._account_cache=[dict(row) for row in rows]
+        self._account_cache_at=time.monotonic()
+        if key:
+            with WebullBroker._shared_accounts_lock:
+                # Keep only latest key per authorized state path; never cache
+                # indefinitely across account key rotation.
+                WebullBroker._shared_accounts={
+                    k:v for k,v in WebullBroker._shared_accounts.items() if k[0]!=key[0]}
+                WebullBroker._shared_accounts[key]=(time.monotonic(),[dict(r) for r in rows])
+        return [dict(row) for row in rows]
     def verify_account(self,account_id):
         if not isinstance(account_id,str) or not account_id or len(account_id)>80:
             raise WebullError("Invalid account selection")
@@ -46,22 +112,26 @@ class WebullBroker:
         return matched[0]
     def balance(self,account):
         self.verify_account(account)
+        self._limit("balance",1.15)  # Webull 2 requests / 2 seconds per app key
         data=_data(self.trade.account_v2.get_account_balance(account))
         if not isinstance(data,dict) or data.get("total_asset_currency")!="USD":
             raise WebullError("USD balance unavailable")
         return data
     def positions(self,account):
         self.verify_account(account)
+        self._limit("positions",1.15)
         return _rows(_data(self.trade.account_v2.get_account_position(account)))
     def order_detail(self,account,client_id):
         self.verify_account(account)
         if not re.fullmatch("[a-f0-9]{32}",client_id or ""):
             raise WebullError("Invalid client order identifier")
+        self._limit("order_detail",1.15)
         data=_data(self.trade.order_v3.get_order_detail(account,client_id))
         if not isinstance(data,dict):raise WebullError("Invalid order detail response")
         return data
     def open_orders(self,account):
         self.verify_account(account)
+        self._limit("open_orders",1.15)
         data=_data(self.trade.order_v3.get_order_open(account_id=account))
         rows=_rows(data)
         # Never assert a complete order list if the broker gave another page.

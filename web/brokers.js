@@ -73,10 +73,16 @@ function brokerCard(broker){
       if(typeof updateWebullTile==="function")updateWebullTile(data);
       accounts.replaceChildren();
       health.textContent=data.connected?
-        "Webull authenticated · "+data.environment+" · live automated orders disabled":
+        "Webull authenticated · "+data.environment+" · live order authority configured under Risk & trading controls":
         "Webull not connected · "+(data.reason||"Credentials required");
       if(data.connected){
-        (data.accounts||[]).forEach(a=>brokerRow(accounts,"Account "+a.account_id,a.account_type||"Type unavailable"));
+        (data.accounts||[]).filter(a=>
+           !/CASH/i.test(a.account_type||"")||/CRYPTO/i.test(a.account_type||"")
+        ).forEach(a=>brokerRow(accounts,"Account "+a.account_id,a.account_type||"Type unavailable"));
+        const excluded=(data.accounts||[]).filter(a=>
+           /CASH/i.test(a.account_type||"")&&!/CRYPTO/i.test(a.account_type||"")).length;
+        if(excluded)brokerRow(accounts,"Trading account visibility",
+           excluded+" cash-classified account(s) hidden · not removed from Webull");
       }
     }
     setup.addEventListener("submit",async e=>{

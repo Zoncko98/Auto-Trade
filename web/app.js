@@ -1298,7 +1298,9 @@ async function loadOperations(){
   ]);
   const [paper,live,rh,portfolio,webull]=sources.map(x=>x.status==="fulfilled"?x.value:null);
   const webullAccounts=webull?.connected===true&&Array.isArray(webull.accounts)?
-    webull.accounts.filter(x=>typeof x?.account_id==="string"&&x.account_id.trim()&&x.account_id.toLowerCase()!=="unknown"):[];
+    webull.accounts.filter(x=>typeof x?.account_id==="string"&&x.account_id.trim()&&
+      x.account_id.toLowerCase()!=="unknown"&&
+      (!/CASH/i.test(x.account_type||"")||/CRYPTO/i.test(x.account_type||""))):[];
   const webullResult=webullAccounts.length===1?
     await request("/api/webull/portfolio?account_id="+encodeURIComponent(webullAccounts[0].account_id)).catch(()=>null):null;
   const webullBalances=webullResult?.balances||null;
@@ -1467,9 +1469,15 @@ async function loadWebullTrader(){
   const data=await request("/api/webull/trader");
   const worker=data.worker||{},policy=data.policy||{};
   webullTraderPolicy=policy;
-  const armed=false; // Do not infer live permission from saved policy and execution validation.
+  const workerFresh=Number.isFinite(Date.parse(worker.updated_at||""))&&
+      Math.abs(Date.now()-Date.parse(worker.updated_at))<180000;
+  const armed=workerFresh&&policy.enabled===true&&worker.live_orders_allowed===true;
   const mode=$("webull-order-mode");
-  if(mode){mode.textContent=data.execution_validated===true&&policy.enabled===true?"PERMISSION UNVERIFIED":"DISARMED";mode.className="mode-tag stopped";}
+  if(mode){
+    mode.textContent=armed?(worker.execution_status==="ARMED_ACCOUNT_DATA_UNAVAILABLE"?
+      "ARMED · DATA BLOCKED":"ARMED · BROKER-GATED"):"DISARMED / NOT VERIFIED";
+    mode.className="mode-tag "+(armed?"running":"stopped");
+  }
   const orders=$("webull-orders-count");
   if(orders)orders.textContent=Array.isArray(worker.pending_orders)?String(worker.pending_orders.length):"Unavailable";
   const root=webullListRoot("webull-engine-fields");
@@ -1522,7 +1530,7 @@ async function loadWebullTrader(){
     if(!eligibility.length){
       webullRow(root,"Webull account order eligibility","Not yet independently verified");
     }
-    eligibility.forEach(a=>{
+    eligibility.filter(a=>!/CASH/i.test(a.account_type||"")||/CRYPTO/i.test(a.account_type||"")).forEach(a=>{
       const type=typeof a.account_type==="string"?a.account_type:"unknown";
       const suffix=typeof a.account_id==="string"?a.account_id.slice(-6):"unknown";
       webullRow(root,"Broker account "+suffix+" · "+type,
@@ -1537,6 +1545,11 @@ async function loadWebullTrader(){
   webullRow(root,"Webull broker lifecycle validation",data.execution_validated===true?
       "Verified with Webull":"NOT VERIFIED · authorization does not imply an accepted or filled order");
     webullRow(root,"Last block",worker.execution_reason||"None recorded");
+    if(worker.execution_reason==="BROKER_RATE_LIMITED_HTTP_429")
+      webullRow(root,"Webull API quota","HTTP 429 account-balance throttling · execution blocked until funds verify");
+    if(policy.trade_crypto!==true)
+      webullRow(root,"Crypto execution","Disabled in saved Webull live policy · scan-only");
+    webullRow(root,"Cash brokerage accounts","Excluded from Webull trading views, not deleted at Webull");
     const broker=Array.isArray(worker.account_summaries)?worker.account_summaries:[];
     broker.forEach(row=>webullRow(root,
       "Account "+String(row.account_id||"").slice(-6)+" value",
@@ -1606,6 +1619,7 @@ async function loadWebullPolicy(){
     select.add(new Option("Choose eligible Webull account",""));
     entries.forEach(a=>{
       if(typeof a.account_id!=="string"||!a.account_id)return;
+      if(/CASH/i.test(a.account_type||"")&&!/CRYPTO/i.test(a.account_type||""))return;
       const readiness=checked.find(x=>x.account_id===a.account_id);
       const eligible=readiness?.[eligibilityFlag]===true;
       const opt=new Option((a.account_type||"Webull")+" · "+a.account_id+
