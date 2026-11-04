@@ -39,8 +39,11 @@ vm.runInNewContext('const csrf="verified"; let webullTileRefreshId=0; const $=id
 'globalThis.testApi={webullAccountVerified,updateWebullTile,refreshWebullTile};',ctx);
 const {webullAccountVerified,updateWebullTile,refreshWebullTile}=ctx.testApi;
 const ready={connected:true,credentials_saved:true,environment:"production",
-             accounts:[{account_id:"ACCOUNT123",account_type:"CASH"}],
-             execution_enabled:false};
+             accounts:[{account_id:"CASH123",account_type:"INDIVIDUAL_CASH"},
+                       {account_id:"MARGIN123",account_type:"INDIVIDUAL_MARGIN"},
+                       {account_id:"CRYPTO123",account_type:"CRYPTO"}],
+             selected_stock_account:"MARGIN123",
+             operator_live_policy_armed:true,execution_enabled:true};
 assert.equal(webullAccountVerified({connected:true,accounts:[]}),false);
 assert.equal(webullAccountVerified({credentials_saved:true,connected:false,accounts:ready.accounts}),false);
 updateWebullTile({credentials_saved:true,connected:false,accounts:ready.accounts});
@@ -52,11 +55,17 @@ updateWebullTile(ready);
 assert.equal(tile.parentElement,active,"Authenticated account promotes tile");
 assert.equal(tile.classList.contains("workspace-tile-featured"),true);
 assert.equal(label.hidden,false);
-assert.equal(status.textContent,"ACCOUNT VERIFIED");
-assert.match(main.textContent,/1 verified account/);
-assert.match(detail.textContent,/live orders disabled/);
+assert.equal(status.textContent,"STOCK LIVE POLICY ARMED");
+assert.match(main.textContent,/1 trading account/);
+assert.match(detail.textContent,/live policy armed/);
+assert.doesNotMatch(detail.textContent,/CASH123/);
 assert.equal(count.textContent,"● 3 available");
 assert.match(tile.attributes["aria-label"],/verified Webull account/);
+// A linked cash-only account must not be treated as a selectable Webull
+// trading account or used in the aggregate equity valuation.
+updateWebullTile({...ready,accounts:[ready.accounts[0]],
+  selected_stock_account:"",operator_live_policy_armed:false});
+assert.match(main.textContent,/0 trading accounts/);
 updateWebullTile({...ready,environment:"sandbox"});
 assert.match(status.textContent,/SANDBOX/);
 updateWebullTile({connected:false,credentials_saved:true});

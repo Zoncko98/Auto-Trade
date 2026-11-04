@@ -229,7 +229,7 @@ function verifiedWebullUsd(raw){
   const value=Number(raw);
   return Number.isFinite(value)&&value<=1e12?value:null;
 }
-async function refreshWebullEquity(accounts){
+async function refreshWebullEquity(accounts,liveArmed=false){
   const id=++webullEquityRequestId;
   const results=await Promise.allSettled(accounts.map(a=>
     request("/api/webull/portfolio?account_id="+encodeURIComponent(a.account_id))));
@@ -245,14 +245,19 @@ async function refreshWebullEquity(accounts){
   }
   const main=$("workspace-webull-balance"),detail=$("workspace-webull-detail");
   if(!main||!detail)return;
+  const policyLabel=liveArmed?" · live policy ARMED (broker checks apply)":
+    " · live permission disarmed";
   if(valid===accounts.length&&valid>0){
     main.textContent="Equity "+money(sum);
-    detail.textContent=(valid===1?"1 verified account":valid+" verified accounts")+
-      " · broker-reported USD net liquidation value · live orders disabled";
+    detail.textContent=(valid===1?"1 selected account":valid+" verified trading accounts")+
+      " · broker-reported USD net liquidation value"+policyLabel;
+  }else if(valid>0){
+    main.textContent="Verified equity "+money(sum);
+    detail.textContent=valid+" of "+accounts.length+
+      " selected account balances verified · partial, not total account value"+policyLabel;
   }else{
     main.textContent="Equity unavailable";
-    detail.textContent=valid+" of "+accounts.length+
-      " account balances verified · open Webull for details · live orders disabled";
+    detail.textContent="No selected trading-account equity verified · check Webull"+policyLabel;
   }
 }
 const WORKSPACE_ORDER_KEY="auto-trader.workspace-order.v1";
@@ -362,17 +367,26 @@ function updateWebullTile(data){
   if(!tile||!statusNode||!main||!detail)return;
   const accounts=Array.isArray(data?.accounts)?data.accounts.filter(a=>
     typeof a?.account_id==="string" && a.account_id.trim() &&
-    a.account_id.toLowerCase()!=="unknown"):[];
+    a.account_id.toLowerCase()!=="unknown"&&
+    (!/CASH/i.test(a.account_type||"")||/CRYPTO/i.test(a.account_type||""))):[];
+  const preferred=data?.selected_stock_account||data?.selected_crypto_account||"";
+  const selected=accounts.find(a=>a.account_id===preferred);
+  const equityAccounts=selected?[selected]:accounts;
+  const liveArmed=data?.operator_live_policy_armed===true;
   const verified=webullAccountVerified(data);
   positionWebullTile(verified);
   if(verified){
     const sandbox=data.environment==="sandbox";
     const types=[...new Set(accounts.map(a=>a.account_type).filter(x=>typeof x==="string" && x.trim()))];
-    main.textContent=accounts.length+" verified "+(accounts.length===1?"account":"accounts")+" · checking equity…";
-    detail.textContent=(types.length?types.join(", ")+" · ":"")+"Verified · fetching broker equity · live orders disabled";
-    refreshWebullEquity(accounts);
-    statusNode.textContent=sandbox?"SANDBOX · ACCOUNT VERIFIED":"ACCOUNT VERIFIED";
-    tile.title="Webull account verified; automated live orders disabled";
+    main.textContent=equityAccounts.length+" trading "+(equityAccounts.length===1?"account":"accounts")+" · checking equity…";
+    detail.textContent=(types.length?types.join(", ")+" · ":"")+
+      "Broker equity · "+(liveArmed?"live policy armed, awaiting broker checks":"live permission disarmed");
+    refreshWebullEquity(equityAccounts,liveArmed);
+    statusNode.textContent=sandbox?"SANDBOX · ACCOUNT VERIFIED":
+      liveArmed?"STOCK LIVE POLICY ARMED":"ACCOUNT VERIFIED";
+    tile.title="Webull account verified; "+(liveArmed?
+      "real-money policy armed, broker risk and signal checks required":
+      "live permission disarmed");
     tile.setAttribute("aria-label","Open verified Webull account workspace");
   }else{
     main.textContent="Account access unverified";
@@ -1801,7 +1815,8 @@ async function loadWebullWorkspace(){
   const data=await request("/api/webull/status");
   updateWebullTile(data);
   accounts.replaceChildren();
-  const entries=Array.isArray(data.accounts)?data.accounts:[];
+  const entries=Array.isArray(data.accounts)?data.accounts.filter(a=>
+    !/CASH/i.test(a.account_type||"")||/CRYPTO/i.test(a.account_type||"")):[];
   if(!data.connected||!entries.length){
     health.textContent=data.credentials_saved?"Connection not verified: "+(data.reason||"Check Webull permissions"):"Webull credentials required";
     accounts.add(new Option("No authenticated accounts available",""));
@@ -1815,6 +1830,8 @@ async function loadWebullWorkspace(){
   for(const entry of entries){
     accounts.add(new Option((entry.account_type||"Webull account")+" · "+entry.account_id,entry.account_id));
   }
+  const preferred=data.selected_stock_account||data.selected_crypto_account;
+  if(preferred&&entries.some(a=>a.account_id===preferred))accounts.value=preferred;
   await loadWebullAccount();
   loadWebullTrader().catch(()=>{if($("webull-worker-updated"))$("webull-worker-updated").textContent="Worker status unavailable";});
 }

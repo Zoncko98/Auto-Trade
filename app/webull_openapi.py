@@ -135,9 +135,24 @@ def status(state):
         env=broker.environment
         safe=[{"account_id":str(a.get("account_id","")), "account_type":str(a.get("account_type",""))}
               for a in accounts if isinstance(a,dict)]
+        from webull_trade_config import read as read_policy
+        policy=read_policy(state)
+        selected_stock=policy["stock_account"] if policy["trade_stocks"] else ""
+        selected_crypto=policy["crypto_account"] if policy["trade_crypto"] else ""
+        known={a["account_id"] for a in safe}
+        if selected_stock not in known:selected_stock=""
+        if selected_crypto not in known:selected_crypto=""
+        # Authorization is not equivalent to broker fill validation or a
+        # qualifying entry signal. The worker supplies actual execution state.
+        live=bool(policy["enabled"] and env=="production")
         return {"provider":"webull","credentials_saved":True,"connected":True,
-                "environment":env,"accounts":safe,"execution_enabled":False,
-                "reason":"Account access verified. Autonomous Webull order execution is disabled pending end-to-end validation."}
+                "environment":env,"accounts":safe,
+                "selected_stock_account":selected_stock,
+                "selected_crypto_account":selected_crypto,
+                "operator_live_policy_armed":live,
+                "execution_enabled":live,
+                "reason":("User-authorized live stock/crypto policy; broker risk, quote and signal checks remain mandatory"
+                          if live else "Account access verified; live order permission is disarmed")}
     except (WebullError,ValueError,TypeError,KeyError,OSError) as e:
         return {"provider":"webull","credentials_saved":True,"connected":False,
                 "execution_enabled":False,"reason":str(e)[:180]}
