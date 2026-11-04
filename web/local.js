@@ -11,7 +11,8 @@ function present(v) {
 function formatBrokerDate(v) {
   if (!v) return "—";
   const dt = new Date(v);
-  return Number.isFinite(dt.getTime()) ? dt.toLocaleString("en-US", {timeZone:"UTC",hour12:false})+" UTC" : present(v);
+  return Number.isFinite(dt.getTime()) ?
+    (window.AutoTraderAudit?.time(v)||dt.toLocaleString("en-US",{timeZone:"America/Phoenix"})+" MST") : present(v);
 }
 
 function renderLiveView(data) {
@@ -99,6 +100,7 @@ function renderLiveView(data) {
   }
   $("live-warning-title").textContent=title;
   $("live-warning-text").textContent=text;
+  window.AutoTraderAudit?.live(data);
 }
 
 function renderSchwabPerformance(a,online){
@@ -126,10 +128,16 @@ function renderSchwabPerformance(a,online){
     const gain=basis===null?null:mv-basis;
     if(valid)total+=mv;
     if(gain!==null){cost+=basis;covered++;}
-    return '<tr><td>'+esc(row.symbol)+'</td><td>'+esc(row.quantity)+'</td><td>'+
+    const implied=valid&&qty>0?mv/qty:null;
+    return '<tr><td>'+esc(row.symbol)+'</td><td>'+esc(row.quantity)+'</td>'+
+      '<td title="Derived mark: broker market value divided by quantity">'+
+      (implied===null?"Unavailable":money(implied))+'</td><td>'+
       (valid?money(mv):"Unavailable")+'</td><td>'+(avg===null?"Unavailable":money(avg))+
-      '</td><td>'+(gain===null?"Unavailable":money(gain))+'</td><td>'+
-      (gain===null||basis<=0?"Unavailable":(gain/basis*100).toFixed(2)+"%")+'</td></tr>';
+      '</td><td class="'+(gain===null?"":gain>=0?"pnl-up":"pnl-down")+'">'+
+      (gain===null?"Unavailable":window.AutoTraderAudit?.moneySigned(gain)||money(gain))+'</td><td>'+
+      (gain===null||basis<=0?"Unavailable":
+        window.AutoTraderAudit?.percentSigned(gain/basis*100)||
+        (gain/basis*100).toFixed(2)+"%")+'</td></tr>';
   });
   const complete=rows.length===holdings.length&&covered===holdings.length;
   value.textContent=rows.length===holdings.length?money(total):"Partial "+money(total);
@@ -138,7 +146,7 @@ function renderSchwabPerformance(a,online){
   status.textContent=covered+" of "+holdings.length+" holdings with cost basis";
   note.textContent=complete?"Unrealized estimates use broker average price and market value; taxes and fees may differ.":
     "Cost basis is incomplete. Aggregate P/L and return are withheld.";
-  box.innerHTML=holdings.length?'<table class="rh-holdings-table"><thead><tr><th>Symbol</th><th>Shares</th><th>Market value</th><th>Avg cost</th><th>Unrealized P/L</th><th>Return</th></tr></thead><tbody>'+
+  box.innerHTML=holdings.length?'<table class="rh-holdings-table"><thead><tr><th>Asset</th><th>Quantity</th><th>Mark (derived)</th><th>Market value</th><th>Avg cost</th><th>Unrealized P/L</th><th>Return</th></tr></thead><tbody>'+
     cells.join("")+'</tbody></table>':"No open positions.";
 }
 function safeNewsUrl(value){
@@ -178,6 +186,7 @@ function renderLiveDecisions(items){
       <td class="reason">${esc(e.summary||"No summary saved")}</td>
       <td class="reason">${evidence}</td></tr>`;
   }).join(""):'<tr><td colspan="6" class="empty-row">No live evaluations yet. The next eligible market session will generate auditable decision summaries.</td></tr>';
+  window.AutoTraderAudit?.decorateTable("live-decisions-table");
 }
 const LIVE_RISK_FIELDS=[
   "allocation_pct","max_order_usd","max_position_pct","max_daily_loss",

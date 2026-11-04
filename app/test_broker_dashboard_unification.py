@@ -8,7 +8,12 @@ class BrokerDashboardUnificationTests(unittest.TestCase):
   for broker in ('live','robinhood','webull','paper'):
    self.assertIn('data-broker-dashboard="'+broker+'"',html)
    self.assertIn('id="view-'+("overview" if broker=="paper" else broker)+'"',html)
-  self.assertEqual(html.count('<h1>Live account</h1>'),3)
+  for heading in ('Schwab trading account','Robinhood Crypto account',
+                  'Webull stock/crypto account','Paper simulator'):
+   self.assertIn('<h1>'+heading+'</h1>',html)
+  self.assertEqual(html.count('<h1>Live account</h1>'),0)
+  self.assertIn('id="audit-live-order-rows"',html)
+  self.assertIn('id="audit-robinhood-orders"',html)
   self.assertIn('[data-broker-dashboard] .stats-grid',css)
   self.assertIn('[data-broker-dashboard] .rh-portfolio-metrics',css)
  def test_no_duplicate_shared_operations_sidebar(self):

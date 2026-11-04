@@ -57,6 +57,7 @@ jobs:
           node tests/test_workspace_balances.cjs
           node tests/test_main_overview.cjs
           node tests/test_ai_header_refresh.cjs
+          node tests/test_ui_audit_contract.cjs
           node tests/test_verified_brokers.cjs
           node tests/test_robinhood_tile_value.cjs
           node tests/test_webull_workspace_tile.cjs

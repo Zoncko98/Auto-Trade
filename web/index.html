@@ -11,6 +11,7 @@
 <script defer src="/local.js"></script>
 <script defer src="/forecast.js"></script>
 <script defer src="/brokers.js"></script>
+<script defer src="/ui-audit.js"></script>
 </head>
 <body>
 <div id="login-screen" class="login-screen">
@@ -56,22 +57,24 @@
     </div>
     <nav class="side-nav" aria-label="Main navigation">
       <div id="live-nav-group" class="workspace-menu hidden">
-        <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Overview <span id="live-nav-count" class="nav-counter">0</span></button>
+        <button class="nav-item active" data-view="live"><span class="nav-icon">◈</span> Overview</button>
+        <button class="nav-item" data-view="live-orders"><span class="nav-icon">⇄</span> Orders &amp; reconciliation <span id="live-nav-count" class="nav-counter">0</span></button>
         <button class="nav-item" data-view="decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
         <button class="nav-item" data-view="live-risk"><span class="nav-icon">⚙</span> Risk &amp; trading controls</button>
         <button class="nav-item" data-view="forecast"><span class="nav-icon">◷</span> Market outlook</button>
       </div>
       <div id="robinhood-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="robinhood"><span class="nav-icon">◈</span> Overview</button>
+        <button class="nav-item" data-view="robinhood-orders"><span class="nav-icon">⇄</span> Orders &amp; reconciliation</button>
         <button class="nav-item" data-view="robinhood-decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
         <button class="nav-item" data-view="robinhood-risk"><span class="nav-icon">⚙</span> Risk &amp; trading controls</button>
         <button class="nav-item" data-view="robinhood-forecast"><span class="nav-icon">◷</span> Market outlook</button>
       </div>
       <div id="webull-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="webull"><span class="nav-icon">◈</span> Overview</button>
+        <button class="nav-item" data-view="webull-orders"><span class="nav-icon">⇄</span> Orders &amp; reconciliation</button>
         <button class="nav-item" data-view="webull-decisions"><span class="nav-icon">✧</span> AI decision evidence</button>
         <button class="nav-item" data-view="webull-risk"><span class="nav-icon">⚙</span> Risk &amp; trading controls</button>
-        <button class="nav-item" data-view="webull-orders"><span class="nav-icon">⇄</span> Orders &amp; reconciliation</button>
       </div>
       <div id="paper-nav-group" class="workspace-menu hidden">
         <button class="nav-item" data-view="overview"><span class="nav-icon">▦</span> Overview</button>
@@ -96,7 +99,7 @@
         <button id="refresh-btn" class="icon-button" type="button"
           aria-label="Refresh current screen" title="Refresh current screen and shared connection status">↻</button>
         <div id="ai-header-status" class="ai-header-status is-checking" role="status"
-          aria-live="polite" title="Checking AI workstation connectivity and selected model">
+          aria-live="polite" title="Installed-model catalog check; not a successful inference or proof of decision quality">
           <span class="ai-header-dot" aria-hidden="true"></span>
           <span class="ai-header-copy"><strong id="ai-header-state">AI checking</strong>
             <span id="ai-header-model">Checking selected model…</span></span>
@@ -239,7 +242,7 @@
       <section class="view hidden" id="view-robinhood" data-broker-dashboard="robinhood" aria-label="Robinhood Crypto workspace">
         <div class="hero-head">
           <div><p class="eyebrow">ROBINHOOD CRYPTO · AUTONOMOUS TRADING</p>
-            <h1>Live account</h1>
+            <h1>Robinhood Crypto account</h1>
             <p class="muted">Connected crypto broker, AI decisions, risk status and reconciled order evidence.</p></div>
           <div class="control-panel">
             <div class="control-caption">LIVE ORDER PERMISSION <span class="mode-tag stopped" id="robinhood-execution-mode">Not armed</span></div>
@@ -281,7 +284,7 @@
           <div class="stat-card"><div class="stat-top">EST. CRYPTO ACCOUNT VALUE <span class="stat-icon">◈</span></div><strong id="robinhood-total-stat">—</strong><small id="robinhood-total-note">Holdings + USD buying power; quoted mark, not liquidation proceeds</small></div>
           <div class="stat-card"><div class="stat-top">USD BUYING POWER <span class="stat-icon">◉</span></div><strong id="robinhood-cash-stat">—</strong><small>Broker-reported buying power, not confirmed settled cash</small></div>
           <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="robinhood-holdings-stat">—</strong><small>Broker-reported crypto holdings</small></div>
-          <div class="stat-card"><div class="stat-top">BROKER ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="robinhood-orders-stat">—</strong><small>Broker history, not necessarily bot fills</small></div>
+          <div class="stat-card"><div class="stat-top">BOT ORDER RECONCILIATION <span class="stat-icon">⇄</span></div><strong id="robinhood-orders-stat">—</strong><small id="rh-bot-order-note">Unresolved bot intents; broker history reported separately</small></div>
         </div>
         <div class="content-grid">
           <section class="panel">
@@ -315,6 +318,16 @@
           <div id="robinhood-workspace-accounts" aria-live="polite" class="broker-grid"></div>
         </section>
       </section>
+    <section class="view hidden" id="view-robinhood-orders" aria-label="Robinhood order and reconciliation evidence">
+      <div class="page-header"><div><p class="eyebrow">ROBINHOOD CRYPTO · ORDER AUDIT</p><h1>Robinhood orders &amp; reconciliation</h1>
+        <p class="muted">Bot intents and broker-confirmed fills are separate from Robinhood's historical broker orders.</p></div></div>
+      <section class="panel audit-order-panel"><div class="panel-heading"><div><h2>Bot order and reconciliation status</h2>
+        <p>Live broker order IDs, pending intent locks and independently confirmed fills when available</p></div></div>
+        <div id="audit-robinhood-orders" role="status">Checking authenticated order state…</div></section>
+      <section class="panel"><h2>Broker history is not bot execution</h2>
+        <p id="audit-robinhood-history" class="panel-note">Broker historical order count unavailable. No bot fills are inferred from this count.</p>
+        <button type="button" class="btn secondary" data-view="robinhood-decisions">Inspect decisions and reconciliation evidence</button></section>
+    </section>
     <section class="view hidden" id="view-robinhood-decisions">
       <div class="page-header"><div><p class="eyebrow">ROBINHOOD CRYPTO · DECISION AUDIT</p>
         <h1>AI decision evidence</h1><p class="muted">Actual scan and AI review records, including rejected candidates. Broker fills are reported separately.</p></div></div>
@@ -427,11 +440,23 @@
             <button class="btn secondary" type="submit">Save risk settings</button>
             <span id="robinhood-risk-feedback" role="status"></span></div>
         </section>
+        <aside class="settings-side">
+          <section class="panel settings-preview">
+            <h2>Robinhood order ceiling</h2>
+            <p>Estimation from the current broker buying-power observation. Real orders still require all preflight checks.</p>
+            <div class="preview-big" id="robinhood-risk-preview">Unavailable</div><small>Estimated cap, not executable funds</small>
+            <div class="preview-breakdown"><span>USD buying power</span><strong id="rh-risk-cash-preview">Unavailable</strong></div>
+            <div class="preview-breakdown"><span>Configured per-order limit</span><strong id="rh-risk-max-preview">—</strong></div>
+            <div class="preview-breakdown"><span>Exposure limit</span><strong id="rh-risk-exposure-preview">—</strong></div>
+            <div class="preview-breakdown"><span>Bot position slots</span><strong id="rh-risk-positions-preview">—</strong></div>
+            <div class="preview-breakdown"><span>Execution permission</span><strong id="rh-risk-permission-preview">Unverified</strong></div>
+          </section>
+        </aside>
       </form>
     </section>
     <section class="view hidden" id="view-webull" aria-label="Webull broker dashboard" data-broker-dashboard="webull">
       <div class="hero-head"><div><p class="eyebrow">WEBULL · STOCKS + CRYPTO · ACCOUNT WORKSPACE</p>
-        <h1>Live account</h1><p class="muted">Verified broker holdings, scanner activity and order evidence. Trading authorization remains separate.</p></div>
+        <h1>Webull stock/crypto account</h1><p class="muted">Verified broker holdings, scanner activity and order evidence. Trading authorization remains separate.</p></div>
         <div class="control-panel"><div class="control-caption">WEBULL ORDER PERMISSION <span class="mode-tag stopped" id="webull-order-mode">Checking</span></div>
           <div class="control-buttons"><button class="btn secondary" id="webull-refresh" type="button">Refresh account</button>
           <button class="btn secondary" data-view="webull-risk" type="button">Risk &amp; execution controls</button></div></div></div>
@@ -454,7 +479,7 @@
         <div class="stat-card"><div class="stat-top">BROKERAGE EQUITY <span class="stat-icon">◈</span></div><strong id="webull-equity">—</strong><small>Selected Webull account</small></div>
         <div class="stat-card"><div class="stat-top">AVAILABLE CASH <span class="stat-icon">◉</span></div><strong id="webull-cash">—</strong><small>Broker-reported cash, not buying power</small></div>
         <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="webull-holdings-count">—</strong><small>Selected account positions</small></div>
-        <div class="stat-card"><div class="stat-top">PENDING ORDERS <span class="stat-icon">⇄</span></div><strong id="webull-orders-count">—</strong><small>Worker order journal</small></div>
+        <div class="stat-card"><div class="stat-top">BOT ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="webull-orders-count">—</strong><small id="webull-bot-order-note">Webull-specific worker intents, not broker history</small></div>
       </div>
       <div class="content-grid">
         <section class="panel"><div class="panel-heading"><div><h2>Execution status</h2><p>Independent Webull worker and broker-specific restrictions</p></div>
@@ -477,22 +502,38 @@
     <section class="view hidden" id="view-webull-risk">
       <div class="page-header"><div><p class="eyebrow">WEBULL · ACCOUNT SAFETY</p>
         <h1>Risk &amp; trading controls</h1><p class="muted">Webull-specific cash limits for stocks and crypto. Saving never arms trading.</p></div></div>
-      <form id="webull-risk-form" class="panel" style="padding:24px;max-width:760px">
-        <div class="notice neutral"><span class="notice-icon">ⓘ</span><div><strong>Webull default is disarmed</strong>
-          <p>Limits are account-specific. The live engine also enforces a hard $1,000/order ceiling,
+      <form id="webull-risk-form" class="settings-layout">
+        <section class="panel settings-main">
+          <div class="panel-heading"><div><h2>Account-specific cash risk limits</h2>
+            <p>Saved values remain unchanged; each order still requires independent broker checks.</p></div></div>
+        <div class="notice neutral"><span class="notice-icon">ⓘ</span><div><strong id="webull-risk-current-policy">Current Webull policy: checking…</strong>
+          <p>New accounts start disarmed by default. This notice does not indicate the current saved policy. The live engine also enforces a hard $1,000/order ceiling,
           a 10% per-position cap and $250 maximum daily loss limit before any broker order.</p></div></div>
-        <div class="setting-row"><label for="webull-risk-position">Maximum position exposure (%)</label>
-          <input id="webull-risk-position" type="number" min="0.1" max="10" step="0.1" required></div>
-        <div class="setting-row"><label for="webull-risk-order">Maximum single order (USD)</label>
-          <input id="webull-risk-order" type="number" min="1" max="1000" step="0.01" required></div>
-        <div class="setting-row"><label for="webull-risk-loss">Maximum daily loss (USD)</label>
-          <input id="webull-risk-loss" type="number" min="1" max="250" step="0.01" required></div>
-        <div class="setting-row"><label for="webull-risk-positions">Maximum simultaneous positions</label>
-          <input id="webull-risk-positions" type="number" min="1" max="10" step="1" required></div>
+        <div class="setting-item"><div><label for="webull-risk-position">Maximum position exposure</label><p>Percent of equity; hard cap remains 10%.</p></div>
+          <div class="setting-control"><input id="webull-risk-position" type="number" min="0.1" max="10" step="0.1" required><span>%</span></div></div>
+        <div class="setting-item"><div><label for="webull-risk-order">Maximum single order</label><p>Maximum nominal order size; broker cash and other checks apply.</p></div>
+          <div class="setting-control"><span>$</span><input id="webull-risk-order" type="number" min="1" max="1000" step="0.01" required></div></div>
+        <div class="setting-item"><div><label for="webull-risk-loss">Maximum daily loss</label><p>Hard upper limit remains $250.</p></div>
+          <div class="setting-control"><span>$</span><input id="webull-risk-loss" type="number" min="1" max="250" step="0.01" required></div></div>
+        <div class="setting-item"><div><label for="webull-risk-positions">Maximum simultaneous positions</label><p>Must not exceed the existing hard order/position guards.</p></div>
+          <div class="setting-control"><input id="webull-risk-positions" type="number" min="1" max="10" step="1" required><span>positions</span></div></div>
         <div class="form-actions"><button type="submit" class="btn secondary">Save Webull risk plan</button>
           <span id="webull-risk-status" role="status"></span></div>
+        </section>
+        <aside class="settings-side">
+          <section class="panel settings-preview">
+            <h2>Next Webull order ceiling</h2>
+            <p>Read-only preview of configured caps; this is not broker buying power or approval.</p>
+            <div class="preview-big" id="webull-risk-preview">Unavailable</div>
+            <small>Nominal cap before cash, broker, exposure, risk and minimum-order checks</small>
+            <div class="preview-breakdown"><span>Position cap</span><strong id="webull-risk-cap-preview">—</strong></div>
+            <div class="preview-breakdown"><span>Daily loss cap</span><strong id="webull-risk-loss-preview">—</strong></div>
+            <div class="preview-breakdown"><span>Max open positions</span><strong id="webull-risk-positions-preview">—</strong></div>
+            <div class="preview-breakdown"><span>Saved policy</span><strong id="webull-risk-permission-preview">Unverified</strong></div>
+          </section>
+        </aside>
       </form>
-      <section class="panel" style="padding:24px;max-width:760px;margin-top:20px">
+      <section class="panel webull-authorization">
         <div class="panel-heading"><div><h2>Live trading authorization</h2>
           <p>Select a separately verified brokerage or crypto account for each market. An opted-in individual margin
             brokerage account may trade stocks using only settled cash; it does not grant crypto access.</p></div></div>
@@ -633,7 +674,7 @@
         <div class="hero-head">
           <div>
             <p class="eyebrow">CHARLES SCHWAB · AUTONOMOUS TRADING</p>
-            <h1>Live account</h1>
+            <h1>Schwab trading account</h1>
             <p class="muted">Your connected Schwab account, order journal, and recorded trading evidence.</p>
           </div>
           <div class="control-panel">
@@ -663,7 +704,7 @@
           <div class="stat-card"><div class="stat-top">BROKERAGE EQUITY <span class="stat-icon">◈</span></div><strong id="live-equity">—</strong><small id="live-snapshot-age">No recent broker snapshot</small></div>
           <div class="stat-card"><div class="stat-top">AVAILABLE CASH <span class="stat-icon">◉</span></div><strong id="live-cash">—</strong><small>Conservative verified cash, not margin buying power</small></div>
           <div class="stat-card"><div class="stat-top">OPEN HOLDINGS <span class="stat-icon">▥</span></div><strong id="live-holdings">—</strong><small id="live-holdings-detail">Awaiting broker positions</small></div>
-          <div class="stat-card"><div class="stat-top">BROKER ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="live-order-total">0</strong><small>Confirmed and pending worker journal entries</small></div>
+          <div class="stat-card"><div class="stat-top">BOT ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="live-order-total">—</strong><small>Worker journal; broker acceptance and fills have distinct states</small></div>
         </div>
         <div class="content-grid">
           <section class="panel">
@@ -692,6 +733,19 @@
           <div id="live-order-count-note" class="panel-note">Awaiting journal records.</div>
           <p class="panel-note">Limit price is not a fill price. Gross P/L is blank when an execution or original cost basis cannot be independently verified. Fees are excluded.</p>
         </div>
+      </section>
+      <section class="view hidden" id="view-live-orders" aria-label="Schwab orders and reconciliation">
+        <div class="page-header"><div><p class="eyebrow">SCHWAB · BROKER ORDER AUDIT</p><h1>Schwab orders &amp; reconciliation</h1>
+          <p class="muted">Worker-originated orders with independently recorded broker states. Accepted is not filled.</p></div>
+          <button class="btn secondary" type="button" data-view="decisions">Inspect decision evidence</button></div>
+        <div id="audit-live-order-summary" class="notice neutral" role="status">Awaiting authenticated broker order journal…</div>
+        <section class="panel list-panel"><div class="panel-heading"><h2>Broker order records</h2>
+          <button id="audit-export-live" type="button" class="btn secondary">↓ Export live Excel</button></div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>Created</th><th>Symbol</th><th>Action</th><th>Quantity</th><th>Limit</th>
+            <th>Executed</th><th>Realized gross P/L</th><th>Broker state</th><th>Rationale</th>
+          </tr></thead><tbody id="audit-live-order-rows"><tr><td colspan="9">Awaiting read-only order journal…</td></tr></tbody></table></div>
+        </section>
       </section>
       <section class="view hidden" id="view-decisions">
         <div class="page-header"><div>
@@ -754,7 +808,7 @@
         <div class="hero-head">
           <div>
             <p class="eyebrow">PAPER TRADING · SIMULATED ACCOUNT</p>
-            <h1>Simulated account</h1>
+            <h1>Paper simulator</h1>
             <p class="muted">Paper simulator only. Switch to Schwab live for real brokerage orders and cash.</p>
           </div>
           <div class="control-panel">
@@ -786,7 +840,7 @@
           <div class="stat-card"><div class="stat-top"><span>SIMULATED ACCOUNT VALUE</span><span class="stat-icon">◈</span></div><strong id="stat-equity">$100.00</strong><small id="stat-equity-desc">Starting simulated balance</small></div>
           <div class="stat-card"><div class="stat-top"><span>AVAILABLE CASH</span><span class="stat-icon">◉</span></div><strong id="stat-cash">$100.00</strong><small id="stat-cash-desc">Before allocation limit</small></div>
           <div class="stat-card"><div class="stat-top"><span>OPEN HOLDINGS</span><span class="stat-icon">▥</span></div><strong id="stat-open-holdings">0</strong><small>Current simulated positions</small></div>
-          <div class="stat-card"><div class="stat-top"><span>PAPER TRADE RECORDS</span><span class="stat-icon">⇄</span></div><strong id="stat-trades">0</strong><small id="stat-reviews">0 AI evaluations recorded</small></div>
+          <div class="stat-card"><div class="stat-top"><span>PAPER BOT TRADE RECORDS</span><span class="stat-icon">⇄</span></div><strong id="stat-trades">0</strong><small id="stat-reviews">0 AI evaluations recorded</small></div>
         </div>
         <div class="content-grid">
           <section class="panel paper-execution-panel">

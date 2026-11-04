@@ -454,3 +454,136 @@
  .ai-header-copy strong,.ai-header-copy span{font-size:10px}
 }
 @media(max-width:420px){.ai-header-status{max-width:42vw}}
+
+/* Four-dashboard audit remediation: presentation only; broker safety policy untouched. */
+.workspace-tile-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:18px}
+.workspace-tile-grid>.workspace-tile{min-height:340px;height:100%;padding:24px;display:flex;flex-direction:column}
+.workspace-tile-grid>.workspace-tile .workspace-tile-subtitle{min-height:0;margin:8px 0 14px}
+.workspace-tile-grid>.workspace-tile .workspace-tile-balance{min-height:38px}
+.workspace-tile-grid>.workspace-tile .workspace-tile-value-note{margin:0 0 8px}
+.workspace-tile-grid>.workspace-tile .workspace-tile-open{margin-top:auto}
+.audit-tile-ready{display:block;border-top:1px solid #30435a;padding-top:9px;margin-top:10px;
+  color:#b2c9e0;font-size:11px;line-height:1.45;max-width:100%;overflow-wrap:anywhere}
+.audit-status-strip{margin:0 0 18px;padding:14px 17px 11px;border:1px solid #355475;
+  border-radius:13px;background:#101d30;color:#d9e8f8}
+.audit-status-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  margin-bottom:12px}
+.audit-status-head strong{font-size:13px;letter-spacing:.1px}
+.audit-status-head span{font-size:11px;color:#9fb6cf}
+.audit-status-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.audit-status-cell{min-width:0;border:1px solid #2a405c;border-radius:9px;padding:12px 10px;background:#15253a}
+.audit-status-cell>span{display:block;color:#9db4cf;font-size:10px;font-weight:750;
+  line-height:1.3;margin-bottom:7px}
+.audit-status-cell strong{display:block;font-size:11px;line-height:1.45;overflow-wrap:anywhere}
+.audit-status-cell strong[data-state="good"]{color:#88e1ba}
+.audit-status-cell strong[data-state="bad"]{color:#ffacb7}
+.audit-status-cell strong[data-state="warn"]{color:#f2c989}
+.audit-status-cell strong[data-state="neutral"]{color:#d9e8f8}
+.audit-status-foot{font-size:10px;color:#9cb5cb;line-height:1.45;margin:10px 0 0}
+.audit-inline-details{margin:10px 0 0;min-width:0}
+.audit-inline-details summary{cursor:pointer;color:#9dd0ff;font-weight:700;
+  font-size:11px;list-style:disclosure-closed}
+.audit-inline-details[open] summary{list-style:disclosure-open}
+.audit-raw{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;
+  font-family:ui-monospace,Consolas,monospace;font-size:11px;line-height:1.5;
+  background:#0c1728;border:1px solid #2d405b;border-radius:8px;
+  max-height:330px;overflow:auto;padding:12px;margin:8px 0}
+#view-robinhood .content-grid .panel:nth-child(1) .readiness-item strong,
+#view-webull .content-grid .panel:nth-child(1) .readiness-item strong{
+  text-align:left;overflow-wrap:anywhere;white-space:normal}
+#robinhood-signal-diagnostics{max-width:100%;min-width:0;text-align:left}
+#webull-engine-fields{display:flex;flex-direction:column;min-width:0}
+#webull-engine-fields>.audit-inline-details{margin:14px 0;border:1px solid #304767;
+  border-radius:9px;padding:14px;background:#10243a}
+#webull-engine-fields>.audit-inline-details .readiness-item{width:100%}
+#view-robinhood .content-grid,#view-webull .content-grid{align-items:start}
+#view-webull .content-grid>section,#view-robinhood .content-grid>section{height:auto}
+.audit-order-panel .audit-order-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 20px}
+.audit-order-fields p{border-bottom:1px solid #2b4057;display:flex;justify-content:space-between;
+  align-items:flex-start;gap:15px;padding:10px 0;margin:0;font-size:12px}
+.audit-order-fields span{color:#a4b8d0}
+.audit-order-fields strong{text-align:right;overflow-wrap:anywhere}
+.audit-pending-orders{margin-top:16px;font-size:12px;color:#e0eaf5;overflow-wrap:anywhere}
+.audit-unified{margin:18px 0!important}
+.audit-filters{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.audit-filters input,.audit-filters select{
+  color:#f1f6ff;background:#0d1a2c;border:1px solid #496685;
+  border-radius:9px;padding:11px 12px;font:inherit;font-size:12px;min-width:0}
+.audit-filters input{flex:2 1 250px}
+.audit-filters select{flex:1 1 180px}
+.audit-filters input:focus-visible,.audit-filters select:focus-visible,
+.settings-layout input:focus-visible,.settings-layout select:focus-visible,
+#view-webull-risk input:focus-visible,#view-webull-risk select:focus-visible{
+  outline:2px solid #8ec9ff;outline-offset:2px}
+.audit-unified .table-wrap{overflow-x:auto}
+.audit-unified .audit-table{min-width:1050px;width:100%;border-collapse:collapse}
+.audit-unified .audit-table th,.audit-unified .audit-table td{
+  padding:11px 9px;border-bottom:1px solid #263b53;vertical-align:top;
+  white-space:normal;text-align:left;font-size:11px}
+.audit-unified .audit-table th{color:#a4c1e2;font-size:10px;text-transform:uppercase}
+.audit-unified .audit-table td{color:#d8e6f8}
+.audit-unified .audit-table td:nth-child(5){min-width:180px}
+.audit-unified .audit-table td:first-child{min-width:150px}
+.audit-unified .audit-table details summary{cursor:pointer;color:#9ecfff}
+.audit-unified .audit-table pre{max-width:550px}
+.audit-unified+.panel{margin-top:18px}
+#robinhood-risk-form,#webull-risk-form{width:100%;max-width:none}
+#robinhood-risk-form .settings-preview,#webull-risk-form .settings-preview{position:sticky;top:90px}
+#webull-risk-form .settings-main{min-width:0}
+#view-webull-risk .webull-authorization{padding:24px;margin-top:18px;width:100%;max-width:100%}
+#view-webull-risk .webull-authorization .setting-row{
+  display:grid;grid-template-columns:minmax(180px,1fr) minmax(190px,1fr);
+  align-items:center;gap:16px;padding:11px 0;border-bottom:1px solid #2e435d}
+#view-webull-risk .webull-authorization label{font-size:12px;line-height:1.4;font-weight:700}
+#view-webull-risk .webull-authorization select{
+  padding:10px 12px;min-height:42px;color:#e5effa;background:#0d1a2c;border:1px solid #3f5978;
+  border-radius:8px;width:100%;min-width:0}
+#view-webull-risk .webull-authorization input[type=checkbox],
+#view-webull-risk .settings-layout input[type=checkbox],
+#view-robinhood-risk input[type=checkbox]{width:19px;height:19px;accent-color:#6cb7fa}
+#view-webull-risk .webull-authorization .form-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+#view-webull-risk .webull-authorization .panel-note{line-height:1.6}
+#webull-risk-form .setting-control input{width:100%;min-width:0}
+#webull-risk-form .setting-control{min-width:0}
+#webull-risk-current-policy{color:#b8dcf3}
+#webull-risk-status,#robinhood-risk-feedback{display:block;line-height:1.5}
+.view .panel .empty-row{padding:18px}
+.pnl-up,.pnl-down,.pnl-flat{font-variant-numeric:tabular-nums}
+#webull-positions .rh-holdings-table{min-width:870px}
+#view-robinhood-orders .audit-order-panel{margin-bottom:18px}
+@media(max-width:1250px){
+ .audit-status-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .workspace-tile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:860px){
+ .audit-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .audit-order-panel .audit-order-fields{grid-template-columns:1fr}
+ #robinhood-risk-form .settings-preview,#webull-risk-form .settings-preview{position:static}
+}
+@media(max-width:760px){
+ .workspace-tile-grid{grid-template-columns:1fr}
+ .workspace-tile-grid>.workspace-tile{height:auto;min-height:300px}
+ .audit-status-strip{padding:12px}
+ .audit-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .audit-status-cell{padding:10px 8px}
+ #view-webull-risk .webull-authorization .setting-row{grid-template-columns:1fr;gap:7px}
+ .audit-order-fields p{flex-direction:column;gap:5px}
+ .audit-order-fields strong{text-align:left}
+}
+@media(max-width:420px){
+ .audit-status-grid{grid-template-columns:1fr}
+ .audit-status-cell{padding:9px 10px}
+ .audit-filters select,.audit-filters input{flex:1 1 100%}
+ .audit-status-head{align-items:flex-start}
+}
+
+/* Responsive audit fix: occupy the full phone viewport, no empty 79px gutter. */
+@media(max-width:960px){.workspace-tile-grid{grid-template-columns:1fr}}
+@media(max-width:760px){
+  .app{flex-direction:column}
+  .main-shell{width:100%;max-width:100%;min-width:0}
+  .content{width:100%;min-width:0}
+  .sidebar{width:100%;max-width:100%}
+  .topbar{width:100%}
+  .workspace-tile-grid{grid-template-columns:1fr}
+}

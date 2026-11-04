@@ -333,6 +333,7 @@ class Handler(BaseHTTPRequestHandler):
             "/broker-schwab.html": ("broker-schwab.html","text/html; charset=utf-8"),
             "/index.html": ("index.html", "text/html; charset=utf-8"),
             "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+            "/ui-audit.js": ("ui-audit.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
             "/forecast.js": ("forecast.js", "text/javascript; charset=utf-8"),
             "/brokers.js": ("brokers.js","text/javascript; charset=utf-8"),

@@ -593,8 +593,8 @@ function renderRobinhoodPendingOrder(data){
     " · Avg price: "+(order.average_price??"not reported")+
     " · Broker updated: "+(order.broker_updated_at||order.broker_created_at||"not reported");
   $("rh-pending-ids").textContent=
-    "Client: "+(order.client_order_id||"unavailable")+
-    " · Robinhood: "+(order.broker_order_id||"unavailable");
+    "Client: "+(order.client_order_id?(window.AutoTraderAudit?.mask(order.client_order_id)||"masked"):"unavailable")+
+    " · Robinhood: "+(order.broker_order_id?(window.AutoTraderAudit?.mask(order.broker_order_id)||"masked"):"unavailable");
   $("rh-pending-detail").textContent=order.broker_matched?
     "Auto Trader will keep the order lock until this broker state is final and required fill fields are reconciled.":
     "Auto Trader has a durable local intent but cannot currently match it to a Robinhood order. "+
@@ -672,11 +672,9 @@ async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
   const effective=robinhoodEffective(data);
   $("rh-decision-status").textContent=effective.label+" · "+effective.detail;
-  $("rh-ai-connectivity").textContent="Shared Ollama: "+
-    (data.worker?.ai_connection_status||"not checked")+" · Model: "+
-    (data.worker?.ai_model||"not invoked")+
-    " · Workstation selection: "+(data.worker?.ai_selected_model||"unavailable")+
-    " · AI gate: "+(data.worker?.ai_review_status||"not evaluated");
+  $("rh-ai-connectivity").textContent="Latest recorded AI gate: "+
+    (window.AutoTraderAudit?.statusText(data.worker?.ai_review_status||"not evaluated")||"not evaluated")+
+    ". Model availability is shown only in the global top bar; this is historical trade evidence.";
   renderRobinhoodExitDiagnostics(data);
   renderRobinhoodAIReview(data);
   renderRobinhoodExternalHoldings(data);
@@ -696,6 +694,8 @@ async function loadRobinhoodDecisionEvidence(){
     (x.entry_candidate_symbol?" · Entry "+esc(x.entry_candidate_symbol)+
       " momentum "+esc(x.entry_momentum_pct??"unknown")+"%":"")+
     "</td></tr>").join(""):'<tr><td colspan="6">No Robinhood worker decisions recorded yet</td></tr>';
+  window.AutoTraderAudit?.robinhoodEvidence(data);
+  window.AutoTraderAudit?.decorateTable("rh-decision-rows");
 }
 async function loadRobinhoodExtras(){
   const status=await request("/api/robinhood/status");
@@ -713,7 +713,7 @@ async function loadRobinhoodRisk(){
   for(const a of accounts.filter(x=>x.is_api_tradable===true&&x.status==="active")){
     const option=document.createElement("option");
     option.value=a.account_number;
-    option.textContent="Robinhood Crypto · "+a.account_number;
+    option.textContent="Robinhood Crypto · "+(window.AutoTraderAudit?.mask(a.account_number)||"masked");
     select.append(option);
   }
   if(policy.account)select.value=policy.account;
@@ -740,7 +740,7 @@ async function loadRobinhoodRisk(){
   $("robinhood-risk-feedback").textContent=effective.label+" · "+effective.detail+" · "+
     (policy.configured?"Saved risk settings loaded":"No risk policy saved");
   $("robinhood-risk-form").dataset.effectiveState=effective.state;
-
+  window.AutoTraderAudit?.roRisk();
 }
 async function saveRobinhoodRisk(event){
   event.preventDefault();
@@ -818,6 +818,7 @@ function renderRobinhoodPortfolio(portfolio){
     if($("rh-performance-pnl-label"))$("rh-performance-pnl-label").textContent="Broker portfolio lookup failed";
     if($("rh-performance-disclosure"))$("rh-performance-disclosure").textContent=message;
     if(box)box.textContent=message;
+    window.AutoTraderAudit?.robinhoodPortfolio({available:false});
     return;
   }
   const holdings=Array.isArray(portfolio.holdings)?portfolio.holdings:[];
@@ -906,6 +907,7 @@ function renderRobinhoodPortfolio(portfolio){
     row.append(cell);body.append(row);
   }
   table.append(body);box.append(table);
+  window.AutoTraderAudit?.robinhoodPortfolio(portfolio);
 }
 async function loadRobinhoodWorkspace(){
   const statusNode=$("robinhood-workspace-status");
@@ -930,6 +932,7 @@ async function loadRobinhoodWorkspace(){
     const orderPermission=$("robinhood-order-permission");
     const executionPill=$("robinhood-execution-pill");
     const effective=robinhoodEffective(result);
+    window.AutoTraderAudit?.robinhood(result,effective);
     const permitted=effective.armed;
     if(executionMode)executionMode.textContent=effective.label;
     if(orderPermission)orderPermission.textContent=effective.label;
@@ -941,7 +944,7 @@ async function loadRobinhoodWorkspace(){
       " · Current scan from Coinbase: "+(worker.coinbase_scanned_pairs??0)+
       " · Fallback: Robinhood signed quotes";
     const diag=$("robinhood-signal-diagnostics");
-    if(diag)diag.textContent=worker.signal_diagnostics||"No per-pair diagnostics recorded";
+    if(diag)window.AutoTraderAudit?.compactRobinhoodDiagnostics(diag,worker);
     const orderEl=$("robinhood-order-state");
     const executionEl=$("robinhood-execution-state");
     const when=worker.updated_at?new Date(worker.updated_at):null;
@@ -1026,8 +1029,7 @@ async function loadRobinhoodWorkspace(){
         if(portfolio.available){
           const holdings=Number.isInteger(portfolio.position_count)?portfolio.position_count:0;
           if($("robinhood-holdings-stat"))$("robinhood-holdings-stat").textContent=String(holdings);
-          if($("robinhood-orders-stat"))$("robinhood-orders-stat").textContent=
-            Number.isInteger(portfolio.order_count)?String(portfolio.order_count):"—";
+          window.AutoTraderAudit?.robinhoodPortfolio(portfolio);
           const total=$("robinhood-total-stat");
           if(total)total.textContent=portfolio.estimated_crypto_account_value_usd!=null?
             money(portfolio.estimated_crypto_account_value_usd):
@@ -1059,7 +1061,7 @@ async function loadRobinhoodWorkspace(){
       const block=document.createElement("article");
       block.className="broker-card";
       const title=document.createElement("h3");
-      title.textContent="Robinhood Crypto account "+a.account_number;
+      title.textContent="Robinhood Crypto account "+(window.AutoTraderAudit?.mask(a.account_number)||"masked");
       const details=document.createElement("p");
       details.textContent="Account: "+a.status+" · Buying power: "+
         (a.buying_power||"unavailable")+" "+(a.buying_power_currency||"")+
@@ -1267,7 +1269,8 @@ function opsRecord(title,fields){
 }
 function opsDate(value){
   if(!value)return "Not reported";
-  const n=Date.parse(value);return Number.isFinite(n)?new Date(n).toLocaleString():"Invalid timestamp";
+  const n=Date.parse(value);return Number.isFinite(n)?
+    (window.AutoTraderAudit?.time(value)||new Date(n).toLocaleString()):"Invalid timestamp";
 }
 function opsSection(name){
   document.querySelectorAll("[data-ops-panel]").forEach(e=>e.classList.toggle("hidden",e.dataset.opsPanel!==name));
@@ -1476,7 +1479,8 @@ function webullPrice(raw){
 }
 function webullReadableDate(raw){
   const dt=typeof raw==="string"?Date.parse(raw):NaN;
-  return Number.isFinite(dt)?new Date(dt).toLocaleString():"Not reported";
+  return Number.isFinite(dt)?
+    (window.AutoTraderAudit?.time(raw)||new Date(dt).toLocaleString()):"Not reported";
 }
 function webullListRoot(id){const root=$(id);if(root)root.replaceChildren();return root;}
 async function loadWebullTrader(){
@@ -1488,8 +1492,12 @@ async function loadWebullTrader(){
   const armed=workerFresh&&policy.enabled===true&&worker.live_orders_allowed===true;
   const mode=$("webull-order-mode");
   if(mode){
-    mode.textContent=armed?(worker.execution_status==="ARMED_ACCOUNT_DATA_UNAVAILABLE"?
-      "ARMED · DATA BLOCKED":"ARMED · BROKER-GATED"):"DISARMED / NOT VERIFIED";
+    const brokerBlocked=worker.execution_status==="ARMED_ACCOUNT_DATA_UNAVAILABLE"||
+      String(worker.execution_status||"").startsWith("BLOCKED")||
+      (Array.isArray(worker.pending_orders)&&worker.pending_orders.length>0);
+    mode.textContent=armed?(brokerBlocked?"POLICY ARMED · ORDER BLOCKED":
+      data.execution_validated===true?"POLICY ARMED · BROKER-GATED":
+      "POLICY ARMED · FILLS UNVERIFIED"):"DISARMED / NOT VERIFIED";
     mode.className="mode-tag "+(armed?"running":"stopped");
   }
   const orders=$("webull-orders-count");
@@ -1545,7 +1553,7 @@ async function loadWebullTrader(){
     }
     eligibility.filter(a=>!/CASH/i.test(a.account_type||"")||/CRYPTO/i.test(a.account_type||"")).forEach(a=>{
       const type=typeof a.account_type==="string"?a.account_type:"unknown";
-      const suffix=typeof a.account_id==="string"?a.account_id.slice(-6):"unknown";
+      const suffix=typeof a.account_id==="string"?(window.AutoTraderAudit?.mask(a.account_id)||"masked"):"unknown";
       webullRow(root,"Broker account "+suffix+" · "+type,
         (a.status||"UNVERIFIED")+" · "+(a.reason||"No verified account classification")+
         " · Stock cash eligible: "+(a.stocks_cash_eligible===true?"yes":"no")+
@@ -1565,9 +1573,10 @@ async function loadWebullTrader(){
     webullRow(root,"Cash brokerage accounts","Excluded from Webull trading views, not deleted at Webull");
     const broker=Array.isArray(worker.account_summaries)?worker.account_summaries:[];
     broker.forEach(row=>webullRow(root,
-      "Account "+String(row.account_id||"").slice(-6)+" value",
+      "Account "+(window.AutoTraderAudit?.mask(row.account_id)||"masked")+" value",
       webullPrice(row.account_value)||row.status||"Unavailable"));
   }
+  window.AutoTraderAudit?.webullTrader(data,workerFresh,armed);
   return data;
 }
 function webullPolicyFromInputs(enabled){
@@ -1635,7 +1644,8 @@ async function loadWebullPolicy(){
       if(/CASH/i.test(a.account_type||"")&&!/CRYPTO/i.test(a.account_type||""))return;
       const readiness=checked.find(x=>x.account_id===a.account_id);
       const eligible=readiness?.[eligibilityFlag]===true;
-      const opt=new Option((a.account_type||"Webull")+" · "+a.account_id+
+      const opt=new Option((a.account_type||"Webull")+" · "+
+        (window.AutoTraderAudit?.mask(a.account_id)||"masked")+
         (eligible?"":" · restricted / not verified"),a.account_id);
       opt.disabled=!eligible;
       select.add(opt);
@@ -1654,6 +1664,7 @@ async function loadWebullPolicy(){
   $("webull-live-policy-state").textContent=policy.enabled===true?
     "Webull policy ARMED · the worker can place orders only after independent checks":
     "Webull policy DISARMED · scanning only; no live orders"+accountNote;
+  window.AutoTraderAudit?.webullPolicy(data);
   const hasCrypto=checked.some(a=>a.crypto_cash_eligible===true);
   const cryptoNote=hasCrypto?"Spot crypto account verified":
     "No authorized Webull crypto account returned; do not select the margin brokerage account for crypto";
@@ -1726,6 +1737,7 @@ async function loadWebullEvidence(){
       "AI "+(a.approved?"PASS":"BLOCK")+" · "+(a.symbol||"?"),
       (a.model||"Model unavailable")+" · "+(a.reason||"No rationale available")));
   });
+  window.AutoTraderAudit?.webullEvidence(items);
 }
 async function loadWebullOrders(){
   const data=await request("/api/webull/trader");
@@ -1739,7 +1751,7 @@ async function loadWebullOrders(){
     "No automated orders submitted by this Webull worker");return;}
   rows.forEach(order=>{
     webullRow(root,(order.symbol||"Unknown")+" · "+(order.side||""),
-      (order.status||"UNKNOWN")+" · account "+String(order.account||"").slice(-6)+
+      (order.status||"UNKNOWN")+" · account "+(window.AutoTraderAudit?.mask(order.account)||"masked")+
       " · qty "+(order.quantity||"?")+" · limit "+(webullPrice(order.limit_price)||"unavailable"));
     webullRow(root,"Broker fill evidence · "+String(order.client_id||"").slice(0,8),
       order.status==="FILLED"?
@@ -1773,11 +1785,19 @@ function renderWebullPortfolio(result){
   $("webull-holdings-count").textContent=String(holdings.length);
   $("webull-performance-value").textContent=value||"Unavailable";
   $("webull-performance-pnl").textContent=pnl||"Unavailable";
+
   const market=usd?webullNumeric(b.total_market_value):null;
   const gain=usd?webullNumeric(b.total_unrealized_profit_loss):null;
+  if(gain!==null){
+    $("webull-performance-pnl").textContent=window.AutoTraderAudit?.moneySigned(gain)||money(gain);
+    window.AutoTraderAudit?.pnlClass($("webull-performance-pnl"),gain);
+  }
+
   const basis=market!==null&&gain!==null?market-gain:null;
   $("webull-performance-return").textContent=basis!==null&&basis>0?
-    ((gain/basis)*100).toFixed(2)+"%":"Unavailable";
+    (window.AutoTraderAudit?.percentSigned(gain/basis*100)||((gain/basis)*100).toFixed(2)+"%"):"Unavailable";
+  if(basis!==null&&basis>0)window.AutoTraderAudit?.pnlClass($("webull-performance-return"),gain);
+
   $("webull-performance-coverage").textContent=usd?"Broker-reported USD account":"Currency unverified";
   $("webull-performance-note").textContent=pnl?
     "Unrealized P/L uses Webull account figures; not realized profit or tax cost basis.":
@@ -1789,15 +1809,35 @@ function renderWebullPortfolio(result){
     return;
   }
   const table=document.createElement("table"),head=document.createElement("thead"),body=document.createElement("tbody");
+  table.className="rh-holdings-table";
   const tr=document.createElement("tr");
-  ["Symbol","Asset","Quantity","Last price","Unrealized P/L"].forEach(v=>{
+  ["Asset","Quantity","Mark","Est. market value","Cost basis","Unrealized P/L","Return"].forEach(v=>{
     const th=document.createElement("th");th.textContent=v;tr.appendChild(th);});
   head.appendChild(tr);table.appendChild(head);
   holdings.forEach(h=>{
     const row=document.createElement("tr");
-    [h.symbol||"Unknown",h.instrument_type||"Asset",h.quantity??"Unavailable",
-      webullPrice(h.last_price)||"Unavailable",webullPrice(h.unrealized_profit_loss)||"Unavailable"]
-      .forEach(v=>{const td=document.createElement("td");td.textContent=String(v);row.appendChild(td);});
+    const qty=webullNumeric(h.quantity),mark=webullNumeric(h.last_price);
+    const reportedValue=webullNumeric(h.market_value);
+    const estimatedValue=reportedValue!==null?reportedValue:
+      qty!==null&&mark!==null?qty*mark:null;
+    const pnlValue=webullNumeric(h.unrealized_profit_loss);
+    const cells=[
+      (h.symbol||"Unknown")+" · "+(h.instrument_type||"Asset"),
+      h.quantity??"Unavailable",
+      webullPrice(h.last_price)||"Unavailable",
+      estimatedValue===null?"Unavailable":money(estimatedValue),
+      "Unavailable",
+      pnlValue===null?"Unavailable":
+        (window.AutoTraderAudit?.moneySigned(pnlValue)||money(pnlValue)),
+      "Unavailable"];
+    cells.forEach((v,i)=>{
+      const td=document.createElement("td");td.textContent=String(v);
+      if(i===3)td.title=reportedValue!==null?"Broker-supplied market value":
+        estimatedValue!==null?"Estimated as observed quantity × last reported mark":"Broker mark/value unavailable";
+      if(i===4||i===6)td.title="Cost basis or return not independently reported by selected Webull account";
+      if(i===5)window.AutoTraderAudit?.pnlClass(td,pnlValue);
+      row.appendChild(td);
+    });
     body.appendChild(row);
   });
   table.appendChild(body);
@@ -1813,6 +1853,7 @@ async function loadWebullWorkspace(){
   health.textContent="Checking Webull account access…";
   const data=await request("/api/webull/status");
   updateWebullTile(data);
+  window.AutoTraderAudit?.webullAccount(data);
   accounts.replaceChildren();
   const entries=Array.isArray(data.accounts)?data.accounts.filter(a=>
     !/CASH/i.test(a.account_type||"")||/CRYPTO/i.test(a.account_type||"")):[];
@@ -1827,7 +1868,8 @@ async function loadWebullWorkspace(){
   }
   health.textContent="Authenticated Webull "+data.environment+" account access verified";
   for(const entry of entries){
-    accounts.add(new Option((entry.account_type||"Webull account")+" · "+entry.account_id,entry.account_id));
+    accounts.add(new Option((entry.account_type||"Webull account")+" · "+
+      (window.AutoTraderAudit?.mask(entry.account_id)||"masked"),entry.account_id));
   }
   const preferred=data.selected_stock_account||data.selected_crypto_account;
   if(preferred&&entries.some(a=>a.account_id===preferred))accounts.value=preferred;
@@ -1885,6 +1927,7 @@ async function loadWebullRisk(){
   $("webull-risk-loss").value=plan.max_daily_loss_usd;
   $("webull-risk-positions").value=plan.max_open_positions;
   $("webull-risk-status").textContent=plan.saved?"Risk limits saved":"Defaults · save before live trading";
+  window.AutoTraderAudit?.webullRisk();
   await loadWebullPolicy();
 }
 async function saveWebullRisk(e){
@@ -1916,14 +1959,14 @@ document.addEventListener("DOMContentLoaded",()=>{
   },30000);
 });
 function showView(view) {
-  if(!["workspaces","live","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-risk","robinhood-decisions","robinhood-forecast","operations","webull","webull-risk","webull-decisions","webull-orders"].includes(view))return;
+  if(!["workspaces","live","live-orders","decisions","live-risk","local","forecast","overview","trades","reviews","settings","profile","brokers","robinhood","robinhood-orders","robinhood-risk","robinhood-decisions","robinhood-forecast","operations","webull","webull-risk","webull-decisions","webull-orders"].includes(view))return;
   activeView=view;
   // Shared AI and operations views must not inherit Schwab or Robinhood context.
-  const liveViews=["live","decisions","live-risk","forecast"];
+  const liveViews=["live","live-orders","decisions","live-risk","forecast"];
   const paperViews=["overview","trades","reviews","settings"];
   if(liveViews.includes(view))selectWorkspace("live");
   if(paperViews.includes(view))selectWorkspace("paper");
-  const rhViews=["robinhood","robinhood-risk","robinhood-decisions","robinhood-forecast"];
+  const rhViews=["robinhood","robinhood-orders","robinhood-risk","robinhood-decisions","robinhood-forecast"];
   if(rhViews.includes(view))selectWorkspace("robinhood_crypto");
   const webullViews=["webull","webull-risk","webull-decisions","webull-orders"];
   if(webullViews.includes(view))selectWorkspace("webull");
@@ -1938,10 +1981,10 @@ function showView(view) {
   $("overview-shared-nav")?.classList.toggle("hidden",!["workspaces","local","operations"].includes(view));
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!=="view-"+view));
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
-  const titles={workspaces:"All accounts",live:"Schwab live",decisions:"Live AI evidence",
+  const titles={workspaces:"All accounts",live:"Schwab live","live-orders":"Schwab orders",decisions:"Live AI evidence",
      "live-risk":"Live risk settings",local:"AI workstation models",forecast:"Next session forecast",
     overview:"Paper simulator",trades:"Paper history",reviews:"Paper AI audit",
-settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",operations:"Trading operations",robinhood:"Robinhood Crypto","robinhood-risk":"Robinhood risk settings",
+settings:"Paper risk settings",profile:"User profile",brokers:"Broker connections",operations:"Trading operations",robinhood:"Robinhood Crypto","robinhood-orders":"Robinhood orders","robinhood-risk":"Robinhood risk settings",
     "robinhood-decisions":"Robinhood AI evidence",
     "robinhood-forecast":"Crypto scan forecast",webull:"Webull","webull-risk":"Webull risk plan",
     "webull-decisions":"Webull AI evidence","webull-orders":"Webull orders"};
@@ -1963,6 +2006,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
   if(view==="webull-decisions")loadWebullEvidence().catch(err=>toast(err.message,true));
   if(view==="webull-orders")loadWebullOrders().catch(err=>toast(err.message,true));
   if(view==="robinhood") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
+  if(view==="robinhood-orders") loadRobinhoodWorkspace().catch(err=>toast(err.message,true));
   if(view==="robinhood-risk") loadRobinhoodRisk().catch(err=>toast(err.message,true));
   if(view==="robinhood-decisions") loadRobinhoodDecisionEvidence().catch(err=>toast(err.message,true));
   if(view==="robinhood-forecast") loadRobinhoodExtras().catch(err=>toast(err.message,true));
@@ -2009,6 +2053,8 @@ function currentViewRefreshJobs(view){
     case "operations":return [["Trading operations",loadOperations]];
     case "brokers":return [["Broker connections",loadBrokerWorkspace]];
     case "robinhood":return [["Robinhood dashboard",loadRobinhoodWorkspace]];
+    case "robinhood-orders":return [["Robinhood order evidence",loadRobinhoodWorkspace]];
+    case "live-orders":return [];
     case "robinhood-risk":return [["Robinhood risk controls",loadRobinhoodRisk]];
     case "robinhood-decisions":return [["Robinhood decisions",loadRobinhoodDecisionEvidence]];
     case "robinhood-forecast":return [["Robinhood forecast",loadRobinhoodExtras]];
@@ -2115,7 +2161,7 @@ function renderOverview(data,points,recent){
     `<tr><td><span class="symbol">${esc(t.symbol)}</span></td>
     <td><span class="pill ${t.action==="PAPER_BUY"?"buy":"sell"}">${esc(t.action==="PAPER_BUY"?"BUY":"SELL")}</span></td>
     <td>${money((t.quantity||0)*(t.price||0))}</td>
-    <td class="muted-cell">${esc(t.reason||"Legacy trade — no reason recorded")}</td></tr>`).join("")
+    <td class="muted-cell">${esc(window.AutoTraderAudit?.paperTradeRationale(t)||t.reason||"Legacy trade — no reason recorded")}</td></tr>`).join("")
     :'<tr><td colspan="4" class="empty-row">No paper trades yet. Candidate decisions will appear after price data and AI are connected.</td></tr>';
   $("positions-list").innerHTML=a.positions.length?a.positions.map(p=>
     `<div class="position"><div><strong>${esc(p.symbol)}</strong><small>${esc(p.quantity)} units · entry ${money(p.entry_price)}</small></div>
@@ -2152,6 +2198,7 @@ function renderOverview(data,points,recent){
   warning.querySelector("strong").textContent=message[0];
   warning.querySelector("p").textContent=message[1];
   if(activeView==="settings" && document.activeElement && !document.activeElement.closest("form"))populateSettings(s);
+  window.AutoTraderAudit?.paper(data);
 }
 function orderBudget(account,s) {
   let result=Math.min((account.cash||0)*(s.allocation_pct||0)/100,(account.equity||0)*(s.max_position_pct||0)/100);
@@ -2288,20 +2335,21 @@ async function loadPage(kind,targetPage){
       const reason=t.reason||"No rationale recorded (legacy trade)";
       const ai=t.ai_review?`<div class="muted-cell">AI: ${esc(t.ai_review.model||"unknown")} · ${esc(t.ai_review.reason||"")}</div>`:"";
       return `<tr>
-        <td>${esc(t.timestamp||"—")}</td><td class="symbol">${esc(t.symbol)}</td>
+        <td>${esc(window.AutoTraderAudit?.time(t.timestamp)||t.timestamp||"—")}</td><td class="symbol">${esc(t.symbol)}</td>
         <td><span class="pill ${t.action==="PAPER_BUY"?"buy":"sell"}">${esc(t.action)}</span></td>
         <td>${esc(t.quantity)}</td><td>${money(t.price)}</td>
         <td class="${pnl>=0?"green":"red"}">${t.action==="PAPER_SELL"?money(pnl):"—"}</td>
-        <td class="reason">${esc(reason)}${ai}</td>
+        <td class="reason">${esc(window.AutoTraderAudit?.paperTradeRationale(t)||reason)}${ai}</td>
         <td><button class="btn secondary tiny" data-export-paper-index="${payload.total-(payload.page-1)*payload.limit-1-i}">↓ XLSX</button></td></tr>`;
     }).join(""):'<tr><td colspan="7" class="empty-row">No executed simulated trades yet.</td></tr>';
   } else {
     $("reviews-table").innerHTML=payload.items.length?payload.items.map(r=>
-      `<tr><td>${esc(r.timestamp||"—")}</td><td class="symbol">${esc(r.symbol)}</td>
+      `<tr><td>${esc(window.AutoTraderAudit?.time(r.timestamp)||r.timestamp||"—")}</td><td class="symbol">${esc(r.symbol)}</td>
       <td><span class="pill ${r.approved?"approve":"reject"}">${r.approved?"APPROVED":"REJECTED"}</span></td>
-      <td>${esc(r.quantity)} × ${money(r.price)}</td><td>${esc(r.model||"—")}</td>
+      <td>${esc(r.quantity)} × ${money(r.price)}</td><td>${esc(r.model&&r.model!=="shared_strategy"?r.model:"Model attribution unverified")}</td>
       <td class="reason">${esc(r.reason||"—")}${r.risk_flags&&r.risk_flags.length?`<div class="muted-cell">Flags: ${esc(r.risk_flags.join(", "))}</div>`:""}</td></tr>`).join("")
       :'<tr><td colspan="6" class="empty-row">No AI evaluations recorded yet.</td></tr>';
+    window.AutoTraderAudit?.paperEvidence(payload.items);
   }
 }
 async function downloadWorkbook(url,filename,button){
