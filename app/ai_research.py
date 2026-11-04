@@ -35,7 +35,10 @@ COMPANIES = {
     'SOL-USD':'Solana cryptocurrency', 'DOGE-USD':'Dogecoin cryptocurrency',
 }
 MAX_HEADLINES = 6
-MAX_BYTES = 131072
+# A 100-item Google News RSS document can exceed 128 KiB even when only six
+# headlines are sent to the local model. Cap transport at 512 KiB; keep
+# MAX_HEADLINES=6 and bounded title/source/date validation unchanged.
+MAX_BYTES = 512 * 1024
 NEWS_WINDOW = timedelta(hours=36)
 # Process-local cache prevents repeated paid model requests on every scan.
 _MODEL_CACHE = {}
