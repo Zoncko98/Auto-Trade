@@ -602,7 +602,32 @@ def attempt(client, account_hash, ledger, now, submit):
         ledger.halt("Order POST outcome requires broker verification")
         raise
 
+def no_ambiguous_order_intent(ledger):
+    """Network retries are safe only before any unresolved broker order intent.
+
+    An order already sent but not confirmed must never be replayed after a
+    transport error, even if DNS recovers.
+    """
+    doc=getattr(ledger,"data",None)
+    return (isinstance(doc,dict) and doc.get("halted") is False and
+            isinstance(doc.get("orders"),list) and
+            all(isinstance(order,dict) and order.get("state") in TERMINAL
+                for order in doc["orders"]))
+
+
+def wait_for_schwab_network_recovery():
+    """Wait without broker calls or orders, and do not claim live permission is ready."""
+    for _ in range(6):
+        time.sleep(10)
+        # The process is alive, but brokerage transport is unverified during
+        # the outage; keep the dashboard's armed flag fail-closed.
+        write_heartbeat(False,operator_mode())
+
+
 def main():
+    # Import only in the live process; the read-only dashboard has no need for
+    # Schwab's HTTP stack and does not require httpx at module import time.
+    import httpx
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--account",choices=("schwab","paper"),default="schwab",
                         help="Account execution adapter")
@@ -631,7 +656,16 @@ def main():
     with (STATE_DIR/"worker.lock").open("a+") as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         client=broker()
-        confirm_account(client,account_hash)
+        while True:
+            try:
+                confirm_account(client,account_hash)
+                break
+            except (httpx.ConnectError,httpx.ConnectTimeout) as exc:
+                if not args.run:
+                    raise LiveBlocked("Schwab connection temporarily unavailable") from exc
+                print("Schwab DNS/connectivity unavailable during account verification; "
+                      "waiting 60 seconds before a read-only retry.",file=sys.stderr)
+                wait_for_schwab_network_recovery()
         print("Schwab brokerage authorized; cash-only autonomous execution mode.")
         if args.check:
             _,pos,exposure,cash,equity=get_snapshot(client,account_hash)
@@ -665,6 +699,14 @@ def main():
                             submit=activated)
                 else:
                     print("Trading permission paused in authenticated dashboard; no new orders.")
+            except (httpx.ConnectError,httpx.ConnectTimeout) as exc:
+                if not args.run or not no_ambiguous_order_intent(ledger):
+                    raise LiveBlocked("Schwab network failure with unresolved order intent; "
+                                      "operator reconciliation required") from exc
+                print("Schwab DNS/connectivity unavailable before any unresolved order; "
+                      "retrying read-only preflight after 60 seconds.",file=sys.stderr)
+                wait_for_schwab_network_recovery()
+                continue
             except LiveBlocked as exc:
                 print(f"BLOCKED: {exc}",file=sys.stderr)
                 if args.run:
