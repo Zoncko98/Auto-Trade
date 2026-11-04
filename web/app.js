@@ -1509,8 +1509,7 @@ async function loadWebullTrader(){
     webullRow(root,"Market symbols checked",Array.isArray(worker.signals)?worker.signals.length:"Unavailable");
     const feeds=data.stream_status||worker.stream_feeds||{};
     webullRow(root,"Crypto discovery feed", "Coinbase public WebSocket · "+(feeds.crypto?.status||"NOT_CONNECTED"));
-    webullRow(root,"Stock discovery feed", "Alpaca IEX WebSocket · "+(feeds.stocks?.status||"NOT_CONFIGURED")+
-      (feeds.stock_feed_configured?" · configured":" · configure free feed in Broker Connections"));
+    webullRow(root,"Stock discovery feed","Webull native OpenAPI · quotes and one-minute bars");
     webullRow(root,"Execution quote source","Webull broker only · independent fresh bid/ask required");
     const liveSpreads=Array.isArray(feeds.crypto_spreads)?feeds.crypto_spreads:[];
     liveSpreads.forEach(x=>{

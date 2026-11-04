@@ -119,7 +119,6 @@ def main():
     live_started_signature=None
     paper_last_spawn=0.0
     webull_last_spawn=0.0
-    webull_feed_config_time=None
     webull_feed_last_spawn=0.0
     while not _STOP:
         dash=CHILDREN.get("dashboard")
@@ -151,17 +150,11 @@ def main():
                         webull_last_spawn=time.monotonic()
                         spawn("webull",["/app/webull_worker.py"],runtime_env)
                 if not wb_ready:stop_process("webull")
-                alpaca_file=STATE/"webull"/"alpaca_iex_credentials.json"
-                feed_mtime=alpaca_file.stat().st_mtime_ns if alpaca_file.is_file() else None
                 feed=CHILDREN.get("webull-feed")
                 if wb_ready:
-                    if feed is not None and webull_feed_config_time!=feed_mtime:
-                        stop_process("webull-feed")
-                        feed=None
                     if feed is None or feed.poll() is not None:
                         if time.monotonic()-webull_feed_last_spawn>=20 or webull_feed_last_spawn==0:
                             webull_feed_last_spawn=time.monotonic()
-                            webull_feed_config_time=feed_mtime
                             spawn("webull-feed",["/app/webull_streaming.py"],runtime_env)
                 else:
                     stop_process("webull-feed")

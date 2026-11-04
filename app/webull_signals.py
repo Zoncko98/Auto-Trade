@@ -51,7 +51,7 @@ def core_stock_session(now):
     return et.weekday()<5 and dtime(9,35)<=et.time().replace(tzinfo=None)<dtime(15,50)
 
 def evaluate(symbol,asset,quote,bars,now=None,source="WEBULL_M1"):
-    if source not in ("WEBULL_M1","COINBASE_WS","ALPACA_IEX_WS"):
+    if source not in ("WEBULL_M1","COINBASE_WS"):
         raise WebullSignalError("Unsupported quote provenance")
     now=now or datetime.now(timezone.utc)
     if now.tzinfo is None:raise WebullSignalError("Time zone required")

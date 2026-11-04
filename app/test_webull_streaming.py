@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dashboard_control import write_atomic
 from webull_streaming import (
     FeedBook, _price, _timestamp, read_snapshot, market_observation, feed_status,
-    save_stock_feed, stock_feed_configured, StreamError)
+    StreamError)
 from webull_signals import evaluate, WebullSignalError
 from webull_worker import _scan, _order
 from webull_journal import WebullJournal
@@ -71,23 +71,25 @@ class StreamingTests(unittest.TestCase):
         self.assertLess(signal["spread_pct"],0.5)
         self.assertNotIn("broker_order_id",signal)
 
-    def test_stock_auth_feed_quote_and_bars(self):
+    def test_stock_always_uses_webull_native_not_removed_iex_feed(self):
         book=FeedBook()
-        book.set_status("alpaca","AUTHENTICATED")
-        self.assertTrue(book.alpaca_event(self.stock_quote()))
-        self.assertFalse(book.alpaca_event(self.stock_quote(bid=101,ask=100)))
-        self.assertFalse(book.alpaca_event({**self.stock_quote(), "t":"2020-01-01T12:00:00Z"}))
-        self.assertFalse(book.alpaca_event({**self.stock_quote(), "S":"FAKEPACA"}))
-        for i in range(7,0,-1):
-            t=(NOW()-timedelta(minutes=i)).replace(second=0,microsecond=0).isoformat()
-            self.assertTrue(book.alpaca_event({"T":"b","S":"AAPL","c":str(99+(7-i)*0.1),"t":t}))
-        snap=self._write_book(book)
-        obs=market_observation(snap,"EQUITY","AAPL")
-        self.assertEqual(obs["source"],"ALPACA_IEX_WS")
-        self.assertEqual(obs["quote"]["bid"],"100")
-        self.assertEqual(len(obs["bars"]),7)
-        book.set_status("alpaca","AUTH_ERROR")
-        self.assertIsNone(market_observation(self._write_book(book),"EQUITY","AAPL"))
+        book.set_status("coinbase","CONNECTED")
+        row=self.coinbase_quote()
+        self.assertTrue(book.coinbase_ticker(row))
+        self.assertEqual(book.snapshot()["quotes"]["EQUITY"] if "EQUITY" in book.snapshot()["quotes"] else {},{})
+        # Reject historical or forged IEX snapshots and use Webull stock REST.
+        old_snapshot={"updated_epoch":time.time(),
+                      "feeds":{"alpaca":{"status":"AUTHENTICATED"},
+                               "coinbase":{"status":"CONNECTED"}},
+                      "quotes":{"EQUITY":{"AAPL":{"source":"ALPACA_IEX_WS",
+                          "bid":"100","ask":"100.05","event_epoch":time.time(),
+                          "quote_time":NOW().isoformat(),
+                          "bars":[{"time":NOW().isoformat(),"close":"100"}]*7}}}}
+        self.assertIsNone(market_observation(old_snapshot,"EQUITY","AAPL"))
+        self.assertEqual(feed_status(self.root)["stock_discovery_source"],"WEBULL_NATIVE")
+        with self.assertRaises(WebullSignalError):
+            evaluate("AAPL","EQUITY",{"bid":"100","ask":"100.05",
+                "quote_time":NOW().isoformat()},[],source="ALPACA_IEX_WS")
 
     def test_staleness_and_external_quote_fail_closed(self):
         book=FeedBook()
@@ -106,26 +108,29 @@ class StreamingTests(unittest.TestCase):
         with self.assertRaises(WebullSignalError):
             evaluate("BTCUSD","CRYPTO",{"bid":"1","ask":"2",
                   "quote_time":NOW().isoformat()},[],source="UNTRUSTED_FEED")
-        self.assertFalse(feed_status(self.root)["stock_feed_configured"])
+        self.assertNotIn("stock_feed_configured",feed_status(self.root))
+        self.assertNotIn("stocks",feed_status(self.root))
 
-    def test_stock_feed_credentials_are_private_and_not_in_status(self):
-        payload={"key":"testkey123456","secret":"testsecret123456"}
-        saved=save_stock_feed(self.root,payload)
-        self.assertTrue(saved["configured"])
-        f=self.root/"webull"/"alpaca_iex_credentials.json"
-        self.assertEqual(f.stat().st_mode & 0o077,0)
-        self.assertEqual(f.parent.stat().st_mode & 0o077,0)
-        response=json.dumps(feed_status(self.root))
-        self.assertNotIn(payload["key"],response)
-        self.assertNotIn(payload["secret"],response)
-        for bad in ({"key":"a","secret":"toolongsecret"},
-                    {"key":"A"*30,"secret":("secre" + chr(10) + "there")},
-                    {"enabled":True}, {"key":"A"*30,"secret":"secretsecret","env":"sip"}):
-            with self.assertRaises(StreamError):
-                save_stock_feed(self.root,bad)
-        self.assertTrue(stock_feed_configured(self.root))
-        save_stock_feed(self.root,{"enabled":False})
-        self.assertFalse(f.exists())
+    def test_removed_stock_feed_has_no_api_or_frontend_configuration(self):
+        root=Path(__file__).resolve().parent.parent
+        api=(root/"app"/"dashboard_server.py").read_text()
+        runtime=(root/"app"/"unified_runtime.py").read_text()
+        ui=(root/"web"/"brokers.js").read_text()
+        trade_ui=(root/"web"/"app.js").read_text()
+        stream=(root/"app"/"webull_streaming.py").read_text()
+        self.assertNotIn("/api/webull/stock-feed",api)
+        self.assertNotIn("alpaca_iex_credentials.json",runtime)
+        self.assertNotIn("alpaca_iex_credentials.json",stream)
+        self.assertNotIn("ALPACA_IEX",stream)
+        self.assertNotIn("ALPACA_IEX",trade_ui)
+        self.assertNotIn("Alpaca IEX",ui)
+        self.assertNotIn("IEX WebSocket",ui)
+        self.assertIn("Coinbase",ui)
+        self.assertIn("Webull native OpenAPI",trade_ui)
+        self.assertIn("COINBASE_URL",stream)
+        self.assertIn("webull-feed",runtime)
+        # Standalone Alpaca broker roadmap remains unchanged.
+        self.assertIn('data-workspace="alpaca"',(root/"web"/"index.html").read_text())
 
     def test_stream_discovery_does_not_replace_webull_execution_quote(self):
         from webull_worker import WebullBlocked
