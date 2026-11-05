@@ -50,6 +50,8 @@ If the app reports a real mismatch, it now shows the expected versus received ca
 
 Built-in forecasting needs only the one Auto Trader app and outbound historical price feeds; no separate model installation or TrueNAS app. The installer provides Automatic, Built-in NAS and optional Advanced Workstation modes, plus a selected AI public-news review checkbox. Current cloud OAuth connectors still require their authorized companion. See ../../docs/guides/forecast-research.md.
 
-## v1.0.10 multi-broker workspace
+## v1.0.10 multi-broker workspace (historical)
 
-The installed Auto Trader app now has a Broker connections page, which lists available and planned brokerage integration paths. Only Schwab currently has a verified live worker; Webull, Alpaca, Robinhood Crypto and Interactive Brokers are NOT connected yet and cannot submit orders. No separate TrueNAS apps or environment variables are needed to view the broker workspace. The long-term integration guide is in ../../docs/guides/multi-broker.md.
+The v1.0.10 release introduced broker discovery before non-Schwab order execution was implemented. Current source (`VERSION` 1.1.10) includes guarded Robinhood Crypto and Webull order-submission paths in addition to Schwab. Webull's `LIVE_EXECUTION_VERIFIED` remains `False`; a policy can be operator-authorized without demonstrated broker acceptance. Alpaca and Interactive Brokers remain discovery-only in this integration. See [multi-broker capabilities](../../docs/guides/multi-broker.md).
+
+The existing production `:stable` image is mutable, so verify its digest/revision before asserting that any source-level feature is deployed.

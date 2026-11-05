@@ -30,7 +30,8 @@ const required=["robinhood-positions-list","robinhood-positions-status","rh-perf
   "rh-performance-pnl","rh-performance-pct","rh-pnl-coverage","rh-holdings-summary",
   "rh-performance-pnl-label","rh-performance-disclosure"];
 for(const id of required)nodes[id]=new El("div");
-const context={Number,Intl,String,document:{createElement:tag=>new El(tag)},
+const context={Number,Intl,String,window:{AutoTraderAudit:{robinhoodPortfolio:()=>{}}},
+  document:{createElement:tag=>new El(tag)},
   $:id=>nodes[id]||null,
   money:v=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",
     minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v)||0)};

@@ -2,15 +2,27 @@
 
 The goal is ONE self-hosted Auto Trader app with a single paper engine, shared forecasts and explainable AI reasoning, and independently authorized brokerage accounts. No separate TrueNAS app is installed for each broker.
 
-## Implemented in v1.0.10
+## Current source capabilities (`VERSION` 1.1.10)
+
+| Broker | Order capability in checked-in source | Operational qualification |
+| --- | --- | --- |
+| Schwab | Live equities worker | Requires broker OAuth, explicit account and operator authorization, and order reconciliation |
+| Robinhood Crypto | Live crypto limit-order adapter | Account-scoped policy, explicit enablement, risk approvals and order reconciliation; broker acceptance not established by code presence |
+| Webull | Live stock/crypto order submission path | Explicit account policy and caps; `LIVE_EXECUTION_VERIFIED=False` means source-level ability is not broker-side validation |
+| Alpaca | Discovery and documentation | No verified order submission in this integration |
+| Interactive Brokers | Discovery and documentation | No verified order submission in this integration |
+
+A connected brokerage account is not the same as an enabled live trading policy. Paper and live operation require separate controls. The production image's exact source commit has not been independently verified.
+
+## Historical implementation in v1.0.10
 
 - The authenticated Broker connections page lists documented capabilities, actual connection status and the authorization approach for Schwab, Webull, Alpaca, Robinhood Crypto and Interactive Brokers.
 - A common BrokerAdapter interface defines account listing, balances, positions, quotes, orders, submission and cancellation. Each feature must be implemented and validated per provider.
-- The existing Schwab OAuth and live worker remain unchanged. All non-Schwab adapters fail closed, including live order submission and cancellation.
+- At that historical milestone the existing Schwab OAuth/live worker was unchanged and other adapters failed closed. The current source has since added guarded Robinhood Crypto and Webull write paths.
 - Credentials stay outside source control and away from the frontend. The new discovery endpoint returns only public provider metadata and whether the existing Schwab token file exists, not a broker password or token. Saved tokens aren't proof of an active brokerage session.
 - Paper trades, risk controls, AI forecast and TrueNAS update flow are unchanged.
 
-## Official broker integrations verified October 2026
+## Historical provider research (October 2026)
 
 | Broker | Official connection | Auto Trader status |
 | --- | --- | --- |
@@ -31,7 +43,7 @@ Third-party OAuth: https://developer.webull.com/apis/docs/connect-api/authentica
 
 Robinhood's published developer trading documentation is for crypto. We should not automate stock trading via undocumented consumer endpoints, account web scraping or password collection. An official general-equities API would be evaluated if later published or approved.
 
-## Integration milestones
+## Original integration milestones (historical plan)
 
 Phase 1 (v1.0.10): provider registry, official-capability matrix, safe adapter interface, authenticated workspace, regression tests, no additional order execution.
 

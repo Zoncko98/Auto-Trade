@@ -1,5 +1,3 @@
-app/dashboard_server.py
-web/app.js
 .env
 .env.*
 *.pem
