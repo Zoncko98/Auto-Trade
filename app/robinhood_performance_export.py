@@ -401,7 +401,11 @@ def build_robinhood_performance_workbook(state,now=None):
       ["Reporting time zone","UTC; daily amounts grouped by verified sell fill timestamps"],
       ["Privacy","One authenticated account scope; no API secret, private key, or user credential exported"],
       ["Historical evidence","Recorded trade rationale and AI summary only, not internal hidden model reasoning"],
-      ["Metric limitation","Win rate is among covered filled sells, not among buys, all candidates, or all trading opportunities"]]
+      ["Metric limitation","Win rate is among covered filled sells, not among buys, all candidates, or all trading opportunities"],
+      ["Fee-adjusted candidates","Each technically qualified scanned candidate is evaluated as a shadow hypothetical; never a submitted or simulated broker order"],
+      ["MFE/MAE capture starts at deployment","Sampled gains/losses are incomplete when candidate/position quotes were not observed, cannot be reconstructed for earlier trades"],
+      ["Entry diagnostics","Legacy orders are not affected by counterfactual spread, dip-reversal, and estimated-fee filters"],
+      ["Exact exit explanation","Only new order annotations keyed by client_order_id prove the recorded exit trigger; earlier exits remain UNKNOWN"]]
     sheets=[
       ("Overview",overview,[44,98]),
       ("Trade Ledger",trades,[26,26,17,18,23,20,23,20,21,22,21,23,21,18,22,75,75,35,43,75,58,41,42]),
@@ -414,4 +418,13 @@ def build_robinhood_performance_workbook(state,now=None):
       ("Blocked and Rejected",rejected,[26,27,21,24,27,78,30,36,48]),
       ("Methodology",methodology,[38,100])
     ]
+    from robinhood_strategy_diagnostics import export_tables
+    candidates,executions=export_tables(root,account)
+    sheets.extend([
+        ("Fee-adjusted Candidates",candidates,
+         [26,20,27,28,19,24,19,19,20,23,23,24,25,37,65,
+          30,30,34,26,26,26,20,68,25,25,34,27]),
+        ("Execution Diagnostics",executions,
+         [26,20,14,24,26,27,24,22,75,27,27,74])
+    ])
     return _pack(sheets)

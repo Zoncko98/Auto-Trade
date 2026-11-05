@@ -668,6 +668,54 @@ function renderRobinhoodAIReview(data){
       (x.model||"no model invoked")+" · "+(x.reason||"No reason")).join(" | "):
     "No qualified technical entry candidate required news review in this scan.";
 }
+async function loadRobinhoodStrategyDiagnostics(){
+  const data=await request("/api/robinhood/strategy-diagnostics");
+  const count=data.tracked_candidates??0,shadow=data.shadow_pass_count??0;
+  const overview=$("rh-fee-summary-overview");
+  if(overview)overview.textContent=(data.status==="READY"?
+    count+" qualified candidate observations · "+shadow+
+    " shadow dip-reversal passes · proposed filters are NOT live":
+    "Fee diagnostics: "+(data.status||"unavailable")+
+    " · no historical excursion estimates backfilled");
+  if($("rh-fee-count"))$("rh-fee-count").textContent=
+    count+" captured · "+(data.candidates_with_excursion_samples??0)+
+    " with follow-up quote samples";
+  if($("rh-fee-shadow"))$("rh-fee-shadow").textContent=
+    shadow+" shadow dip-reversal passes · "+(count-shadow)+" other evaluations";
+  const fmt=x=>x==null?"unavailable":Number(x).toFixed(2)+"%";
+  const candidates=Array.isArray(data.candidates)?data.candidates:[];
+  if($("rh-fee-candidates"))$("rh-fee-candidates").textContent=
+    candidates.length?candidates.slice(0,9).map(c=>
+      (c.symbol||"?")+" · "+(c.shadow_result||"unknown")+
+      " · feed spread "+fmt(c.spread_pct)+
+      " · Robinhood spread "+fmt(c.broker_spread_pct)+
+      " · fee-adjusted break even "+fmt(c.breakeven_move_pct)+
+      " · net MFE "+fmt(c.mfe_hypothetical_net_pct)+
+      " · net MAE "+fmt(c.mae_hypothetical_net_pct)+
+      " · 60m "+(c.horizon_status||"not sampled")+
+      " · hypothetical 60m net "+fmt(c.horizon_hypothetical_net_pct)+
+      " · "+(c.shadow_reason||"")).join(" | "):
+      "No qualified technical entry candidates recorded yet.";
+  const positions=Array.isArray(data.positions)?data.positions:[];
+  if($("rh-fee-positions"))$("rh-fee-positions").textContent=
+    positions.length?"Broker-bid positions: "+positions.slice(0,6).map(p=>
+      (p.symbol||"?")+" · "+(p.status||"unknown")+
+      " · MFE "+fmt(p.mfe_estimated_net_pct)+
+      " · MAE "+fmt(p.mae_estimated_net_pct)+
+      " · "+(p.samples||0)+" observed samples").join(" | "):
+      "No broker-bid observations of bot positions recorded since activation.";
+  const exits=Array.isArray(data.exits)?data.exits:[];
+  if($("rh-fee-exits"))$("rh-fee-exits").textContent=
+    exits.length?"Reconciled sells: "+exits.slice(0,6).map(e=>
+      (e.symbol||"?")+" · net "+(e.net_return_pct==null?"unverified":
+        fmt(e.net_return_pct))+
+      " · held "+(e.holding_minutes==null?"unavailable":
+        Number(e.holding_minutes).toFixed(1)+" min")+
+      " · reason "+(e.exit_reason||"unknown")+
+      " · MFE "+fmt(e.mfe_sampled_net_pct)+
+      " · MAE "+fmt(e.mae_sampled_net_pct)).join(" | "):
+      "No reconciled sell diagnostics recorded yet.";
+}
 async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
   const effective=robinhoodEffective(data);
@@ -701,6 +749,10 @@ async function loadRobinhoodDecisionEvidence(){
     "</td></tr>").join(""):'<tr><td colspan="6">No Robinhood worker decisions recorded yet</td></tr>';
   window.AutoTraderAudit?.robinhoodEvidence(data);
   window.AutoTraderAudit?.decorateTable("rh-decision-rows");
+  loadRobinhoodStrategyDiagnostics().catch(err=>{
+    const el=$("rh-fee-count");
+    if(el)el.textContent="Unavailable: "+String(err.message||err).slice(0,100);
+  });
 }
 async function loadRobinhoodExtras(){
   const status=await request("/api/robinhood/status");
@@ -927,6 +979,10 @@ async function loadRobinhoodOrderAudit(){
   }
 }
 async function loadRobinhoodWorkspace(){
+  loadRobinhoodStrategyDiagnostics().catch(()=>{
+    const el=$("rh-fee-summary-overview");
+    if(el)el.textContent="Diagnostics unavailable; existing trading safeguards remain unchanged";
+  });
   const statusNode=$("robinhood-workspace-status");
   const accountsNode=$("robinhood-workspace-accounts");
   const tileStatus=$("workspace-robinhood-status");

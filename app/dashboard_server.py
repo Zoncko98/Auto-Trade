@@ -433,6 +433,15 @@ class Handler(BaseHTTPRequestHandler):
                 try:return self._json(200,portfolio(STATE_DIR,account_id))
                 except (WebullError,OSError,ValueError) as exc:
                     return self._json(503,{"error":str(exc)[:160]})
+            if UNIFIED_APP and path == "/api/robinhood/strategy-diagnostics":
+                from robinhood_strategy_diagnostics import summary
+                from robinhood_policy import read_policy,PolicyError
+                import sqlite3
+                try:
+                    account=read_policy(STATE_DIR).get("account")
+                    return self._json(200,summary(STATE_DIR,account,limit=30))
+                except (ValueError,OSError,sqlite3.DatabaseError,PolicyError):
+                    return self._json(503,{"error":"Robinhood diagnostics unavailable"})
             if UNIFIED_APP and path == "/api/robinhood/performance.xlsx":
                 # Session authentication occurs above. Export is read-only and
                 # never supplies broker credentials or sends an order.

@@ -259,6 +259,11 @@
           <strong id="robinhood-workspace-status">Checking Robinhood execution state…</strong>
           <p id="robinhood-execution-state">Retrieving account-specific broker and risk permissions…</p>
         </div></div>
+        <section class="panel list-panel" aria-label="Fee-adjusted strategy evaluation">
+          <div class="panel-heading"><div><h2>Entry strategy · shadow evaluation</h2>
+            <p>Tracks technical opportunities and observed price excursions after estimated fees. Proposed dip-reversal rules do not change live Robinhood order execution.</p></div></div>
+          <p class="panel-note" id="rh-fee-summary-overview">Loading fee-adjusted diagnostic evidence…</p>
+        </section>
         <section class="panel rh-portfolio-performance" aria-label="Robinhood open holdings performance">
           <div class="panel-heading"><div>
             <h2>Portfolio performance · Robinhood Crypto</h2>
@@ -368,6 +373,16 @@
         <div class="panel-heading"><div><h2>Managed position exit diagnostics</h2>
           <p>Persisted Robinhood bid peaks, estimated net P/L after verified fee reserve, and exact take-profit, trailing, reversal, or stop-loss eligibility. Broker orders are not fills until reconciled.</p></div></div>
         <p class="panel-note" id="rh-exit-position-status">Waiting for managed position status…</p>
+      </section>
+      <section class="panel list-panel" id="rh-fee-shadow-diagnostics">
+        <div class="panel-heading"><div><h2>Fee-adjusted trade diagnostics</h2>
+          <p>Every technically qualified sampled candidate is evaluated against conservative entry costs, tighter spread rules, and pullback/recovery evidence. All proposed filters are shadow-only.</p></div></div>
+        <div class="readiness-item"><span>Captured candidates</span><strong id="rh-fee-count">Awaiting data</strong></div>
+        <div class="readiness-item"><span>Shadow entry assessments</span><strong id="rh-fee-shadow">Awaiting data</strong></div>
+        <p class="panel-note" id="rh-fee-candidates">No recorded candidates yet.</p>
+        <p class="panel-note" id="rh-fee-positions">No bid-based position observations yet.</p>
+        <p class="panel-note" id="rh-fee-exits">No directly linked sell diagnostics yet.</p>
+        <p class="panel-note">MFE/MAE are sampled, not tick-by-tick highs or lows. Earlier trades cannot acquire missing historical excursions retrospectively. Actual order fills and fees are distinct from hypothetical shadow trades.</p>
       </section>
       <section class="panel list-panel" id="rh-ai-review-diagnostics">
         <div class="panel-heading"><div><h2>AI review timing & evidence gates</h2>

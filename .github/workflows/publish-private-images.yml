@@ -61,6 +61,7 @@ jobs:
           node tests/test_verified_brokers.cjs
           node tests/test_robinhood_tile_value.cjs
           node tests/test_robinhood_performance_ui.cjs
+          node tests/test_robinhood_strategy_diagnostics_ui.cjs
           node tests/test_robinhood_portfolio_ui.cjs
           node tests/test_webull_workspace_tile.cjs
           node --check web/brokers.js

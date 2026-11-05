@@ -160,9 +160,13 @@ def run_once(state,client,feed=None):
                          datetime.fromisoformat(x["at"])).total_seconds()>=20]
                 row=observe(recent,symbol,market["quotes"][symbol])
                 row["source"]="COINBASE_WS" if market.get("state")=="LIVE" else "COINBASE_RECENT_CACHE"
+                # Diagnostic-only quote, from the same venue as the signal.
+                cbid,cask=_quote_prices(market["quotes"][symbol],symbol)
+                row["diagnostic_bid"],row["diagnostic_ask"]=str(cbid),str(cask)
                 coinbase_used+=1
                 if row.get("technical_approved") or row.get("technical_exit"):
                     rb,ra=_quote_prices(client.quote(symbol),symbol)
+                    row["broker_spread_pct"]=round(float((ra-rb)/ra*100),6)
                     cb,ca=_quote_prices(market["quotes"][symbol],symbol)
                     cb_mid=(cb+ca)/2;rb_mid=(rb+ra)/2
                     if abs(rb_mid/cb_mid-1)*100>Decimal("0.75") or (ra-rb)/ra*100>Decimal("0.5"):
@@ -171,8 +175,12 @@ def run_once(state,client,feed=None):
                         row["signal"]="VENUE_PRICE_MISMATCH"
                 observations.append(row)
             else:
-                row=observe(history,symbol,client.quote(symbol))
+                broker_quote=client.quote(symbol)
+                row=observe(history,symbol,broker_quote)
                 row["source"]="ROBINHOOD_POLL_FALLBACK"
+                rbid,rask=_quote_prices(broker_quote,symbol)
+                row["diagnostic_bid"],row["diagnostic_ask"]=str(rbid),str(rask)
+                row["broker_spread_pct"]=round(float((rask-rbid)/rask*100),6)
                 observations.append(row)
                 broker_observations.append(row)
         except (RobinhoodUnavailable,ValueError,TypeError,KeyError):
@@ -406,6 +414,7 @@ def run_once(state,client,feed=None):
     execution="NOT_ARMED"
     order_confirmed=False
     exit_attempted=False
+    diagnostic_submission=None  # Direct client-order linkage; never approximate.
 
     if exit_candidates and not journal.pending():
         exit_attempted=True
@@ -420,6 +429,9 @@ def run_once(state,client,feed=None):
                 receipt=submit_sell_approved(state,trader,policy,target)
                 execution="SELL_ORDER_ACCEPTED" if receipt["broker_acknowledged"] else "SELL_SUBMITTED_UNCONFIRMED"
                 prepared=receipt.get("prepared",{})
+                diagnostic_submission={"client_order_id":receipt.get("client_order_id"),
+                    "symbol":target["symbol"],"side":"sell",
+                    "reason":str(prepared.get("exit_mode") or target.get("exit_hint") or "EXIT_UNSPECIFIED")[:80]}
                 result["execution_reason"]=(
                     prepared.get("exit_mode","EXIT")+" "+target["symbol"]+
                     "; estimated P/L "+str(prepared.get("estimated_pnl_pct","unknown"))+
@@ -524,6 +536,11 @@ def run_once(state,client,feed=None):
             receipt=submit_approved(state,trader,policy,approved_signal)
             execution="ORDER_ACCEPTED" if receipt["broker_acknowledged"] else "SUBMITTED_UNCONFIRMED"
             prepared=receipt.get("prepared",{})
+            diagnostic_submission={"client_order_id":receipt.get("client_order_id"),
+                "symbol":approved_signal["symbol"],"side":"buy",
+                "reason":("TECHNICAL_ONLY_NEWS_OPTIONAL" if
+                    approved_signal.get("news_optional_technical_approved") else
+                    "AI_REVIEWED_ENTRY")}
             risk=prepared.get("risk",{})
             result["execution_reason"]=(
                 ("Ranked technical candidate + no-news technical-only approval"
@@ -566,6 +583,24 @@ def run_once(state,client,feed=None):
             result["execution_reason"]="No qualified technical entry or managed exit"
 
     positions=journal.positions()
+    # Read-only shadow strategy and broker-fill diagnostics. This code cannot
+    # approve, veto, size or submit a live order and never fetches extra quotes.
+    try:
+        from robinhood_strategy_diagnostics import capture
+        series={sym:market["history"].get(sym,[]) if
+                str(row.get("source","")).startswith("COINBASE_") else
+                [h for h in history if h.get("symbol")==sym]
+                for row in observations for sym in [row["symbol"]]}
+        result["strategy_diagnostics"]=capture(
+            state,policy,observations,series,positions,managed_bids,
+            submit_note=diagnostic_submission,
+            selected=result.get("entry_candidate_symbol"),
+            ai_status=result.get("ai_review_status"),
+            execution_status=execution)
+    except Exception:
+        # Diagnostics must NEVER block an existing live risk/order/exit path.
+        result["strategy_diagnostics"]={"status":"UNAVAILABLE",
+            "shadow_only":True,"reason":"Diagnostics recorder unavailable"}
     result.update({"risk_check":risk_check,"pending_order_intents":len(journal.pending()),
        "updated_at":datetime.now(timezone.utc).isoformat(),
        "worker":"monitoring",
@@ -611,6 +646,7 @@ def run_once(state,client,feed=None):
         "exit_fee_buffer_pct":result.get("exit_fee_buffer_pct"),
         "exit_fee_buffer_source":result.get("exit_fee_buffer_source"),
         "entry_signal_revalidated":result.get("entry_signal_revalidated"),
+        "strategy_diagnostics":result.get("strategy_diagnostics"),
         "external_holding_reconciliation":result.get("external_holding_reconciliation",[]),
         "external_closed_positions":result.get("external_closed_positions",[])})
     write_atomic(evidence_path,evidence[-100:])
