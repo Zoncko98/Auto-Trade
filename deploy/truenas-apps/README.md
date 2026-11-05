@@ -52,6 +52,6 @@ Built-in forecasting needs only the one Auto Trader app and outbound historical 
 
 ## v1.0.10 multi-broker workspace (historical)
 
-The v1.0.10 release introduced broker discovery before non-Schwab order execution was implemented. Current source (`VERSION` 1.1.10) includes guarded Robinhood Crypto and Webull order-submission paths in addition to Schwab. Webull's `LIVE_EXECUTION_VERIFIED` remains `False`; a policy can be operator-authorized without demonstrated broker acceptance. Alpaca and Interactive Brokers remain discovery-only in this integration. See [multi-broker capabilities](../../docs/guides/multi-broker.md).
+The v1.0.10 release introduced broker discovery before non-Schwab order execution was implemented. Current source (`VERSION` 1.2.0) includes guarded Robinhood Crypto and Webull order-submission paths in addition to Schwab. Webull's `LIVE_EXECUTION_VERIFIED` remains `False`; a policy can be operator-authorized without demonstrated broker acceptance. Alpaca and Interactive Brokers remain discovery-only in this integration. See [multi-broker capabilities](../../docs/guides/multi-broker.md).
 
 The existing production `:stable` image is mutable, so verify its digest/revision before asserting that any source-level feature is deployed.

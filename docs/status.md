@@ -4,7 +4,7 @@
 
 Last documentation review: **2026-11-05 (America/Phoenix)**.
 
-**Scope:** This page distinguishes checked-in source capabilities from confirmed production behavior. `VERSION` is `1.1.10`; the exact deployed `:stable` image commit remains unverified. See [production baseline](truenas-production-baseline.md).
+**Scope:** This page distinguishes checked-in source capabilities from confirmed production behavior. `VERSION` is `1.2.0`; the exact deployed `:stable` image commit remains unverified. See [production baseline](truenas-production-baseline.md).
 
 | Component | Current status | Evidence / limitation |
 | --- | --- | --- |

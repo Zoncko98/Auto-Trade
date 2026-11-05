@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **Source status (November 5, 2026):** `VERSION` is **1.1.10** on this development branch. This is a source version, **not** proof of the version installed on TrueNAS. The deployed container revision must be checked independently (see [production baseline](docs/truenas-production-baseline.md)). Auto Trader is experimental; neither trading profitability nor broker-side execution across providers is certified.
+> **Source status (November 5, 2026):** `main` declares **v1.2.0** (`VERSION` / `app/VERSION`), covering the unified four-broker UI and newer brokerage diagnostics. This is a **source milestone**, not proof that the existing TrueNAS app or the mutable `:stable` image runs v1.2.0. See the [production baseline](docs/truenas-production-baseline.md), [release notes](RELEASE_NOTES.md), and [changelog](CHANGELOG.md). Auto Trader is experimental; neither profitability nor broker-side fills across providers are certified.
 
 ## Current broker capabilities in source (not production verification)
 
@@ -10,6 +10,20 @@
 - **Alpaca and Interactive Brokers:** discovery/integration guidance; do not treat the broker cards as live order integrations.
 
 Broker capabilities vary by account and permissions. A connected account does not alone authorize live orders. Details: [multi-broker guide](docs/guides/multi-broker.md).
+
+## Interface screenshots — existing TrueNAS installation
+
+These are genuine captures of the already-running Auto Trader interface (November 2026), **not** mockups or proof that v1.2.0 is installed. Private account equity and individual trading activity are redacted. The installed-version text visible in the overview reflects the previously deployed build at capture time.
+
+**Trading workspaces — account overview**
+
+![Auto Trader account overview with Schwab and Webull account cards, Robinhood and Paper Trading tiles, and sensitive financial information redacted](docs/images/workspace-overview.jpg)
+
+**Sign-in screen**
+
+![Auto Trader sign-in page with administrator username hidden](docs/images/sign-in.jpg)
+
+Full individual broker-dashboard captures require a renewed authenticated browser session; they are intentionally not represented by these two screenshots. For account-specific behavior and limitations, see the [multi-broker guide](docs/guides/multi-broker.md).
 
 ## Historical release notes
 

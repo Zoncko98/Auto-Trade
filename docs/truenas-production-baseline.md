@@ -20,4 +20,4 @@
 
 ## Development policy
 
-Use this single `feature/truenas-running-baseline` branch for future integration changes. It starts from GitHub `main` v1.1.10. Do not assume that version matches the deployed image until an image digest / source revision has been checked. Keep paper and live execution isolated, and test new broker code without sending live brokerage orders.
+Continue development on GitHub `main` (source VERSION 1.2.0) and use reviewed feature branches as needed. The source version is not proof that the existing TrueNAS image was upgraded; confirm the deployed image digest and runtime version independently. Preserve separate paper and live execution controls and do not send live brokerage orders as tests.

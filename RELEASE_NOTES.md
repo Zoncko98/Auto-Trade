@@ -1,11 +1,20 @@
 # Releases
 
-> **Release status (October 31, 2026):** Every version before **v1.1.7** (v0.9.0-beta, v1.0.x, and v1.1.1-v1.1.6) is **DEPRECATED / UNSUPPORTED** due to incomplete or malfunctioning paper-trading functionality. Git tags are retained for historical reproducibility. **v1.1.7** is the current supported experimental build, but neither profitability nor live-broker execution is certified.
+> **Source milestone (November 5, 2026):** `main` declares **v1.2.0**. This is the checked-in source version, **not** a verified running TrueNAS version or an immutable tagged release. The existing deployment may continue to display v1.1.10 until intentionally rebuilt and updated. GitHub branch pushes publish candidate images; an explicit `v*` tag publishes `:stable`. A stable tag and production upgrade were intentionally **not** performed by this documentation change.
 
-## v1.1.7 - Current supported experimental build
+## v1.2.0 — Multi-broker workspaces, risk controls and performance diagnostics
 
-Restored the existing paper worker heartbeat and public crypto/equity feed ingestion, with separate AI approval and risk limits. No guarantee of hypothetical or live returns.
+- Unifies the layout of the four **existing** Schwab, Robinhood Crypto, Webull and Paper Trading workspaces without adding a new dashboard.
+- Adds guarded Robinhood Crypto and Webull broker/account experiences with independent authorization, market-data checks, position visibility, journal reconciliation and operational evidence. Broker acceptance and fills are not certified by the source release.
+- Adds Robinhood trade performance Excel exports and fee-aware entry/exit *shadow* diagnostics that do not modify live trade rules.
+- Includes optional-news handling, independently mirrored Webull five-minute stock evaluation, AI/connection status consolidation and automated regression coverage.
+- See [CHANGELOG.md](CHANGELOG.md) for the detailed changes and [README.md](README.md) for privacy-redacted screenshots of the existing deployed UI.
 
+**Release boundary:** no automatic stable promotion, TrueNAS upgrade, simulated brokerage fill or live broker order is implied by the v1.2.0 source version. Cash and paper accounts remain separately authorized.
+
+## Historical release context
+
+Versions before v1.1.7 were deprecated due to incomplete paper-trading operation; their tags remain for inspection. v1.1.7 introduced repaired experimental paper feeds. v1.1.9 and v1.1.10 subsequently addressed the shared account worker and paper AI routing. None of these historical versions certify profitability or live brokerage fills.
 
 ## v1.0.0 — Forecast-enabled Auto Trader
 

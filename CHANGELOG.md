@@ -1,3 +1,28 @@
+## v1.2.0 — Unified broker workspaces and trade diagnostics (source milestone, 2026-11-05)
+
+This is a source-code milestone based on 132 commits since v1.1.10. It is not evidence that the mutable `:stable` image or the existing TrueNAS app has been upgraded. No live brokerage order was placed to validate this documentation release.
+
+### Broker workspaces and operator visibility
+- Aligned the four existing Schwab, Robinhood Crypto, Webull, and Paper Trading dashboards: workspace tiles, portfolio/holdings sections, navigation, card spacing, trade history and account-specific risk/decision controls. No additional combined dashboard was introduced.
+- Consolidated connected-account indicators in the account overview sidebar and AI model/readiness status in the top bar; improved refresh behavior, responsive navigation, and error/status labeling.
+- Added broker-aware trading-operations and order lifecycle evidence including pending orders, reconciliation, exits, and historical performance views.
+
+### Broker-specific integration and risk controls
+- Added authenticated Robinhood Crypto account/position display, guarded live buy/sell routing, worker lifecycle controls, order journaling/reconciliation, and independent risk/authorization gates.
+- Added Webull account discovery, holdings, stock/crypto quote and feed diagnostics, operator controls, and guarded order pathways. Webull stock evaluation uses an independently configured mirror of the shared five-minute stock strategy; broker permissions and data entitlements still apply.
+- Added safety checks for stale prices, duplicate/unknown order state, account-level buying power and exposure, broker-reported minimums, and external sales; retained separate live and paper controls.
+- Made Robinhood news optional as supporting evidence when a technically eligible crypto candidate has no timely coverage; negative news/risk gates and AI review remain in place.
+
+### Performance diagnostics, quality and operations
+- Added an authenticated Robinhood Excel performance export with trade-level fees, outcomes, and AI/entry evidence.
+- Added fee-aware *shadow* strategy/entry diagnostics measuring spreads, candidate conditions, favorable and adverse excursion (MFE/MAE), holding time, exit reasons, and net-after-fee return. Shadow evaluations do **not** automatically change live execution.
+- Expanded regression and CI coverage for broker account boundaries, frontend navigation and rendering, worker recovery, order reconciliation, and diagnostics. Corrected low-risk release/CI/documentation issues.
+- Updated the README with privacy-redacted screenshots captured from the existing TrueNAS UI. These images illustrate a previously deployed app build, not an independently verified v1.2.0 installation.
+
+**Validation boundary:** source integration and tests are not proof of broker-accepted/filled orders, strategy profitability, portable installation success, or production image identity. Do not mark live execution verified based on this milestone. A stable version tag, production update, and broker-side acceptance verification are separate steps.
+
+---
+
 ## v1.1.10 - Correct shared paper AI routing and historical audit labeling
 
 - Map saved Ollama provider to the shared local news-classifier AI route for the paper account only.

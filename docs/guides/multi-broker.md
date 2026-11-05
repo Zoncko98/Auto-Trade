@@ -2,7 +2,7 @@
 
 The goal is ONE self-hosted Auto Trader app with a single paper engine, shared forecasts and explainable AI reasoning, and independently authorized brokerage accounts. No separate TrueNAS app is installed for each broker.
 
-## Current source capabilities (`VERSION` 1.1.10)
+## Current source capabilities (`VERSION` 1.2.0)
 
 | Broker | Order capability in checked-in source | Operational qualification |
 | --- | --- | --- |
