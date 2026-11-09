@@ -36,6 +36,7 @@ def observe(history,symbol,quote,now=None):
     momentum=None
     span=max((a for a,_ in fresh),default=0)
     trend_up=False;trend_down=False
+    last_leg_pct=None
     checks=[]
     if len(fresh)>=4 and span>=300:
         signal="NO_SIGNAL"
@@ -45,22 +46,26 @@ def observe(history,symbol,quote,now=None):
         momentum=(mid/old-1)*100
         trend_up=all(checks[i]>checks[i-1] for i in range(1,4))
         trend_down=all(checks[i]<checks[i-1] for i in range(1,4))
-        if spread>Decimal("0.5"):
-            reason="Spread exceeds 0.5% entry ceiling"
+        last_leg_pct=(checks[-1]/checks[-2]-1)*100
+        if spread>Decimal("0.25"):
+            reason="Spread exceeds 0.25% entry ceiling"
         elif momentum<Decimal("0.5"):
             reason="Momentum below +0.5% entry floor"
-        elif momentum>Decimal("2"):
-            reason="Momentum above +2.0% entry ceiling"
+        elif momentum>Decimal("1.5"):
+            reason="Momentum above +1.5% entry ceiling"
+        elif last_leg_pct>Decimal("0.6"):
+            reason="Latest price leg exceeds +0.6%; possible late momentum entry"
         elif not trend_up:
             reason="Four checkpoint prices are not strictly rising"
         else:
             signal="MOMENTUM_CANDIDATE"
-            reason="Qualified +0.5% to +2.0% rising momentum with acceptable spread"
+            reason="Qualified +0.5% to +1.5% rising momentum; latest leg and spread within entry limits"
     exit_candidate=(len(fresh)>=4 and span>=300
         and momentum is not None and Decimal("-2")<=momentum<=Decimal("-0.5")
         and spread<=Decimal("0.5") and trend_down)
     return {"at":now.isoformat(),"symbol":symbol,"mid":str(mid),
             "technical_exit":exit_candidate,
+            "last_leg_pct":round(float(last_leg_pct),4) if last_leg_pct is not None else None,
             "spread_pct":round(float(spread),4),"momentum_pct":round(float(momentum),4) if momentum is not None else None,
             "history_points":len(fresh),"history_span_seconds":round(float(span),1),
             "trend_up":trend_up,"trend_down":trend_down,"signal_reason":reason,

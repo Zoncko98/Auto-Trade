@@ -53,3 +53,17 @@ class Signals(unittest.TestCase):
   quote={"results":[{"symbol":"ZEC-USD","bid":"100.99","ask":"101.01"}]}
   observation=observe(history,"ZEC-USD",quote,now)
   self.assertFalse(observation["technical_approved"])
+
+class RobinhoodEntryQuality(unittest.TestCase):
+ def test_rejects_late_momentum_spike(self):
+  now=datetime(2026,11,9,0,0,tzinfo=timezone.utc)
+  history=[{"symbol":"SOL-USD","mid":str(v),"at":(now-timedelta(minutes=m)).isoformat()} for m,v in [(9,100),(6,100.15),(3,100.3)]]
+  row=observe(history,"SOL-USD",{"results":[{"symbol":"SOL-USD","bid":"101.18","ask":"101.2"}]},now)
+  self.assertEqual(row["signal"],"NO_SIGNAL")
+  self.assertIn("late momentum",row["signal_reason"])
+ def test_rejects_wide_but_previously_accepted_spread(self):
+  now=datetime(2026,11,9,0,0,tzinfo=timezone.utc)
+  history=[{"symbol":"SOL-USD","mid":str(v),"at":(now-timedelta(minutes=m)).isoformat()} for m,v in [(9,100),(6,100.2),(3,100.4)]]
+  row=observe(history,"SOL-USD",{"results":[{"symbol":"SOL-USD","bid":"100.55","ask":"100.9"}]},now)
+  self.assertEqual(row["signal"],"NO_SIGNAL")
+  self.assertIn("0.25%",row["signal_reason"])
