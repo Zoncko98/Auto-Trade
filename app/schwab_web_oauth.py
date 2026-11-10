@@ -98,18 +98,19 @@ def finish(state,returned_url):
         candidate.unlink(missing_ok=True)
         raise SetupError("Schwab token exchange failed. Confirm your developer app is Ready For Use and the callback registered there exactly matches the one in Auto Trader. Start a NEW connection; the old code cannot be reused.") from None
     try:
-        from schwab.auth import client_from_token_file
-        client=client_from_token_file(str(candidate),cfg["schwab_app_key"],
-                                      secret["schwab_app_secret"])
-        response=client.get_account_numbers()
-        if response.status_code!=200:
-            raise SetupError("Replacement Schwab authorization could not list accounts")
-        accounts=response.json()
-        if not isinstance(accounts,list) or not accounts:
-            raise SetupError("Replacement Schwab authorization returned no accounts")
-        old_hash=cfg.get("live_account_hash") or cfg.get("schwab_account_hash")
-        if old_hash and not any(isinstance(a,dict) and a.get("hashValue")==old_hash for a in accounts):
-            raise SetupError("Previously selected Schwab account is not authorized by replacement token")
+        if reconnect:
+            from schwab.auth import client_from_token_file
+            client=client_from_token_file(str(candidate),cfg["schwab_app_key"],
+                                          secret["schwab_app_secret"])
+            response=client.get_account_numbers()
+            if response.status_code!=200:
+                raise SetupError("Replacement Schwab authorization could not list accounts")
+            accounts=response.json()
+            if not isinstance(accounts,list) or not accounts:
+                raise SetupError("Replacement Schwab authorization returned no accounts")
+            old_hash=cfg.get("live_account_hash") or cfg.get("schwab_account_hash")
+            if old_hash and not any(isinstance(a,dict) and a.get("hashValue")==old_hash for a in accounts):
+                raise SetupError("Previously selected Schwab account is not authorized by replacement token")
         if existing:
             backup=Path(state)/"schwab_token_pre_reconnect.json"
             if backup.exists():
@@ -122,7 +123,7 @@ def finish(state,returned_url):
         candidate.unlink(missing_ok=True)
         raise
     data.unlink(missing_ok=True)
-    return {"connected":True,"accounts_verified":True}
+    return {"connected":True,**({"accounts_verified":True} if reconnect else {})}
 
 
 def accounts(state):
