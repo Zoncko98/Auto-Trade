@@ -234,6 +234,20 @@ function bindBrokerControls(){
       byId("schwab-redirect-form").classList.toggle("hidden",response.automatic_callback===true);
     }catch(error){displayError(error);}
   });
+  const reconnect=byId("reconnect-schwab");
+  if(reconnect)reconnect.addEventListener("click",async()=>{
+    try{
+      if(!window.confirm("Reconnect Schwab? Your existing token will be retained until the replacement is validated. Continue?"))return;
+      const response=await api("/api/schwab/reconnect",{method:"POST",body:"{}"});
+      const anchor=byId("schwab-oauth-link");
+      anchor.textContent="Open official Schwab sign-in";
+      anchor.href=response.authorization_url;
+      anchor.classList.remove("hidden");
+      const help=byId("schwab-callback-help");
+      if(help)help.textContent=response.instructions||"";
+      byId("schwab-redirect-form").classList.toggle("hidden",response.automatic_callback===true);
+    }catch(error){displayError(error);}
+  });
   const finish=byId("finish-schwab");
   if(finish)finish.addEventListener("click",async event=>{
     event.preventDefault();

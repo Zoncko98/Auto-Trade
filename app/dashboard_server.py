@@ -762,12 +762,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200,summary)
             except (SetupError,ValueError,TypeError,OSError) as exc:
                 return self._json(400,{"error":str(exc)[:160]})
-        if UNIFIED_APP and path in ("/api/schwab/authorize","/api/schwab/complete"):
+        if UNIFIED_APP and path in ("/api/schwab/authorize","/api/schwab/reconnect","/api/schwab/complete"):
             try:
                 data=self._body()
-                if path.endswith("authorize"):
+                if path.endswith("authorize") or path.endswith("reconnect"):
                     if data:raise SetupError("No input expected")
-                    return self._json(200,begin_schwab_auth(STATE_DIR))
+                    return self._json(200,begin_schwab_auth(STATE_DIR,reconnect=(path.endswith("reconnect"))))
                 if set(data)!={"redirected_url"}:raise SetupError("Paste the full Schwab OAuth callback URL")
                 return self._json(200,finish_schwab_auth(STATE_DIR,data["redirected_url"]))
             except (SetupError,ValueError,TypeError,KeyError,OSError) as exc:

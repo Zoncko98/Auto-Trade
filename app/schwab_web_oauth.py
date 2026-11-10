@@ -11,16 +11,20 @@ from urllib.parse import urlparse,parse_qs
 from unified_config import settings,credentials,atomic_save,SetupError
 PENDING="schwab_oauth_pending.json"
 
-def begin(state):
+def begin(state, reconnect=False):
     from schwab.auth import get_auth_context
     config=settings(state); secret=credentials(state)
     if not config["schwab_app_key"] or not secret.get("schwab_app_secret"):
         raise SetupError("Save Schwab developer app credentials before connecting")
+    token=Path(state)/"schwab_token.json"
+    if reconnect and not (token.is_file() and token.stat().st_size>0):
+        raise SetupError("No existing Schwab authorization to reconnect")
     callback=config["schwab_callback_url"]
     context=get_auth_context(config["schwab_app_key"],callback)
     atomic_save(Path(state)/PENDING,{
         "callback":callback,"state":context.state,
-        "authorization_url":context.authorization_url,"created":time.time()
+        "authorization_url":context.authorization_url,"created":time.time(),
+        "reconnect":bool(reconnect)
     })
     automatic=urlparse(callback).hostname!="127.0.0.1"
     return {"authorization_url":context.authorization_url,"callback_url":callback,
@@ -76,18 +80,49 @@ def finish(state,returned_url):
     cfg=settings(state);secret=credentials(state)
     token=Path(state)/"schwab_token.json"
     # Existing tokens cannot be overwritten by accident or during a running session.
-    if token.exists() and token.stat().st_size>0:
-        raise SetupError("Schwab is already connected. Reauthorization requires a separate token migration.")
+    existing=token.exists() and token.stat().st_size>0
+    reconnect=pending.get("reconnect") is True
+    if existing and not reconnect:
+        raise SetupError("Schwab is already connected. Use Reconnect Schwab to replace expired authorization.")
+    if reconnect and not existing:
+        raise SetupError("Existing Schwab token missing; start a new connection")
+    candidate=Path(state)/"schwab_token_candidate.json"
+    candidate.unlink(missing_ok=True)
     def write_token(document,*args,**kwargs):
-        atomic_save(token,document)
+        atomic_save(candidate,document)
     context=AuthContext(pending["callback"],pending["authorization_url"],pending["state"])
     try:
         client_from_received_url(cfg["schwab_app_key"],secret["schwab_app_secret"],
                                  context,returned_url,write_token,enforce_enums=True)
     except Exception:
+        candidate.unlink(missing_ok=True)
         raise SetupError("Schwab token exchange failed. Confirm your developer app is Ready For Use and the callback registered there exactly matches the one in Auto Trader. Start a NEW connection; the old code cannot be reused.") from None
+    try:
+        from schwab.auth import client_from_token_file
+        client=client_from_token_file(str(candidate),cfg["schwab_app_key"],
+                                      secret["schwab_app_secret"])
+        response=client.get_account_numbers()
+        if response.status_code!=200:
+            raise SetupError("Replacement Schwab authorization could not list accounts")
+        accounts=response.json()
+        if not isinstance(accounts,list) or not accounts:
+            raise SetupError("Replacement Schwab authorization returned no accounts")
+        old_hash=cfg.get("live_account_hash") or cfg.get("schwab_account_hash")
+        if old_hash and not any(isinstance(a,dict) and a.get("hashValue")==old_hash for a in accounts):
+            raise SetupError("Previously selected Schwab account is not authorized by replacement token")
+        if existing:
+            backup=Path(state)/"schwab_token_pre_reconnect.json"
+            if backup.exists():
+                raise SetupError("Previous Schwab token backup already exists; resolve before retrying")
+            import shutil
+            shutil.copy2(token,backup)
+            os.chmod(backup,0o600)
+        os.replace(candidate,token)
+    except Exception:
+        candidate.unlink(missing_ok=True)
+        raise
     data.unlink(missing_ok=True)
-    return {"connected":True}
+    return {"connected":True,"accounts_verified":True}
 
 
 def accounts(state):

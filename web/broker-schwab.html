@@ -29,6 +29,8 @@
     <p id="schwab-status">Checking Schwab OAuth status</p>
     <p>Save your Schwab developer settings first. Then sign in on the official Schwab site. If using the loopback callback, a browser connection error is normal: copy the entire redirected URL from the browser address bar and paste it below. If you registered the NAS callback, Auto Trader finishes automatically.</p>
     <p id="schwab-callback-help" class="panel-note"></p>
+    <button class="btn secondary" type="button" id="reconnect-schwab">Reconnect Schwab (replace expired authorization)</button>
+    <p class="panel-note">Reconnection requires a fresh Schwab sign-in. The old token remains until the replacement has passed account lookup verification.</p>
     <button class="btn secondary" type="button" id="connect-schwab">Generate Schwab authorization link</button>
     <a id="schwab-oauth-link" class="btn secondary hidden" target="_blank" rel="noopener noreferrer">Open Schwab sign-in</a>
     <div id="schwab-redirect-form" class="hidden">
