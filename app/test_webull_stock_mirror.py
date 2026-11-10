@@ -102,6 +102,24 @@ class SharedStockTests(unittest.TestCase):
         self.assertIn("BTCUSD",CRYPTOS)
         self.assertEqual(MAX_STOCKS_PER_CYCLE,len(STOCKS))
         self.assertEqual(len(STOCKS),24)
+    def test_expanded_discovery_rotates_without_increasing_per_cycle_quote_budget(self):
+        from webull_stock_strategy import (
+            STOCK_DISCOVERY_UNIVERSE, STOCKS_PER_CYCLE, rotating_stock_batch,
+            STOCK_SCAN_SYMBOLS)
+        self.assertGreaterEqual(len(STOCK_DISCOVERY_UNIVERSE), 75)
+        self.assertEqual(len(STOCK_DISCOVERY_UNIVERSE), len(set(STOCK_DISCOVERY_UNIVERSE)))
+        self.assertEqual(STOCKS_PER_CYCLE, 24)
+        self.assertEqual(tuple(rotating_stock_batch(0)), STOCK_SCAN_SYMBOLS)
+        seen = set()
+        for offset in range(0, len(STOCK_DISCOVERY_UNIVERSE), STOCKS_PER_CYCLE):
+            batch = rotating_stock_batch(offset)
+            self.assertEqual(len(batch), STOCKS_PER_CYCLE)
+            self.assertEqual(len(batch), len(set(batch)))
+            seen.update(batch)
+        self.assertEqual(seen, set(STOCK_DISCOVERY_UNIVERSE))
+        self.assertEqual(rotating_stock_batch(len(STOCK_DISCOVERY_UNIVERSE)),
+                         rotating_stock_batch(0))
+
     def test_live_broker_m5_and_snapshot_validate_symbol_and_order_is_never_called(self):
         broker=WebullBroker.__new__(WebullBroker)
         calls=[]

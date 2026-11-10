@@ -20,11 +20,12 @@ from webull_signals import evaluate,_quote,core_stock_session,WebullSignalError
 from dashboard_control import write_atomic
 from webull_streaming import read_snapshot, market_observation, feed_status
 from webull_stock_strategy import (STOCK_SCAN_SYMBOLS, STOCK_SOURCE,
+                                   STOCK_DISCOVERY_UNIVERSE, STOCKS_PER_CYCLE, rotating_stock_batch,
                                    scan_webull_stock, revalidate_webull_stock)
 
 STOCKS=STOCK_SCAN_SYMBOLS  # Same equity universe as Schwab.
 CRYPTOS=("BTCUSD","ETHUSD","SOLUSD","DOGEUSD","XRPUSD","AVAXUSD")
-MAX_STOCKS_PER_CYCLE=len(STOCKS)  # Rank full Schwab universe; selector keeps top 8.
+MAX_STOCKS_PER_CYCLE=STOCKS_PER_CYCLE  # Bounded quotes; rotate across expanded universe.
 MAX_SCAN_PER_CLASS=3  # Crypto retains its existing one-minute strategy.
 
 class WebullBlocked(RuntimeError):pass
@@ -331,10 +332,11 @@ def _exit_reason(root,account,symbol,row,signal,risk):
 def _scan(root,broker,rotation,report):
     from ai_research import approve_entry,research_evidence
     # Discover-only / monitor scans continue whether live execution is armed.
-    stocks=list(STOCKS)  # Match Schwab: rank all configured equities per cycle.
+    stocks=list(rotating_stock_batch(rotation))  # Rotate; retain Webull M5 rules and API budget.
     cryptos=[CRYPTOS[(rotation+i)%len(CRYPTOS)]
              for i in range(MAX_SCAN_PER_CLASS)]
-    report["scan_universe"]={"stocks":len(STOCKS),"crypto":len(CRYPTOS)}
+    report["scan_universe"]={"stocks":len(STOCK_DISCOVERY_UNIVERSE),"crypto":len(CRYPTOS),
+                             "stocks_per_cycle":len(stocks),"stock_batch_offset":rotation%len(STOCK_DISCOVERY_UNIVERSE)}
     report["scanned_symbols"]=stocks+cryptos
     report["signals"]=[]
     report["stock_strategy"]="WEBULL_INDEPENDENT_SCHWAB_MIRROR_M5"
@@ -588,7 +590,7 @@ def main():
                 "live_orders_allowed":False}
             _persist(root,report)
             print("Webull scan blocked",_safe_public(exc),flush=True)
-        rotation=(rotation+MAX_SCAN_PER_CLASS)%len(STOCKS)
+        rotation=(rotation+MAX_STOCKS_PER_CYCLE)%len(STOCK_DISCOVERY_UNIVERSE)
         time.sleep(90)
 
 if __name__=="__main__":main()

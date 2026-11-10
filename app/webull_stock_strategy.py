@@ -22,6 +22,30 @@ STOCK_SCAN_SYMBOLS = (
     "WBD", "NIO", "NOK", "VALE", "UAA", "PLUG", "RIG", "LUMN",
     "KGC", "AG", "CLF", "BTG", "BBD", "HIMS", "GOLD", "ACHR",
 )
+# Additional liquid, generally affordable US equities/ETFs. Every quote is
+# screened by the same price, volume, spread, freshness and M5 entry gates.
+# This is a discovery universe, not a list of preapproved securities.
+EXPANDED_STOCK_SYMBOLS = (
+    "BAC", "C", "KEY", "HBAN", "USB", "WFC", "RF", "FITB",
+    "KMI", "ET", "PBR", "HAL", "SLB", "APA", "DVN", "MRO",
+    "INTC", "HPQ", "HPE", "DELL", "CSCO", "ERIC", "VZ", "CMCSA",
+    "PARA", "LYFT", "UBER", "HOOD", "RIVN", "LCID", "CHPT", "QS",
+    "OPEN", "DNA", "SIRI", "GRAB", "BILI", "IQ", "PINS", "DKNG",
+    "M", "KSS", "GPS", "GAP", "W", "BB", "BBWI", "AEO",
+    "X", "CLF", "AA", "FCX", "AU", "HL", "CDE", "IAG",
+    "GDX", "GDXJ", "SLV", "USO", "XLF", "XLE", "XLI", "XLU",
+    "EWZ", "EEM", "FXI", "KWEB", "ARKK", "IWM", "SPY", "QQQ",
+)
+STOCK_DISCOVERY_UNIVERSE = tuple(dict.fromkeys(STOCK_SCAN_SYMBOLS + EXPANDED_STOCK_SYMBOLS))
+STOCKS_PER_CYCLE = 24
+
+
+def rotating_stock_batch(rotation=0):
+    """Bound Webull quote requests to the legacy per-cycle budget."""
+    offset = (int(rotation) % len(STOCK_DISCOVERY_UNIVERSE))
+    return tuple(STOCK_DISCOVERY_UNIVERSE[(offset + i) % len(STOCK_DISCOVERY_UNIVERSE)]
+                 for i in range(STOCKS_PER_CYCLE))
+
 MAX_RANKED = 8
 MIN_VOLUME = Decimal("200000")
 MIN_PRICE = Decimal("3")
