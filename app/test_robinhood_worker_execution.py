@@ -52,7 +52,7 @@ class FullWorkerExecutionTests(unittest.TestCase):
    (path/"quote_history.json").write_text(json.dumps([
     {"symbol":"BTC-USD","mid":mid,
      "at":(now-timedelta(seconds=elapsed)).isoformat()}
-    for mid,elapsed in zip(prices,[400,260,130])]))
+    for mid,elapsed in zip(prices,[800,520,260])]))
    with patch("robinhood_crypto_execution.RobinhoodCryptoTradingAdapter.from_state_authorized",return_value=broker),        patch("local_ai_gateway.installed_models",return_value=["qwen3.5:9b"]),        patch("ai_research.approve_entry",return_value=(True,"Validated AI news approval")),        patch("ai_research.research_evidence",return_value={"model":"qwen3.5:9b"}):
     result=run_once(tmp,broker)
     self.assertEqual(result["universe_size"],1)
@@ -87,7 +87,7 @@ class FullWorkerExecutionTests(unittest.TestCase):
                          ("ETH-USD",["9.88","9.92","9.95"])):
     history.extend({"symbol":symbol,"mid":mid,
        "at":(now-timedelta(seconds=elapsed)).isoformat()}
-       for mid,elapsed in zip(prices,[400,260,130]))
+       for mid,elapsed in zip(prices,[800,520,260]))
    (path/"quote_history.json").write_text(json.dumps(history))
    def approve(symbol,_now):
     return (symbol=="ETH-USD","approved" if symbol=="ETH-USD" else "vetoed")

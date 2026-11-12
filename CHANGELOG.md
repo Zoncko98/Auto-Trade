@@ -1,5 +1,13 @@
 ## v1.2.0 — Unified broker workspaces and trade diagnostics (source milestone, 2026-11-05)
 
+## Robinhood live-entry quality guard (2026-11-12, candidate branch)
+- Uses observed broker fee rates and executable quote spread to reject buys with inadequate configured profit budget.
+- Rejects new buys with spreads above 0.20%, insufficient 10-minute rising momentum confirmation, late +1.6% momentum, or cached Coinbase quotes.
+- Limits to six filled buys per rolling 24 hours, stops new buys after four recent verified consecutive losses, and cools off assets with two verified losses in 48 hours.
+- Preserves risk checks, broker minimums, order reconciliation, stop-loss, exit handling, and independent operator controls.
+- Shows guard thresholds in the existing Robinhood Risk & trading controls view and trade-specific blocks in execution diagnostics.
+- Protective brakes reduce churn but do not prove improved profitability; assess real results before changing thresholds.
+
 This is a source-code milestone based on 132 commits since v1.1.10. It is not evidence that the mutable `:stable` image or the existing TrueNAS app has been upgraded. No live brokerage order was placed to validate this documentation release.
 
 ### Broker workspaces and operator visibility

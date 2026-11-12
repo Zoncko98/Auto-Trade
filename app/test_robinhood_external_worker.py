@@ -72,7 +72,7 @@ class ExternalWorkerTests(unittest.TestCase):
             (path/"quote_history.json").write_text(json.dumps([
                 {"symbol":"HYPE-USD","mid":m,
                  "at":(now-timedelta(seconds=sec)).isoformat()}
-                for m,sec in (("86.50",430),("86.70",280),("86.85",135))]))
+                for m,sec in (("86.20",820),("86.55",525),("86.85",260))]))
             with patch("robinhood_crypto_execution.RobinhoodCryptoTradingAdapter.from_state_authorized",return_value=broker),\
                  patch("local_ai_gateway.installed_models",return_value=["qwen3.5:9b"]),\
                  patch("ai_research.approve_entry",return_value=(True,"Validated approval")),\

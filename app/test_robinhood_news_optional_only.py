@@ -40,7 +40,7 @@ class NewsOptionalTests(unittest.TestCase):
         (folder/"quote_history.json").write_text(json.dumps([
             {"symbol":"BTC-USD","mid":mid,
              "at":(now-timedelta(seconds=age)).isoformat()}
-            for mid,age in zip(prices,[410,270,135])]))
+            for mid,age in zip(prices,[810,520,260])]))
     def simulate(self,ai_return,enabled=True,rising=True):
         broker=Broker()
         with tempfile.TemporaryDirectory() as root:

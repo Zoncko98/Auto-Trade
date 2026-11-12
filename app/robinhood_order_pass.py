@@ -110,6 +110,7 @@ def review_order(state,client,policy,signal,now=None):
     daily_limit=_positive_policy(policy,"max_daily_loss_usd","5")
     if daily<=-daily_limit:
         raise OrderPassBlocked("Daily realized loss limit reached: "+str(daily)+" USD")
+
     positions=journal.positions()
     max_positions=_integer_policy(policy,"max_open_positions",3,1,10)
     if symbol not in positions and len(positions)>=max_positions:
@@ -145,6 +146,12 @@ def review_order(state,client,policy,signal,now=None):
                 age=(now-max(previous)).total_seconds()/60
                 if age<0 or age<add_interval:
                     raise OrderPassBlocked("Additional buy cooldown active for "+symbol)
+    from robinhood_entry_quality import verify_entry,EntryQualityBlocked
+    try:
+        quality=verify_entry(policy,signal,spread,journal,now)
+    except EntryQualityBlocked as exc:
+        raise OrderPassBlocked(str(exc)) from None
+    risk["entry_quality"]=quality
     risk.update({"daily_realized_pnl_usd":str(daily),"current_exposure_usd":str(exposure),
                  "open_positions":len(positions),"max_total_exposure_usd":str(max_exposure),
                  "symbol_exposure_usd":str(already),"max_symbol_exposure_usd":

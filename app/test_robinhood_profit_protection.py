@@ -119,6 +119,7 @@ class ExitAndConcentrationTests(unittest.TestCase):
         review_order(self.root,Fake("10","10.01","2"),self.policy,
           {"symbol":"BTC-USD","at":NOW.isoformat(),"technical_approved":True,"ai_approved":True},NOW)
  def test_buys_in_other_symbols_remain_allowed(self):
+    self.policy["take_profit_pct"]="4.0"  # preserve a net target despite verified 1% per-side fees
     self.buy(quantity="2",fee="0.19",when=NOW-timedelta(minutes=80))
     p=review_order(self.root,Fake("10","10.01","0",symbol="ETH-USD"),self.policy,
        {"symbol":"ETH-USD","at":NOW.isoformat(),"technical_approved":True,"ai_approved":True},NOW)

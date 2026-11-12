@@ -468,6 +468,16 @@
             <div class="preview-breakdown"><span>Bot position slots</span><strong id="rh-risk-positions-preview">—</strong></div>
             <div class="preview-breakdown"><span>Execution permission</span><strong id="rh-risk-permission-preview">Unverified</strong></div>
           </section>
+          <section class="panel settings-preview" aria-label="Robinhood automatic entry safeguards">
+            <h2>Automatic entry-quality safeguards</h2>
+            <p>Enforced for new bot buys on the selected Robinhood account. Existing sell, reconciliation and manual broker workflows are unchanged. These protective limits are not a profitability guarantee.</p>
+            <div class="preview-breakdown"><span>Fresh broker bid-ask spread</span><strong>0.20% maximum</strong></div>
+            <div class="preview-breakdown"><span>Qualified momentum</span><strong>+0.8% to +1.6% over 10+ min</strong></div>
+            <div class="preview-breakdown"><span>New buys</span><strong>6 per trailing 24 h</strong></div>
+            <div class="preview-breakdown"><span>Repeated losing exits</span><strong>2 per asset in 48 h</strong></div>
+            <div class="preview-breakdown"><span>Account loss streak</span><strong>4 in trailing 6 h</strong></div>
+            <p>Verified fill fees are used to estimate round-trip costs. Entries are rejected when those costs leave insufficient room for the configured minimum net-profit target. Trade-specific blocks appear in order execution diagnostics.</p>
+          </section>
         </aside>
       </form>
     </section>

@@ -51,6 +51,7 @@ def revalidate_buy_signal(state,client,signal,now=None):
         if symbol not in feed["quotes"]:
             raise OrderPassBlocked("Fresh Coinbase candidate quote unavailable after AI review")
         refreshed=observe(feed["history"].get(symbol,[]),symbol,feed["quotes"][symbol],now)
+        refreshed["source"]="COINBASE_WS" if feed.get("state")=="LIVE" else "COINBASE_RECENT_CACHE"
         candidate=Decimal(str(refreshed["mid"]))
         broker_mid=(broker_bid+broker_ask)/2
         if abs(broker_mid/candidate-1)*100>Decimal("0.75"):
@@ -63,6 +64,7 @@ def revalidate_buy_signal(state,client,signal,now=None):
         if not isinstance(history,list):
             raise OrderPassBlocked("Price history invalid for AI revalidation")
         refreshed=observe(history,symbol,broker_quote,now)
+        refreshed["source"]="ROBINHOOD_POLL_FALLBACK"
     if refreshed.get("technical_approved") is not True:
         raise OrderPassBlocked("Signal expired during AI review; refreshed technical check: "+
                                str(refreshed.get("signal_reason","not qualified"))[:110])
