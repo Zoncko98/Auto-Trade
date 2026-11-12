@@ -17,6 +17,8 @@ def begin(state, reconnect=False):
     if not config["schwab_app_key"] or not secret.get("schwab_app_secret"):
         raise SetupError("Save Schwab developer app credentials before connecting")
     token=Path(state)/"schwab_token.json"
+    if not reconnect and token.is_file() and token.stat().st_size>0:
+        raise SetupError("Schwab is already connected. Click Reconnect Schwab, then use its sign-in link. Do not generate a separate authorization link.")
     if reconnect and not (token.is_file() and token.stat().st_size>0):
         raise SetupError("No existing Schwab authorization to reconnect")
     callback=config["schwab_callback_url"]

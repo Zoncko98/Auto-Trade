@@ -234,11 +234,22 @@ function bindBrokerControls(){
       byId("schwab-redirect-form").classList.toggle("hidden",response.automatic_callback===true);
     }catch(error){displayError(error);}
   });
+  // Starting a different authorization invalidates the pending reconnect session.
+  const connectButton=byId("connect-schwab");
+  const reconnectButton=byId("reconnect-schwab");
+  const originalConnectLabel=connectButton?.textContent;
+  function markReconnectPending(){
+    if(connectButton){connectButton.disabled=true;connectButton.title="Finish the current reconnect or reload to start over";}
+    if(reconnectButton)reconnectButton.textContent="Restart Schwab reconnection";
+    const status=byId("schwab-status");
+    if(status)status.textContent="Reconnection in progress: use Open official Schwab sign-in, then paste the callback and finish.";
+  }
   const reconnect=byId("reconnect-schwab");
   if(reconnect)reconnect.addEventListener("click",async()=>{
     try{
       if(!window.confirm("Reconnect Schwab? Your existing token will be retained until the replacement is validated. Continue?"))return;
       const response=await api("/api/schwab/reconnect",{method:"POST",body:"{}"});
+      markReconnectPending();
       const anchor=byId("schwab-oauth-link");
       anchor.textContent="Open official Schwab sign-in";
       anchor.href=response.authorization_url;
@@ -257,6 +268,8 @@ function bindBrokerControls(){
       byId("schwab-status").textContent="Schwab authorization saved";
       byId("schwab-redirect-form").classList.add("hidden");
       byId("schwab-redirect-url").value="";
+      if(connectButton){connectButton.disabled=false;connectButton.title="";}
+      if(reconnectButton)reconnectButton.textContent="Reconnect Schwab (replace expired authorization)";
       const label=field("error");
       if(label)label.textContent="Schwab connected. Live orders remain separately controlled.";
     }catch(error){displayError(error);}
