@@ -1,5 +1,13 @@
 ## v1.2.0 — Unified broker workspaces and trade diagnostics (source milestone, 2026-11-05)
 
+## Webull order-readiness diagnostics and account permissions (2026-11-12, candidate branch)
+- Read-only diagnostic confirms cash-funded stock buying headroom including the existing 25% total-market exposure ceiling and whole-share affordability.
+- Filters unaffordable stock entries before AI review, while preserving independent Schwab-mirror stock signal criteria, original broker risk limits, and order restrictions.
+- Shows explicit no-order reasons, stock funding and crypto permission within existing Webull dashboard and Risk controls.
+- Permits explicit confirmation of changes to already-armed Webull markets; backend requires a new authorization confirmation whenever a new market or account becomes permitted.
+- Adds bounded daily signal/session/AI/order rollups for 14 days without changing the underlying order journal.
+- Does not automatically enable crypto trading or promise broker order acceptance/fills.
+
 ## Robinhood live-entry quality guard (2026-11-12, candidate branch)
 - Uses observed broker fee rates and executable quote spread to reject buys with inadequate configured profit budget.
 - Rejects new buys with spreads above 0.20%, insufficient 10-minute rising momentum confirmation, late +1.6% momentum, or cached Coinbase quotes.

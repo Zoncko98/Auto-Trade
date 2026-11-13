@@ -2,7 +2,7 @@ name: Publish unified Auto Trader image
 
 on:
   push:
-    branches: [main, feature/truenas-running-baseline, fix/schwab-oauth-reconnect-20261110, fix/robinhood-fee-quality-20261112]
+    branches: [main, feature/truenas-running-baseline, fix/schwab-oauth-reconnect-20261110, fix/robinhood-fee-quality-20261112, fix/webull-readiness-20261112]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -114,6 +114,8 @@ jobs:
                   echo "$name:schwab-reconnect-${GITHUB_SHA::12}"
                 elif [[ "$GITHUB_REF_NAME" == "fix/robinhood-fee-quality-20261112" ]]; then
                   echo "$name:robinhood-quality-${GITHUB_SHA::12}"
+                elif [[ "$GITHUB_REF_NAME" == "fix/webull-readiness-20261112" ]]; then
+                  echo "$name:webull-readiness-${GITHUB_SHA::12}"
                 else
                   echo "$name:candidate"
                 fi

@@ -185,6 +185,28 @@ def _funds(balance):
         raise WebullBlocked("Broker day P/L invalid") from None
     return equity,available,pnl
 
+def stock_buy_budget(balance,risk,account_class):
+    """Read-only preview using the same conservative cash and exposure caps as live orders.
+
+    It cannot authorize a buy. Any unverified balance/permission fails closed.
+    """
+    equity,cash,_=_funds(balance)
+    if "MARGIN" in account_class:
+        cash=min(cash,verify_margin_cash_funding(balance))
+    limit=positive(risk.get("max_order_usd",0))
+    pct=positive(risk.get("max_position_pct",0))
+    if limit>Decimal("1000") or pct>Decimal("10"):
+        raise WebullBlocked("Stock risk limits outside permitted hard caps")
+    market=positive(balance.get("total_market_value"),allow_zero=True)
+    headroom=max(Decimal("0"),equity*Decimal(".25")-market)
+    budget=max(Decimal("0"),min(limit,cash*Decimal(".25"),equity*pct/100,headroom))
+    return {"status":"BUDGET_AVAILABLE" if budget>0 else "EXPOSURE_OR_CASH_BUDGET_EXHAUSTED",
+            "max_new_stock_usd":str(budget),"market_value_usd":str(market),
+            "account_exposure_ceiling_usd":str(equity*Decimal(".25")),
+            "remaining_account_exposure_usd":str(headroom),
+            "fractional_shares_allowed":False}
+
+
 def _live_gate(root,broker,policy,risk,account_id,asset,symbol,side,qty,price,journal):
     if policy["enabled"] is not True:raise WebullBlocked("Webull live trading not armed")
     if getattr(broker,"environment",None)!="production":
@@ -328,7 +350,7 @@ def _exit_reason(root,account,symbol,row,signal,risk):
         return "TECHNICAL_PROFIT_REVERSAL"
     return None
 
-def _scan(root,broker,rotation,report):
+def _scan(root,broker,rotation,report,stock_budget=None):
     from ai_research import approve_entry,research_evidence
     # Discover-only / monitor scans continue whether live execution is armed.
     stocks=list(STOCKS)  # Match Schwab: rank all configured equities per cycle.
@@ -344,7 +366,7 @@ def _scan(root,broker,rotation,report):
     # Independent Webull stock engine MIRRORS (but never imports) the Schwab
     # 3/5-bar crossover, candidate ranking, and continuation thresholds.
     try:
-        stock_rows,stock_candidate=scan_webull_stock(broker,stocks,_now())
+        stock_rows,stock_candidate=scan_webull_stock(broker,stocks,_now(),max_buy_usd=stock_budget)
         report["signals"].extend(stock_rows)
         if stock_candidate:observed.append(stock_candidate)
     except Exception as exc:
@@ -439,6 +461,8 @@ def run_cycle(root,broker,rotation=0):
     # Read balances for accounts selected for trading. Querying every linked
     # broker account each cycle previously hit the 2-per-2-second API quota,
     # hiding the actual reason that eligible orders were not reached.
+    stock_budget=None
+    report["stock_buy_readiness"]={"status":"NOT_VERIFIED"}
     active_ids={policy["stock_account"] if policy["trade_stocks"] else "",
                 policy["crypto_account"] if policy["trade_crypto"] else ""}
     for account in accounts:
@@ -446,11 +470,22 @@ def run_cycle(root,broker,rotation=0):
             continue
         try:
             b=broker.balance(account["account_id"])
+            if policy["trade_stocks"] and account["account_id"]==policy["stock_account"]:
+                try:
+                    if risk.get("saved") is not True:
+                        raise WebullBlocked("Webull risk limits not saved")
+                    preview=stock_buy_budget(b,risk,_account_class(account))
+                    stock_budget=Decimal(preview["max_new_stock_usd"])
+                    report["stock_buy_readiness"]=preview
+                except (WebullBlocked,WebullError,ValueError,TypeError,KeyError) as exc:
+                    report["stock_buy_readiness"]={"status":"UNAVAILABLE",
+                                                    "reason":_safe_public(exc)}
             report["account_summaries"].append({
                "account_id":account["account_id"],"environment":report["environment"],
                "currency":b.get("total_asset_currency"),
                "account_value":b.get("total_net_liquidation_value"),
                "cash":b.get("total_cash_balance"),
+               "market_value":b.get("total_market_value"),
                "day_pnl":b.get("total_day_profit_loss")})
         except Exception as exc:
             report["account_summaries"].append({"account_id":account["account_id"],
@@ -479,7 +514,7 @@ def run_cycle(root,broker,rotation=0):
     # Never submit new orders while any Webull journal entry is unresolved.
     if policy["enabled"] and report["pending_orders"]:
         report["execution_status"]="RECONCILIATION_PENDING"
-    approvals=_scan(root,broker,rotation,report)
+    approvals=_scan(root,broker,rotation,report,stock_budget=stock_budget)
     report["market_readiness"]=market_readiness(report.get("signals",[]))
     report["approved_candidates"]=[{"symbol":x["symbol"],"asset":x["asset"]} for x in approvals]
     # Independently managed Webull-owned exit protection. No Robinhood inventory.
@@ -554,11 +589,69 @@ def run_cycle(root,broker,rotation=0):
             except Exception as exc:
                 report["execution_status"]="BLOCKED_"+_safe_public(exc)
                 report["execution_reason"]=_safe_public(exc)
+    # Explain a no-order cycle using distinct session, capital and market permissions.
+    if report["execution_status"]=="ARMED_NO_ORDER":
+        reasons=[]
+        if policy["trade_stocks"]:
+            if not core_stock_session(_now()):
+                reasons.append("STOCK_MARKET_CLOSED")
+            elif report["stock_buy_readiness"].get("status")=="EXPOSURE_OR_CASH_BUDGET_EXHAUSTED":
+                reasons.append("STOCK_CASH_OR_EXPOSURE_BUDGET_EXHAUSTED")
+            elif report["stock_buy_readiness"].get("status")=="UNAVAILABLE":
+                reasons.append("STOCK_BUDGET_UNVERIFIED")
+            elif report.get("market_readiness",{}).get("stocks",{}).get("candidates",0)==0:
+                reasons.append("NO_ELIGIBLE_STOCK_TECHNICAL_SIGNAL")
+        else:
+            reasons.append("STOCK_TRADING_DISABLED")
+        if not policy["trade_crypto"]:
+            reasons.append("CRYPTO_TRADING_DISABLED")
+        elif report.get("market_readiness",{}).get("crypto",{}).get("candidates",0)==0:
+            reasons.append("NO_ELIGIBLE_CRYPTO_TECHNICAL_SIGNAL")
+        if report.get("ai_reviews") and not any(x.get("approved") for x in report["ai_reviews"]):
+            reasons.append("AI_REJECTED_ALL_REVIEWED_CANDIDATES")
+        report["execution_reason"]="; ".join(reasons) or "NO_APPROVED_ENTRY"
     report["updated_at"]=_now().isoformat()
     # Dashboard reports unresolved submission evidence, never a fabricated fill.
     return report
 
 def _persist(root,report):
+    # Keep a compact 14-day read-only rollup so after-hours evidence doesn't
+    # erase the last core-session's exact no-order reason.
+    daily=Path(root)/"webull"/"scan_daily_summary.json"
+    try: summaries=json.loads(daily.read_text())
+    except (OSError,ValueError,TypeError):summaries={}
+    if not isinstance(summaries,dict):summaries={}
+    day=report.get("updated_at","")[:10]
+    if len(day)==10 and day[4]=="-" and day[7]=="-":
+        counts=summaries.get(day)
+        if not isinstance(counts,dict):counts={}
+        counts["cycles"]=int(counts.get("cycles",0))+1
+        for asset in ("stocks","crypto"):
+            state=report.get("market_readiness",{}).get(asset,{})
+            if asset=="stocks" and any(
+                x.get("reason")=="Outside conservative US core stock session"
+                for x in report.get("signals",[]) if isinstance(x,dict)):
+                key="stock_session_closed_cycles"
+            elif asset=="stocks":key="stock_session_scans"
+            else:key="crypto_scans"
+            counts[key]=int(counts.get(key,0))+1
+            if state.get("candidates",0)>0:
+                key=asset+"_technical_candidate_cycles"
+                counts[key]=int(counts.get(key,0))+1
+        if report.get("ai_reviews") and not any(x.get("approved") for x in report["ai_reviews"]):
+            counts["ai_rejected_cycles"]=int(counts.get("ai_rejected_cycles",0))+1
+        if report.get("execution_status") in ("ENTRY_SUBMITTED_UNCONFIRMED","EXIT_SUBMITTED_UNCONFIRMED"):
+            counts["submission_cycles"]=int(counts.get("submission_cycles",0))+1
+        key=str(report.get("execution_status","UNKNOWN"))[:65]
+        statuses=counts.get("execution_statuses",{})
+        if not isinstance(statuses,dict):statuses={}
+        statuses[key]=int(statuses.get(key,0))+1
+        counts["execution_statuses"]=statuses
+        counts["last_updated_at"]=report["updated_at"]
+        summaries[day]=counts
+        summaries=dict(sorted(summaries.items())[-14:])
+        write_atomic(daily,summaries)
+    report["recent_daily_summary"]=summaries
     write_atomic(Path(root)/"webull"/"worker_status.json",report)
     history=Path(root)/"webull"/"decision_history.json"
     try:old=json.loads(history.read_text())
@@ -567,7 +660,8 @@ def _persist(root,report):
     entry={k:report.get(k) for k in (
         "updated_at","execution_status","execution_reason","scan_universe",
         "scanned_symbols","stock_strategy","signals","ai_reviews","approved_candidates",
-        "reconciliation","pending_orders","last_submission","market_readiness","stream_feeds","stock_api_probe")}
+        "reconciliation","pending_orders","last_submission","market_readiness","stream_feeds","stock_api_probe",
+        "stock_buy_readiness")}
     write_atomic(history,(old+[entry])[-120:])
 
 def main():

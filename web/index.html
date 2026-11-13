@@ -548,6 +548,15 @@
           <span id="webull-risk-status" role="status"></span></div>
         </section>
         <aside class="settings-side">
+          <section class="panel settings-preview" aria-label="Webull real-time order eligibility">
+            <h2>Why Webull has not placed an order</h2>
+            <p id="webull-entry-readiness" role="status">Checking scanner, market permissions and account funding…</p>
+            <div class="preview-breakdown"><span>Verified stock-buy allowance</span><strong id="webull-stock-headroom">Checking…</strong></div>
+            <div class="preview-breakdown"><span>Current holdings exposure</span><strong id="webull-market-exposure">Checking…</strong></div>
+            <div class="preview-breakdown"><span>Stock session</span><strong id="webull-stock-session">Checking…</strong></div>
+            <div class="preview-breakdown"><span>Crypto permission</span><strong id="webull-crypto-permission">Checking…</strong></div>
+            <p>Whole-share stocks must fit both the 10% position limit and the 25% total account exposure ceiling. The snapshot is read-only; actual orders require fresh broker checks.</p>
+          </section>
           <section class="panel settings-preview">
             <h2>Next Webull order ceiling</h2>
             <p>Read-only preview of configured caps; this is not broker buying power or approval.</p>
@@ -582,6 +591,7 @@
           A brokerage account labeled INDIVIDUAL_MARGIN is not a substitute, even if its buying power is linked.</p>
         <div class="form-actions">
           <button class="btn primary" type="button" id="webull-live-start">▶ Start Webull live trading</button>
+          <button class="btn secondary" type="button" id="webull-live-update">Confirm changes to live markets</button>
           <button class="btn danger-outline" type="button" id="webull-live-pause">Ⅱ Pause Webull live trading</button>
           <span id="webull-live-feedback" role="status"></span>
         </div>

@@ -49,8 +49,14 @@ def save(state,payload,accounts,confirmation=None):
     for key,asset_flag in (("stock_account","trade_stocks"),("crypto_account","trade_crypto")):
         if obj["enabled"] and obj[asset_flag] and obj[key] not in ids:
             raise WebullPolicyError("Selected Webull account was not authenticated")
-    if obj["enabled"] and not current["enabled"] and confirmation!="ENABLE_WEBULL_LIVE":
-        raise WebullPolicyError("Explicit live order authorization required")
+    # Reconfirm every expansion of already-armed market or account permissions.
+    wider=(not current["enabled"] or
+        (obj["trade_stocks"] and not current["trade_stocks"]) or
+        (obj["trade_crypto"] and not current["trade_crypto"]) or
+        (obj["trade_stocks"] and obj["stock_account"]!=current["stock_account"]) or
+        (obj["trade_crypto"] and obj["crypto_account"]!=current["crypto_account"]))
+    if obj["enabled"] and wider and confirmation!="ENABLE_WEBULL_LIVE":
+        raise WebullPolicyError("Explicit live order authorization required for new market or account")
     if obj["enabled"]:
         from webull_risk import read as risk_read
         risk=risk_read(state)

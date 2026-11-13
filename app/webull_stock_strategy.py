@@ -86,12 +86,14 @@ def _rank_quote(symbol, data, now):
     return score, bid, ask
 
 
-def _ranked_candidates(quote_map, now, universe):
+def _ranked_candidates(quote_map, now, universe, max_buy_usd=None):
     """Copy of the Schwab candidate ranking, kept locally for Webull."""
     result = []
     for sym in universe:
         try:
             score, bid, ask = _rank_quote(sym, quote_map[sym], now)
+            if max_buy_usd is not None and ask>Decimal(str(max_buy_usd)):
+                continue
             result.append((score, sym, bid, ask))
         except (KeyError, WebullSignalError, TypeError, ValueError):
             continue
@@ -214,7 +216,7 @@ def _convert_bars(rows):
     return result[-150:]
 
 
-def scan_webull_stock(broker, symbols, now=None):
+def scan_webull_stock(broker, symbols, now=None, max_buy_usd=None):
     """Use Webull quotes and local M5 logic; never use Schwab runtime objects."""
     now = now or datetime.now(timezone.utc)
     if not core_stock_session(now):
@@ -230,11 +232,18 @@ def scan_webull_stock(broker, symbols, now=None):
             quoted[symbol], spreads[symbol] = _convert_quote(symbol, depth, snapshot, now)
         except Exception as exc:
             reasons[symbol] = _safe_data_reason(exc)
-    ranked = _ranked_candidates(quoted, now, symbols)
+    ranked = _ranked_candidates(quoted, now, symbols, max_buy_usd=max_buy_usd)
     eligible = {sym for _, sym, _, _ in ranked}
     for sym in symbols:
         if sym in quoted and sym not in eligible:
-            reasons[sym] = "WEBULL_MIRROR_PRICE_VOLUME_OR_SPREAD_GATE"
+            try:
+                score,bid,ask=_rank_quote(sym,quoted[sym],now)
+                if max_buy_usd is not None and ask>Decimal(str(max_buy_usd)):
+                    reasons[sym]="WEBULL_STOCK_BUDGET_BELOW_WHOLE_SHARE"
+                else:
+                    reasons[sym]="WEBULL_MIRROR_NOT_TOP_RANKED"
+            except (WebullSignalError,ValueError,TypeError):
+                reasons[sym]="WEBULL_MIRROR_PRICE_VOLUME_OR_SPREAD_GATE"
     candles = {}
     for _, sym, _, _ in ranked:
         try:
