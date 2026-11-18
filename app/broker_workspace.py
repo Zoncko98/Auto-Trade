@@ -403,6 +403,7 @@ def robinhood_portfolio(state):
         client=_robinhood_client(state)
         accounts=client.list_accounts()
         holdings=[]
+        history_unavailable_accounts=0
         orders=0
         cash=Decimal("0")
         cash_verified=True
@@ -414,8 +415,14 @@ def robinhood_portfolio(state):
             if account.get("buying_power_currency")!="USD" or amount is None:
                 cash_verified=False
             else:cash+=amount
-            broker_orders=client.orders(ref)
-            orders+=len(broker_orders)
+            # Portfolio visibility must not depend on paginating the full
+            # broker order history. A history failure only removes cost basis.
+            try:
+                broker_orders=client.orders(ref)
+                orders+=len(broker_orders)
+            except (RobinhoodUnavailable,OSError,ValueError,KeyError,TypeError):
+                broker_orders=[]
+                history_unavailable_accounts+=1
             for item in client.positions(ref):
                 if not isinstance(item,dict):continue
                 code=item.get("asset_code")
@@ -461,7 +468,10 @@ def robinhood_portfolio(state):
                          for h in priced_basis),Decimal("0"))
         all_covered=bool(holdings) and len(priced_basis)==len(holdings)
         known_pnl_pct=known_pnl/known_cost*100 if known_cost>0 else None
-        return {"available":True,"position_count":len(holdings),"order_count":orders,
+        return {"available":True,"position_count":len(holdings),
+            "order_count":orders if not history_unavailable_accounts else None,
+            "order_history_complete":history_unavailable_accounts==0,
+            "order_history_unavailable_accounts":history_unavailable_accounts,
             "holdings":holdings,"cash_usd":str(cash) if cash_verified else None,
             "estimated_crypto_account_value_usd":str(total) if total is not None else None,
             "known_holdings_value_usd":str(known_value),
