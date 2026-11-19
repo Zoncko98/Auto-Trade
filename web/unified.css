@@ -1,0 +1,177 @@
+/* Auto Trader unified workspace: shared presentation for every broker.
+   Loaded after legacy styles; preserves legacy IDs and accessibility hooks. */
+:root{
+  --bg:#08111e;--side:#0c1725;--card:#102035;--card2:#152942;
+  --border:#28405a;--muted:#9cb0c8;--text:#eef5ff;
+  --blue:#6ca7ff;--cyan:#78dace;--green:#63dcb4;
+  --red:#ff99a7;--amber:#e9c27d;--radius:16px;
+}
+body.unified-shell{background:radial-gradient(ellipse at 75% -15%,#12304c 0,transparent 55%),var(--bg)}
+.unified-shell .sidebar{
+  width:254px;min-width:254px;padding:22px 16px;
+  background:linear-gradient(180deg,#0e1d30 0%,#0a1522 75%);
+  border-right:1px solid #2a425c;
+}
+.unified-shell .side-brand{margin:4px 6px 26px}
+.unified-shell .side-brand small{letter-spacing:1.2px}
+.unified-shell .sidebar-section-heading{margin-bottom:8px}
+.unified-shell .verified-brokers{margin-bottom:14px}
+.unified-shell #overview-shared-nav,
+.unified-shell #live-nav-group,
+.unified-shell #robinhood-nav-group,
+.unified-shell #webull-nav-group,
+.unified-shell #paper-nav-group{display:none!important}
+.unified-shell #sidebar-account-context{padding-top:11px;margin-top:8px}
+.unified-switcher{margin:8px 0 16px}
+.unified-switcher label{display:block;font-size:10px;text-transform:uppercase;
+  letter-spacing:1.2px;font-weight:750;color:#9eb5d0;margin:0 0 8px 6px}
+.unified-switcher select{
+  display:block;width:100%;min-height:41px;padding:10px 11px;
+  color:#ecf6ff;background:#172b43;border:1px solid #395c80;border-radius:11px;
+  font-weight:700;font-size:13px;cursor:pointer
+}
+.unified-navigation{display:grid;gap:8px;padding-bottom:12px}
+.unified-navigation-primary{display:grid;gap:5px}
+.unified-link{display:flex;align-items:center;gap:12px;width:100%;
+  min-height:44px;text-align:left;padding:10px 12px;border-radius:10px;
+  color:#b6c9e1;background:transparent;border:1px solid transparent;
+  font-weight:700;font-size:12px;cursor:pointer}
+.unified-link > span:first-child{width:22px;text-align:center;font-size:19px;font-weight:400}
+.unified-link:hover{background:#1e3651;color:#fff;border-color:#355472}
+.unified-link.active{color:#f1f7ff;background:#22466c;border-color:#3c6d9a;
+  box-shadow:inset 3px 0 #86baff}
+.unified-menu-disclosure{border:1px solid #2d4663;border-radius:11px;background:#12233a;
+  margin-top:6px;min-width:0}
+.unified-menu-disclosure > summary{cursor:pointer;padding:12px 13px;color:#acc5e0;
+  font-size:11px;letter-spacing:.2px;font-weight:750;list-style:none;
+  display:flex;align-items:center;justify-content:space-between}
+.unified-menu-disclosure > summary::-webkit-details-marker{display:none}
+.unified-menu-disclosure > summary::after{content:"⌄";font-size:16px;line-height:1;
+  transition:transform .16s}
+.unified-menu-disclosure[open] > summary::after{transform:rotate(180deg)}
+.unified-menu-disclosure > .unified-link{border-radius:6px;margin:1px 5px;width:calc(100% - 10px)}
+.unified-shell .sidebar .side-nav > [data-view="brokers"]{display:none}
+.unified-shell .sidebar .side-nav{gap:8px}
+.unified-shell .topbar{height:70px;background:#0b1929ed;
+  backdrop-filter:blur(10px);border-bottom:1px solid #2b4561;padding:0 clamp(16px,2.5vw,38px)}
+.unified-shell .content{max-width:1480px;padding:28px clamp(16px,2.5vw,38px) 56px}
+.unified-shell .top-actions{gap:10px}
+.unified-dashboard{display:flex;flex-direction:column;gap:16px}
+.unified-dashboard > .hero-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,520px);
+  gap:28px;align-items:start;margin:0}
+.unified-dashboard .hero-head h1{font-size:clamp(27px,3vw,38px);margin:0 0 10px}
+.unified-dashboard .hero-head > div:first-child{padding-top:10px;min-width:0}
+.unified-dashboard .hero-head .muted{max-width:500px}
+.unified-dashboard .hero-head .eyebrow{color:#8dcbff;line-height:1.7}
+.unified-dashboard .control-panel{padding:18px 19px;min-width:0;
+  background:linear-gradient(140deg,#18304a,#10223a 75%);
+  border:1px solid #3a6686;border-radius:16px}
+.unified-dashboard .control-caption{margin-bottom:14px;color:#c2d5eb;
+  font-size:10px;gap:12px}
+.unified-dashboard .unified-actions{display:flex;gap:9px;flex-wrap:wrap}
+.unified-dashboard .unified-actions .btn{min-height:42px}
+.unified-dashboard .unified-actions .btn.primary{flex:1 1 125px}
+.unified-dashboard .unified-actions .btn.secondary{flex:1 1 110px}
+.unified-dashboard .unified-action-feedback{font-size:11px;line-height:1.55;
+  color:#adc1d9;margin:12px 0 0;min-height:17px}
+.unified-dashboard .unified-action-feedback.is-error{color:#ffd096}
+.unified-dashboard .unified-extra-actions{border:none;background:none;margin:5px 0 0}
+.unified-dashboard .unified-extra-actions > summary{font-size:11px;
+  padding:9px 0 2px;color:#91bbdf}
+.unified-dashboard .unified-extra-actions > .control-buttons{
+  display:flex;flex-wrap:wrap;gap:7px;padding:12px 0}
+.unified-dashboard .unified-extra-actions .panel-note{margin:6px 0 4px;
+  color:#9bb1cb;line-height:1.6}
+.unified-dashboard > .notice{margin:0;border-radius:12px;padding:12px 16px}
+.unified-dashboard > .notice strong{font-size:12px}
+.unified-dashboard > .notice p{font-size:11px}
+.unified-dashboard .stats-grid{margin:0;gap:12px}
+.unified-dashboard .stat-card{padding:19px 20px;min-height:124px;
+  background:linear-gradient(160deg,#142841,#0e1d30);border-color:#2a425b;
+  border-radius:14px}
+.unified-dashboard .stat-top{margin-bottom:13px;font-size:10px;
+  letter-spacing:.5px;text-transform:uppercase;color:#a5bad4;gap:8px}
+.unified-dashboard .stat-card strong{font-size:clamp(19px,2vw,28px);margin:0 0 8px;
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.unified-dashboard .stat-card small{line-height:1.5;display:block;color:#91a8c3}
+.unified-dashboard > .rh-portfolio-performance{margin:0;
+  border-radius:16px;background:#102136;border-color:#2f4862;padding:24px}
+.unified-dashboard .rh-portfolio-metrics{gap:12px}
+.unified-dashboard .rh-portfolio-metrics > div{min-width:0}
+.unified-dashboard .rh-portfolio-metrics strong{font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere}
+.unified-section-disclosure,.unified-holdings-disclosure{border:1px solid #2c455e;
+  border-radius:14px;background:#102037;min-width:0}
+.unified-section-disclosure > summary,
+.unified-holdings-disclosure > summary{
+  display:flex;align-items:center;justify-content:space-between;gap:15px;
+  min-height:56px;padding:15px 20px;list-style:none;cursor:pointer;
+  color:#dfebfa;font-size:13px;font-weight:800}
+.unified-section-disclosure > summary::-webkit-details-marker,
+.unified-holdings-disclosure > summary::-webkit-details-marker{display:none}
+.unified-section-disclosure > summary::after,
+.unified-holdings-disclosure > summary::after{content:"+";font-size:21px;font-weight:400;color:#8fbde9}
+.unified-section-disclosure[open] > summary::after,
+.unified-holdings-disclosure[open] > summary::after{content:"−"}
+.unified-section-disclosure[open] > summary,
+.unified-holdings-disclosure[open] > summary{border-bottom:1px solid #2c455e}
+.unified-section-disclosure > :not(summary){margin:15px 18px}
+.unified-section-disclosure > .content-grid{display:grid}
+.unified-section-disclosure .panel{background:#14263d}
+.unified-section-disclosure .content-grid{margin-bottom:0}
+.unified-holdings-disclosure{margin-top:18px;background:#12253c}
+.unified-holdings-disclosure > summary{min-height:44px;padding:11px 15px}
+.unified-holdings-disclosure > :not(summary){margin:15px;max-width:calc(100% - 30px)}
+.unified-dashboard .paper-recent-activity{margin-bottom:0}
+.unified-dashboard > .footer-note{margin:0;font-size:11px;color:#869eb8}
+.unified-risk-guide{display:flex;align-items:center;justify-content:space-between;
+  gap:18px;padding:17px 20px;margin:0 0 20px;
+  background:linear-gradient(110deg,#19344e,#11263c);
+  border:1px solid #3e6b8a;border-radius:14px}
+.unified-risk-guide strong{display:block;color:#e9f4ff;margin:0 0 6px;font-size:13px}
+.unified-risk-guide p{color:#a8c0d9;font-size:12px;margin:0;line-height:1.5}
+.unified-risk-guide button{min-height:43px;flex-shrink:0}
+.unified-risk-advanced{margin:15px 0;background:#12233a}
+.unified-risk-advanced .setting-item{padding:14px;border-bottom:1px solid #2a4058}
+.unified-risk-advanced .setting-item:last-child{border-bottom:0}
+.unified-shell button:focus-visible,.unified-shell summary:focus-visible,
+.unified-shell select:focus-visible{outline:2px solid #99cfff;outline-offset:3px}
+@media(max-width:1100px){
+  .unified-dashboard > .hero-head{grid-template-columns:1fr}
+  .unified-dashboard .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:780px){
+  .unified-shell .sidebar{width:82px;min-width:82px;padding:18px 8px}
+  .unified-shell .sidebar .side-brand{justify-content:center}
+  .unified-shell .sidebar .side-brand > div,
+  .unified-shell .sidebar .sidebar-section-heading,
+  .unified-shell .sidebar #sidebar-account-context,
+  .unified-shell .sidebar .verified-brokers,
+  .unified-shell .sidebar-footer,
+  .unified-shell .unified-switcher label,
+  .unified-shell .unified-link > span:nth-child(2){display:none}
+  .unified-shell .unified-switcher select{font-size:10px;padding:5px 1px}
+  .unified-shell .unified-link{justify-content:center;padding:10px}
+  .unified-shell .unified-menu-disclosure > summary{font-size:0;justify-content:center}
+  .unified-shell .unified-menu-disclosure > summary::after{font-size:16px}
+  .unified-shell .topbar{height:66px;padding:0 14px}
+  .unified-shell .content{padding:20px 15px 45px}
+}
+@media(max-width:600px){
+  .unified-shell .sidebar{width:66px;min-width:66px}
+  .unified-dashboard .stats-grid{grid-template-columns:1fr}
+  .unified-dashboard .stat-card{min-height:100px}
+  .unified-dashboard .control-panel{padding:15px}
+  .unified-dashboard .unified-actions .btn{flex:1 1 110px}
+  .unified-dashboard > .rh-portfolio-performance{padding:16px}
+  .unified-risk-guide{align-items:stretch;flex-direction:column}
+  .unified-risk-guide button{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  .unified-menu-disclosure > summary::after{transition:none}
+}
+
+.unified-workspace-manage{display:block;margin:10px 0 20px;padding:0 10px}
+.unified-workspace-manage .workspace-sort-toolbar{margin:12px 0;padding:8px;display:flex;gap:10px;flex-wrap:wrap}
+.unified-upcoming-disclosure{margin-top:18px;padding:0 0 14px}
+.unified-upcoming-disclosure > .workspace-tile{display:inline-flex;vertical-align:top;width:min(260px,calc(100% - 30px));margin:12px 0 0 14px}

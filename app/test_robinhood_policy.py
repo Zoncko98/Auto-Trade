@@ -23,12 +23,24 @@ class PolicyTests(unittest.TestCase):
                    "verified_broker_minimum_usd":"0"},self.accounts,self.pairs)
    self.assertTrue(result["enabled"])
    self.assertEqual(result["verified_broker_minimum_usd"],"1")
- def test_cannot_arm_when_cash_too_low(self):
+ def test_can_arm_when_cash_too_low_but_cannot_buy(self):
+  from robinhood_risk import preflight,RiskDenied
   with tempfile.TemporaryDirectory() as d:
    self.accounts[0]["buying_power"]="1.86"
-   with self.assertRaises(PolicyError):
-    save_policy(d,{"account":"test-123","enabled":True,"max_order_usd":"5",
+   policy=save_policy(d,{"account":"test-123","enabled":True,"max_order_usd":"5",
                    "verified_broker_minimum_usd":"0"},self.accounts,self.pairs)
+   self.assertTrue(policy["enabled"])
+   with self.assertRaisesRegex(RiskDenied,"insufficient"):
+    preflight(self.accounts[0],policy,"BTC-USD","1","0")
+ def test_offline_disarm_rejects_wrong_account(self):
+  from robinhood_policy import disarm_policy
+  with tempfile.TemporaryDirectory() as d:
+   save_policy(d,{"account":"test-123","enabled":True,"max_order_usd":"5",
+                   "verified_broker_minimum_usd":"0"},self.accounts,self.pairs)
+   with self.assertRaises(PolicyError):
+    disarm_policy(d,"different-account")
+   self.assertTrue(read_policy(d)["enabled"])
+   self.assertFalse(disarm_policy(d,"test-123")["enabled"])
  def test_invalid_account_and_limit(self):
   with tempfile.TemporaryDirectory() as d:
    for account,limit in (("wrong","5"),("test-123","26"),("test-123","nan")):

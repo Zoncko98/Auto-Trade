@@ -109,8 +109,8 @@ def save_policy(root,payload,accounts,pairs):
     if enabled and not minimums:raise PolicyError("No verified broker-tradable crypto pair")
     broker_min=min(minimums) if minimums else Decimal("0")
     cash=_amount(available[0].get("buying_power"),Decimal("0"),Decimal("1000000000"))
-    if enabled and min(maximum,cash*Decimal("0.25"))<broker_min:
-        raise PolicyError("Buying power below verified Robinhood minimum at 25% cash allocation")
+    # Trading authorization permits scanning. The actual entry preflight
+    # enforces fresh buying power and the verified broker minimum per order.
     doc={"account":account,"enabled":enabled,"max_order_usd":str(maximum),
          "max_total_exposure_usd":str(total_exposure),"max_daily_loss_usd":str(daily_loss),
          "max_open_positions":open_positions,"max_single_asset_exposure_pct":str(asset_cap),
@@ -126,6 +126,38 @@ def save_policy(root,payload,accounts,pairs):
     try:
         with os.fdopen(fd,"w") as f:
             os.fchmod(f.fileno(),0o600);json.dump(doc,f);f.flush();os.fsync(f.fileno())
+        os.replace(tmp,path)
+    finally:
+        if os.path.exists(tmp):os.unlink(tmp)
+    return read_policy(root)
+
+
+def disarm_policy(root,account=None):
+    """Revoke live permission locally, even if Robinhood connectivity is down.
+
+    Authentication and CSRF enforcement belong to the dashboard POST route.
+    Only an existing configured policy may be disarmed, never switched to a
+    different account or used to enable new permission.
+    """
+    current=read_policy(root)
+    if current.get("configured") is not True:
+        raise PolicyError("No saved Robinhood policy to pause")
+    if account is not None and account!=current.get("account"):
+        raise PolicyError("Cannot pause a different account")
+    path=Path(root)/"robinhood"/"risk_policy.json"
+    if path.is_symlink() or not path.is_file():
+        raise PolicyError("Invalid risk policy storage")
+    doc=json.loads(path.read_text())
+    if not isinstance(doc,dict) or doc.get("account")!=current.get("account"):
+        raise PolicyError("Risk policy mismatch")
+    doc["enabled"]=False
+    fd,tmp=tempfile.mkstemp(dir=path.parent,prefix=".risk-")
+    try:
+        with os.fdopen(fd,"w") as f:
+            os.fchmod(f.fileno(),0o600)
+            json.dump(doc,f)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp,path)
     finally:
         if os.path.exists(tmp):os.unlink(tmp)

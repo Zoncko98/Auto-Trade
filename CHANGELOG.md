@@ -1,5 +1,13 @@
 ## v1.2.0 — Unified broker workspaces and trade diagnostics (source milestone, 2026-11-05)
 
+## Unreleased — Unified trader workspace & simplified activation (feature branch, 2026-11-18)
+- Use one compact, responsive broker dashboard structure for Schwab, Robinhood Crypto, Webull and paper trading; promote Start/Pause/Risk, four portfolio metrics and performance, with optional expandable holdings, diagnostics and activity.
+- Replace duplicate broker sidebar trees with one account selector and consistent Overview, Risk & start, Orders & activity paths; fold shared tools, extra actions, tile ordering and planned integrations behind disclosures.
+- Separate saved risk/explicit operator authorization from transient execution gates: permit Robinhood and Webull scanning authorization without requiring immediate account cash/order readiness; preserve fresh order-time broker, funding, account, min size, strategy, loss, exposure and duplicate-order validations.
+- Allow locally persisted pause/disarm even during temporary Schwab/Robinhood/Webull connectivity outages; show specific Webull policy validation errors.
+- Add unified frontend contract checks, Robinhood underfunded-order/offline-pause regression tests and browser preview verification.
+- No live brokerage trade, broker fill or production deployment is implied by this candidate branch.
+
 ## Webull order-readiness diagnostics and account permissions (2026-11-12, candidate branch)
 - Read-only diagnostic confirms cash-funded stock buying headroom including the existing 25% total-market exposure ceiling and whole-share affordability.
 - Filters unaffordable stock entries before AI review, while preserving independent Schwab-mirror stock signal criteria, original broker risk limits, and order restrictions.

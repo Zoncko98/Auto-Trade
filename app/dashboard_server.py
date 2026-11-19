@@ -334,11 +334,13 @@ class Handler(BaseHTTPRequestHandler):
             "/index.html": ("index.html", "text/html; charset=utf-8"),
             "/app.js": ("app.js", "text/javascript; charset=utf-8"),
             "/ui-audit.js": ("ui-audit.js", "text/javascript; charset=utf-8"),
+            "/unified.js": ("unified.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
             "/forecast.js": ("forecast.js", "text/javascript; charset=utf-8"),
             "/brokers.js": ("brokers.js","text/javascript; charset=utf-8"),
             "/app.css": ("app.css", "text/css; charset=utf-8"),
             "/workspace.css": ("workspace.css", "text/css; charset=utf-8"),
+            "/unified.css": ("unified.css", "text/css; charset=utf-8"),
             "/assets/brands/alpaca-official-light.png": ("assets/brands/alpaca-official-light.png", "image/png"),
         }
         if path in assets:
@@ -685,19 +687,17 @@ class Handler(BaseHTTPRequestHandler):
                         allow_margin=webull_account_preferences(STATE_DIR)["allow_margin_accounts"]
                         if row is None or not _can_trade_account(row,asset,allow_margin):
                             raise WebullPolicyError("Selected Webull cash account/asset class not verified")
-                        if WebullJournal(STATE_DIR).pending(policy[id_key]):
-                            raise WebullPolicyError("Unresolved Webull order intent")
-                        if broker.open_orders(policy[id_key]):
-                            raise WebullPolicyError("Existing broker open orders prevent arming")
-                        b=broker.balance(policy[id_key])
-                        if asset=="EQUITY" and "MARGIN" in str(
-                               row.get("account_class") or row.get("account_type") or "").upper():
-                            from webull_worker import verify_margin_cash_funding
-                            if verify_margin_cash_funding(b)<=0:
-                                raise WebullPolicyError("Broker cash balance is insufficient for live trading")
+                        # Arm the selected account, not an immediate order. The
+                        # worker independently rechecks pending intents, broker
+                        # open orders, fresh balances, margin cash, buying power,
+                        # market hours and all risk caps before EVERY submission.
+                        # Temporary account funding or unresolved orders must not
+                        # prevent an operator from enabling scanning.
                 return self._json(200,save(STATE_DIR,policy,accounts,request.get("confirmation")))
-            except (WebullPolicyError,WebullError,OSError,ValueError,TypeError,KeyError):
-                return self._json(400,{"error":"Webull authorization, account class, risk limits or pending orders not verified"})
+            except WebullPolicyError as exc:
+                return self._json(400,{"error":str(exc)[:180]})
+            except (WebullError,OSError,ValueError,TypeError,KeyError):
+                return self._json(400,{"error":"Webull account verification unavailable; order permission remains unchanged"})
         if UNIFIED_APP and path == "/api/webull/risk":
             from webull_risk import save
             try:return self._json(200,save(STATE_DIR,self._body()))
@@ -726,10 +726,15 @@ class Handler(BaseHTTPRequestHandler):
             from robinhood_policy import save_policy,PolicyError
             from robinhood_crypto_gateway import RobinhoodCryptoAdapter,RobinhoodUnavailable
             try:
+                payload=self._body()
+                # Emergency pause must work even if the broker API is offline.
+                if isinstance(payload,dict) and payload.get("enabled") is False:
+                    from robinhood_policy import disarm_policy
+                    return self._json(200,disarm_policy(STATE_DIR,payload.get("account")))
                 broker=RobinhoodCryptoAdapter.from_state(STATE_DIR)
                 accounts=broker.list_accounts()
                 pairs=broker.trading_pairs()
-                return self._json(200,save_policy(STATE_DIR,self._body(),accounts,pairs))
+                return self._json(200,save_policy(STATE_DIR,payload,accounts,pairs))
             except (PolicyError,ValueError,TypeError) as exc:
                 return self._json(400,{"error":str(exc)[:160]})
             except (RobinhoodUnavailable,OSError):
@@ -825,8 +830,10 @@ class Handler(BaseHTTPRequestHandler):
                 if set(data)!={"mode"}:
                     raise ValueError("Expected an order permission mode")
                 live=live_state(STATE_DIR)
-                if not live["worker_online"] or not live["armed"]:
-                    raise ValueError("The live Schwab worker is not active")
+                if data["mode"]=="running" and (not live["worker_online"] or
+                                                 not live["armed"] or live["journal_halted"]):
+                    raise ValueError("Schwab worker unavailable or halted; cannot resume orders")
+                # Pausing is a local kill-switch and must work offline.
                 result=set_operator_mode(STATE_DIR,data["mode"],write_atomic)
                 return self._json(200,{"ok":True,"operator":result})
             except (ValueError,TypeError,OSError) as exc:

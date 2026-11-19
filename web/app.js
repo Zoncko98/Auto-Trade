@@ -2119,6 +2119,7 @@ settings:"Paper risk settings",profile:"User profile",brokers:"Broker connection
     "webull-decisions":"Webull AI evidence","webull-orders":"Webull orders"};
   $("breadcrumb-divider").classList.toggle("hidden",view==="workspaces");
   $("breadcrumb").textContent=titles[view];
+  if(typeof window!=="undefined")window.AutoTraderUnified?.onViewChange(view);
   $("live-mode-banner").classList.toggle("hidden",!liveViews.includes(view));
   if(view==="trades" || view==="reviews") loadPage(view,page[view]).catch(err=>toast(err.message,true));
   if(view==="settings"){
