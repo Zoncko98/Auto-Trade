@@ -437,6 +437,10 @@ class Handler(BaseHTTPRequestHandler):
                 try:return self._json(200,portfolio(STATE_DIR,account_id))
                 except (WebullError,OSError,ValueError) as exc:
                     return self._json(503,{"error":str(exc)[:160]})
+                except Exception:
+                    # Official Webull SDK raises its own ServerException on
+                    # HTTP 429 inside client initialization.
+                    return self._json(503,{"error":"Webull API rate-limited or temporarily unavailable; refresh after broker recovery."})
             if UNIFIED_APP and path == "/api/robinhood/strategy-diagnostics":
                 from robinhood_strategy_diagnostics import summary
                 from robinhood_policy import read_policy,PolicyError
@@ -675,10 +679,22 @@ class Handler(BaseHTTPRequestHandler):
                 # When pausing, do not require reachable broker (kill-switch).
                 if isinstance(request,dict) and isinstance(request.get("policy"),dict) and request["policy"].get("enabled") is False:
                     return self._json(200,save(STATE_DIR,request["policy"],[]))
-                broker=WebullBroker(STATE_DIR)
-                if broker.environment!="production":
+                # A fresh worker-verified broker account list is sufficient
+                # to save an operator's permission. It is NOT usable to place
+                # an order: the worker re-authenticates and applies broker,
+                # cash, holdings, order and risk checks on EVERY submission.
+                # Avoid extra SDK token-initialization calls: Webull enforces
+                # a shared app-key quota and otherwise returns HTTP 429.
+                from webull_openapi import _load,_verified_worker_accounts
+                environment=_load(STATE_DIR)["environment"]
+                if environment!="production":
                     raise WebullPolicyError("Production Webull connection required for live execution")
-                accounts=broker.accounts()
+                cached=_verified_worker_accounts(STATE_DIR,environment)
+                if cached is not None:
+                    accounts=cached[0]
+                else:
+                    broker=WebullBroker(STATE_DIR)
+                    accounts=broker.accounts()
                 policy=request.get("policy") if isinstance(request,dict) else None
                 if not isinstance(policy,dict):raise WebullPolicyError("Missing trade policy")
                 selected=[("stock_account","trade_stocks","EQUITY"),
@@ -699,7 +715,12 @@ class Handler(BaseHTTPRequestHandler):
             except WebullPolicyError as exc:
                 return self._json(400,{"error":str(exc)[:180]})
             except (WebullError,OSError,ValueError,TypeError,KeyError):
-                return self._json(400,{"error":"Webull account verification unavailable; order permission remains unchanged"})
+                return self._json(503,{"error":"Webull account verification unavailable; permission unchanged. Retry after a fresh authenticated worker check."})
+            except Exception:
+                # Official Webull SDK can raise its own ServerException (429)
+                # in the constructor, before the account API is reached.
+                # Never crash the HTTP handler or expose SDK error internals.
+                return self._json(503,{"error":"Webull API rate-limited or unavailable. No permissions changed; wait for the worker to verify the account."})
         if UNIFIED_APP and path == "/api/webull/risk":
             from webull_risk import save
             try:return self._json(200,save(STATE_DIR,self._body()))

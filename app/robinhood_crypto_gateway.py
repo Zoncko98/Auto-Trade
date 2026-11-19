@@ -96,11 +96,13 @@ class RobinhoodCryptoAdapter:
             raise RobinhoodUnavailable("Results missing")
         return value
 
-    def _pages(self, path, params=None):
+    def _pages(self, path, params=None, max_pages=50):
+        if max_pages not in (50, 250):
+            raise ValueError("Unsupported pagination bound")
         items = []
         cursor = None
         seen = set()
-        for _ in range(50):
+        for _ in range(max_pages):
             query = dict(params or {})
             if cursor:
                 query["cursor"] = cursor
@@ -146,7 +148,15 @@ class RobinhoodCryptoAdapter:
 
     def orders(self, account_ref):
         self.balances(account_ref)
-        return self._pages("/api/v2/crypto/trading/orders/", {"account_number": account_ref})
+        # The historic journal contains over 1,000 orders. The 50-page
+        # generic ceiling truncated valid broker history (51+ pages), making
+        # a healthy worker fail closed. Order reconciliation needs the FULL
+        # broker result, not an arbitrarily recent window that could omit
+        # old pending intents or previously unmatched external sells.
+        # Keep a strict, higher order-only cap; incomplete history still
+        # raises and NEVER becomes an empty or authorizing response.
+        return self._pages("/api/v2/crypto/trading/orders/",
+                           {"account_number": account_ref}, max_pages=250)
 
     def order(self, account_ref, order_ref):
         """Fetch one Robinhood order by broker order UUID for exact reconciliation."""

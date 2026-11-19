@@ -519,6 +519,7 @@ async function loadWorkspaceAvailability() {
 function robinhoodEffective(data){
   const state=data.effective_state||"UNVERIFIED";
   const descriptions={PAUSED:"Paused",WORKER_OFFLINE:"Worker offline",
+    BROKER_HISTORY_UNAVAILABLE:"Order history unavailable",
     RECONCILIATION_PENDING:"Reconciliation pending",ORDER_PENDING:"Order pending",
     RISK_BLOCKED:"Risk blocked",AI_VETO:"AI veto",
     NEWS_EVIDENCE_MISSING:"Relevant news missing",
@@ -1785,8 +1786,8 @@ async function loadWebullPolicy(){
   const restricted=checked.filter(a=>a.status==="MARGIN_ACCOUNT_BLOCKED");
   const accountNote=checked.length&&!checked.some(a=>
      a.stocks_cash_eligible===true||a.crypto_cash_eligible===true)?
-     " · No cash-only eligible account verified"+
-       (restricted.length?" (margin-classified account blocked)":""):
+     " · No eligible account verified"+
+       (restricted.length?" (cash-funded individual margin eligibility can be explicitly enabled in Profile; no borrowing allowed)":""):
      "";
   $("webull-live-policy-state").textContent=policy.enabled===true?
     "Webull policy ARMED · the worker can place orders only after independent checks":

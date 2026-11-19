@@ -220,9 +220,30 @@ def status(state):
                 "execution_enabled":False,
                 "reason":"Webull authentication or account lookup failed"}
 
-def portfolio(state,account_id):
+# Dashboard-only SDK cache: repeated portfolio panels used to create two
+# official SDK clients per request, exhausting the shared Webull app-key quota.
+# Broker order execution does NOT use this cache.
+_PORTFOLIO_CACHE_LOCK=threading.RLock()
+_PORTFOLIO_CACHE={"key":None,"created":0.0,"broker":None}
+def _portfolio_read_broker(state):
+    import time
     from webull_broker import WebullBroker
-    broker=WebullBroker(state)
+    credential=_file(state)
+    key=(str(Path(state).resolve()),credential.stat().st_mtime_ns)
+    with _PORTFOLIO_CACHE_LOCK:
+        elapsed=time.monotonic()-_PORTFOLIO_CACHE["created"]
+        if (_PORTFOLIO_CACHE["key"]==key and _PORTFOLIO_CACHE["broker"] is not None
+                and 0<=elapsed<=150):
+            return _PORTFOLIO_CACHE["broker"]
+        # Reconfigure on credential rotation; never reuse old signing identity.
+        _PORTFOLIO_CACHE.update(key=None,broker=None,created=0.0)
+        broker=WebullBroker(state)
+        _PORTFOLIO_CACHE.update(key=key,broker=broker,created=time.monotonic())
+        return broker
+
+def portfolio(state,account_id):
+    broker=_portfolio_read_broker(state)
+    # A display cache does not relax independently verified account selection.
     broker.verify_account(account_id)
     return {"account_id":account_id,"environment":broker.environment,
             "balances":broker.balance(account_id),

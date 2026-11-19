@@ -1,3 +1,13 @@
+## v1.2.2 — Webull quota and Robinhood order-history recovery (2026-11-19)
+
+- Handle Webull SDK HTTP 429 in dashboard authorization and portfolio API with an actionable 503 response instead of a connection-aborting 502.
+- Use a fresh, credential-validated Webull worker account snapshot for policy authorization only. Independently verify all broker permissions, cash, risk, positions and orders before execution.
+- Reuse a short-lived dashboard-only Webull SDK client to reduce app-key quota usage.
+- Raise only Robinhood order-history pagination ceiling from 50 to 250 after observing 1,001 records over 51 pages. Preserve cursor validation and fail closed on truncation.
+- Keep Robinhood's scanner heartbeat reporting when broker order history fails; block all order submissions until authoritative reconciliation succeeds.
+- Make the interface distinguish unavailable history from offline worker status.
+- Add regressions for pagination, stale history, snapshot credibility and credential rotation; no live order tests.
+
 ## v1.2.1 — Mobile workstation and Robinhood USDC portfolio valuation (candidate, 2026-11-19)
 
 - Made all four existing broker dashboards touch-first: compact cards, uniform account picker, bottom Overview / Risk / Activity navigation, accessible details, consistent portfolio and trading controls.

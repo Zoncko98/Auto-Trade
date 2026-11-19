@@ -246,8 +246,19 @@ def run_once(state,client,feed=None):
                       if isinstance(row,dict) and isinstance(row.get("account"),str)}
     authorized={a.get("account_number") for a in account_rows if isinstance(a,dict)}
     external_updates=[]
+    broker_history_verified=True
+    history_unavailable_accounts=0
     for account_ref in journal_accounts & authorized:
-        broker_rows=client.orders(account_ref)
+        try:
+            broker_rows=client.orders(account_ref)
+        except (RobinhoodUnavailable,OSError,TimeoutError,ValueError,TypeError) as exc:
+            # Keep scanning and publishing a fresh heartbeat, but NEVER treat
+            # a failed broker history read as an empty history or submit orders.
+            broker_history_verified=False
+            history_unavailable_accounts+=1
+            external_updates.append({"status":"BROKER_ORDER_HISTORY_UNAVAILABLE",
+                                     "reason":type(exc).__name__,"adjustments":[]})
+            continue
         known_clients={row.get("client_order_id") for row in broker_rows if isinstance(row,dict)}
         # If a successful submission already gave us a Robinhood order UUID,
         # query it directly when bulk history has not surfaced it yet.
@@ -275,6 +286,9 @@ def run_once(state,client,feed=None):
             external_updates.append({"status":"BROKER_RECONCILIATION_UNAVAILABLE",
                                      "reason":type(exc).__name__,"adjustments":[]})
     result["external_holding_reconciliation"]=external_updates
+    result["broker_order_history_status"]=(
+        "VERIFIED" if broker_history_verified else "UNAVAILABLE")
+    result["broker_history_unverified_accounts"]=history_unavailable_accounts
     result["external_closed_positions"]=[{
         "symbol":row.get("symbol"),"quantity":row.get("quantity"),
         "broker_remaining_quantity":row.get("broker_remaining_quantity"),
@@ -418,7 +432,7 @@ def run_once(state,client,feed=None):
     exit_attempted=False
     diagnostic_submission=None  # Direct client-order linkage; never approximate.
 
-    if exit_candidates and not journal.pending():
+    if exit_candidates and broker_history_verified and not journal.pending():
         exit_attempted=True
         from robinhood_order_pass import submit_sell_approved,OrderPassBlocked
         from robinhood_crypto_execution import RobinhoodCryptoTradingAdapter
@@ -526,7 +540,7 @@ def run_once(state,client,feed=None):
         if outcomes and all(x in ("NEWS_EVIDENCE_MISSING","NEWS_FEED_UNAVAILABLE") for x in outcomes):
             result["ai_model"]="NOT_INVOKED"
 
-    if execution=="NOT_ARMED" and approved_signal is not None:
+    if execution=="NOT_ARMED" and approved_signal is not None and broker_history_verified:
         try:
             from robinhood_order_pass import submit_approved,OrderPassBlocked
             from robinhood_crypto_execution import RobinhoodCryptoTradingAdapter
@@ -584,6 +598,14 @@ def run_once(state,client,feed=None):
         else:
             result["execution_reason"]="No qualified technical entry or managed exit"
 
+    if not broker_history_verified:
+        # Explicit fail-closed order permission, independent of signal/AI state.
+        # Broker history may contain pending or filled orders not yet journaled.
+        execution="BROKER_HISTORY_UNAVAILABLE"
+        result["execution_reason"]=(
+            "Robinhood order history unavailable; monitoring continues, "
+            "but ALL submissions remain blocked until broker reconciliation succeeds")
+        risk_check="BLOCKED_BROKER_HISTORY_UNAVAILABLE"
     positions=journal.positions()
     # Read-only shadow strategy and broker-fill diagnostics. This code cannot
     # approve, veto, size or submit a live order and never fetches extra quotes.
@@ -605,7 +627,7 @@ def run_once(state,client,feed=None):
             "shadow_only":True,"reason":"Diagnostics recorder unavailable"}
     result.update({"risk_check":risk_check,"pending_order_intents":len(journal.pending()),
        "updated_at":datetime.now(timezone.utc).isoformat(),
-       "worker":"monitoring",
+       "worker":"monitoring" if broker_history_verified else "monitoring_degraded",
        "execution_status":execution,
        "live_orders_allowed":execution in ("ORDER_ACCEPTED","SUBMITTED_UNCONFIRMED","SELL_ORDER_ACCEPTED","SELL_SUBMITTED_UNCONFIRMED"),
        "last_order_confirmed":order_confirmed,

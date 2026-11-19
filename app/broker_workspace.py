@@ -282,6 +282,9 @@ def robinhood_status(state):
         pending=len(pending_orders) if pending_orders else int(worker.get("pending_order_intents") or 0)
         if not armed:
             effective="PAUSED"; detail="Live order permission is off"
+        elif fresh and worker.get("worker")=="monitoring_degraded" and worker.get("broker_order_history_status")=="UNAVAILABLE":
+            effective="BROKER_HISTORY_UNAVAILABLE"
+            detail="Scanner online, Robinhood order history unavailable; all new order submissions blocked"
         elif not fresh or worker.get("worker")!="monitoring":
             effective="WORKER_OFFLINE"; detail="Trading policy armed, but a fresh crypto worker heartbeat is missing"
         elif pending>0:
@@ -328,6 +331,7 @@ def robinhood_status(state):
                 "decision_evidence":history,"pending_orders":pending_orders,
                 "policy_enabled":armed,"worker":{k:worker.get(k) for k in
                     ("updated_at","worker","quotes_checked","pairs_checked","universe_size","scan_batch","coinbase_feed","coinbase_live_pairs","coinbase_scanned_pairs","market_data_source",
+                     "broker_order_history_status","broker_history_unverified_accounts",
                      "pending_order_intents","risk_check", "last_signal","observations","signal_diagnostics","ai_review_status","ai_connection_status","ai_model","ai_reason","execution_status","live_orders_allowed",
                       "last_order_confirmed","reason","execution_reason","exit_candidate_symbol",
                       "exit_momentum_pct","exit_spread_pct","exit_signal_reason",
