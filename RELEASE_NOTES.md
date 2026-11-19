@@ -1,3 +1,9 @@
+## v1.2.4 — Schwab owner risk controls
+
+Schwab's Risk & Start tab now allows the owner to set strategy capital and all eight existing live risk controls. The old fixed $25/$100/three-position internal clamps no longer override the saved account-specific policy. New orders remain bounded by verified spendable cash, account equity, remaining allocated strategy capital, signal approval and all broker and journal safeguards. Increasing risk settings can cause larger losses or more orders; it does not guarantee more opportunities.
+
+An in-place migration supplies a $100 strategy capital default for prior eight-field records without altering their stored revision. No live test orders are placed as part of release validation.
+
 ## v1.2.3 — Schwab worker and portfolio heartbeat recovery
 
 A temporary missing or stale completed stock candle no longer terminates Schwab monitoring; all broker orders remain blocked during that incomplete-data cycle. While order permission is paused, the worker refreshes read-only Schwab account holdings and valuation every 60 seconds. The supervisor still refuses automatic restarts after other live-order worker failures.

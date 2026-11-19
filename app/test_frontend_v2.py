@@ -20,20 +20,43 @@ from live_order_safety import OrderLedger,LiveBlocked
 from live_worker import risk_preflight
 
 class UIControls(unittest.TestCase):
-    def test_live_limits_are_bounded_to_hard_capped_cash_only_configuration(self):
+    def test_schwab_owner_controls_allow_higher_bounded_cash_only_limits(self):
         self.assertEqual(validate_risk(RISK_DEFAULTS)["max_order_usd"],25)
+        expanded={**RISK_DEFAULTS,"strategy_capital_usd":1000.0,
+            "max_order_usd":300.0,"max_position_pct":70.0,
+            "max_daily_loss":100.0,"max_open_positions":10,
+            "max_buys_per_day":12,"max_orders_per_day":25,
+            "daily_growth_target_pct":3.0}
+        self.assertEqual(validate_risk(expanded)["max_open_positions"],10)
         for key,unsafe in [
-            ("max_order_usd",25.01),("max_daily_loss",5.01),
-            ("max_position_pct",25.1),("max_open_positions",4),
-            ("max_buys_per_day",4),("max_orders_per_day",8),
-            ("allocation_pct",150),
+            ("strategy_capital_usd",100001),("max_order_usd",100001),
+            ("max_position_pct",101),("max_open_positions",31),
+            ("max_buys_per_day",31),("max_orders_per_day",101),
+            ("allocation_pct",150),("daily_growth_target_pct",26),
+            ("max_daily_loss",100001),
         ]:
-            row=dict(RISK_DEFAULTS);row[key]=unsafe
+            row=dict(expanded);row[key]=unsafe
             with self.subTest(key=key),self.assertRaises(ValueError):
                 validate_risk(row)
         row=dict(RISK_DEFAULTS);row["max_orders_per_day"]=2
         with self.assertRaisesRegex(ValueError,"below daily buy"):
             validate_risk(row)
+        for key in ("max_daily_loss","max_order_usd"):
+            row=dict(RISK_DEFAULTS);row[key]=101.0
+            with self.subTest(key=key),self.assertRaisesRegex(
+                ValueError,"cannot exceed strategy capital"):
+                validate_risk(row)
+
+    def test_legacy_eight_field_schwab_risk_remains_valid(self):
+        legacy={k:v for k,v in RISK_DEFAULTS.items() if k!="strategy_capital_usd"}
+        self.assertEqual(validate_risk(legacy)["strategy_capital_usd"],100.0)
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)/"live";root.mkdir()
+            document={"version":1,"revision":7,"settings":legacy,"updated_at":"legacy"}
+            (root/"risk_settings.json").write_text(json.dumps(document))
+            read=read_live_risk(temp)
+            self.assertEqual(read["revision"],7)
+            self.assertEqual(read["settings"]["strategy_capital_usd"],100.0)
 
     def test_atomic_settings_and_revision_conflict(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -2,7 +2,7 @@ name: Publish unified Auto Trader image
 
 on:
   push:
-    branches: [main, feature/truenas-running-baseline, fix/schwab-oauth-reconnect-20261110, fix/robinhood-fee-quality-20261112, fix/webull-readiness-20261112, feature/unified-trader-workspace-20261118, feature/mobile-trader-ux-robinhood-valuation-20261119, fix/webull-429-robinhood-history-worker-20261119, fix/schwab-stale-candle-worker-monitor-20261119]
+    branches: [main, feature/truenas-running-baseline, fix/schwab-oauth-reconnect-20261110, fix/robinhood-fee-quality-20261112, fix/webull-readiness-20261112, feature/unified-trader-workspace-20261118, feature/mobile-trader-ux-robinhood-valuation-20261119, fix/webull-429-robinhood-history-worker-20261119, fix/schwab-stale-candle-worker-monitor-20261119, feature/schwab-user-configurable-risk-20261119]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -57,6 +57,8 @@ jobs:
           node --check web/mobile-ux.js
           node tests/test_mobile_trader_ui.cjs
           node tests/test_schwab_monitoring_ui.cjs
+          node --check web/local.js
+          node tests/test_schwab_owner_risk_ui.cjs
           node --check web/setup.js
           node tests/test_setup_pages.cjs
           node tests/test_workspace_balances.cjs
@@ -117,6 +119,8 @@ jobs:
               else
                 if [[ "$GITHUB_REF_NAME" == "fix/schwab-oauth-reconnect-20261110" ]]; then
                   echo "$name:schwab-reconnect-${GITHUB_SHA::12}"
+                elif [[ "$GITHUB_REF_NAME" == "feature/schwab-user-configurable-risk-20261119" ]]; then
+                  echo "$name:schwab-risk-${GITHUB_SHA::12}"
                 elif [[ "$GITHUB_REF_NAME" == "fix/schwab-stale-candle-worker-monitor-20261119" ]]; then
                   echo "$name:schwab-monitor-${GITHUB_SHA::12}"
                 elif [[ "$GITHUB_REF_NAME" == "fix/webull-429-robinhood-history-worker-20261119" ]]; then

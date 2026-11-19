@@ -180,10 +180,18 @@ def cross_signal(candles: list[dict], now: datetime) -> tuple[str, int]:
     return "HOLD", clean[-1][0]
 
 
-def buy_quantity(ask: Decimal, available_cash: Decimal, total_exposure: Decimal) -> tuple[int, Decimal]:
-    # Marketable day-only limit: at most 0.5% above verified ask.
+def buy_quantity(ask: Decimal, available_cash: Decimal, total_exposure: Decimal,
+                 *, capital: Decimal=CAPITAL,
+                 max_position: Decimal=MAX_POSITION) -> tuple[int, Decimal]:
+    # Marketable day-only limit: at most 0.5% above verified ask. The live
+    # strategy explicitly supplies its owner-selected, account-limited caps;
+    # default arguments keep the legacy cash-only safety contract for callers.
     limit = (ask * Decimal("1.005")).quantize(Decimal("0.01"), rounding=ROUND_UP)
-    budget = min(MAX_POSITION, CAPITAL - total_exposure, available_cash)
+    capital=money(capital,"strategy capital")
+    max_position=money(max_position,"maximum position budget")
+    if capital<=0 or max_position<=0:
+        raise LiveBlocked("Invalid positive strategy capital or position budget")
+    budget = min(max_position, capital - total_exposure, available_cash)
     if budget <= 0 or limit <= 0:
         return 0, limit
     qty = int((budget / limit).to_integral_value(rounding=ROUND_DOWN))
@@ -235,17 +243,21 @@ class OrderLedger:
                for order in self.data["orders"]):
             raise LiveBlocked("Unresolved order exists; no automatic retries")
 
-    def record_before_network(self, symbol, action, quantity, limit_price, candle, reason=""):
+    def record_before_network(self, symbol, action, quantity, limit_price, candle,
+                              reason="", *, capital_limit=CAPITAL):
         self.ready()
         if self.data.get("last_candle",0) >= candle:
             raise LiveBlocked("This candle has already been used for a trade")
         if action not in ("BUY","SELL") or not SYMBOL_PATTERN.fullmatch(symbol):
             raise LiveBlocked("Invalid trade intent")
-        if not isinstance(quantity,int) or not 1 <= quantity <= 100:
+        # Whole-share orders remain notional-limited by the authenticated
+        # strategy-capital setting and verified cash, even for low-cost stocks.
+        if type(quantity) is not int or not 1 <= quantity <= 25000:
             raise LiveBlocked("Invalid whole-share quantity")
         p=money(limit_price,"limit price")
-        if p <= 0 or (action == "BUY" and p*quantity > CAPITAL):
-            raise LiveBlocked("Buy exceeds $100 hard cap")
+        cap=money(capital_limit,"strategy capital")
+        if cap<=0 or p <= 0 or (action == "BUY" and p*quantity > cap):
+            raise LiveBlocked("Buy exceeds verified account strategy capital")
         self.data["last_candle"]=candle
         entry={"symbol":symbol,"action":action,"quantity":quantity,
                "limit_price":str(p),"candle":candle,"state":"SUBMITTING",

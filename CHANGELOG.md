@@ -1,3 +1,13 @@
+## v1.2.4 — Owner-controlled Schwab risk ceilings (2026-11-19)
+
+- Made Schwab live strategy capital an explicit user-editable amount rather than an immutable $100 ceiling, while limiting usable strategy capital to the lower of saved capital and broker-verified account equity.
+- Expanded live risk settings for per-order dollars, percent position size, daily drawdown, simultaneous holdings, daily buys, daily total orders, and reporting-only growth objective. Every field is editable in the existing Schwab Risk & Start page.
+- Removed silent $25 per-order, 25% position, $5 daily loss, 3-position, 3-buy and 7-order live-worker clamps. New per-order dollar budgets still never exceed verified non-borrowed cash, available strategy headroom, saved position percentage, and validated order limit.
+- Preserved whole shares, minimum quote quality, settlement restrictions, per-account authorization, AI approval, one unresolved order rule, journal fsync-before-POST, no shorts/options/margin borrowing, daily-loss cutoff, and broker order reconciliation.
+- Automatically read legacy eight-field live risk documents using the existing $100 strategy-capital ceiling. New validated saves use nine risk fields with atomic revision control; rollback preserves original settings.
+- Added cash/capital-consistent dashboard preview and explicit confirmation before increasing live-money risk. The user must save changes; UI controls do not silently increase settings.
+- Verified synthetic higher-budget order sizing, stricter remaining-capital behavior, operator daily loss thresholds, configuration migration, and journal safety. No live test orders were submitted.
+
 ## v1.2.3 — Schwab stale-market-data recovery and live account monitoring (2026-11-19)
 
 - Prevent a temporary missing or stale five-minute candle for any existing Schwab holding from killing the live worker. If any held position's completed candles are unavailable, block ALL orders in that cycle and write a decision reason; retry on the normal scan schedule.

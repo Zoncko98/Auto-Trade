@@ -37,9 +37,11 @@ TOKEN_PATH = Path(os.getenv("SCHWAB_TOKEN_FILE",
 STATE_DIR = Path(os.getenv("LIVE_STATE_DIR",
     str(Path.home() / ".config" / "auto-trader" / "live-state")))
 JOURNAL = STATE_DIR / "orders.json"
-MAX_CONCURRENT_POSITIONS = 3
-MAX_DAILY_BUYS = 3
-MAX_DAILY_ACTIONS = 7
+# Absolute validated operator control bounds. No hidden 3-position/$25
+# clamp remains; these align exactly with the authenticated API ranges.
+MAX_CONCURRENT_POSITIONS = 30
+MAX_DAILY_BUYS = 30
+MAX_DAILY_ACTIONS = 100
 
 
 def write_private_json(path, payload):
@@ -326,7 +328,9 @@ def risk_preflight(ledger, positions, equity, cash, exposure, symbol, settings=N
     # new-entry slot cap. Only the immutable absolute safety limit can halt.
     if len(positions) > MAX_CONCURRENT_POSITIONS:
         raise LiveBlocked("Maximum simultaneously held positions exceeded")
-    if exposure > CAPITAL * Decimal("2"):
+    strategy_capital = (Decimal(str(settings["strategy_capital_usd"]))
+                        if settings is not None else CAPITAL)
+    if exposure > max(equity,strategy_capital) * Decimal("2"):
         raise LiveBlocked("Broker exposure exceeds permitted account isolation")
     now=datetime.now(timezone.utc).date().isoformat()
     if ledger.data["day"] != now:
@@ -334,7 +338,7 @@ def risk_preflight(ledger, positions, equity, cash, exposure, symbol, settings=N
         ledger.data["day_start_equity"]=str(equity)
         ledger.save()
     start=money(ledger.data["day_start_equity"], "day start equity")
-    hard_limit=DAILY_LOSS if settings is None else min(DAILY_LOSS,Decimal(str(settings['max_daily_loss'])))
+    hard_limit=DAILY_LOSS if settings is None else Decimal(str(settings['max_daily_loss']))
     loss_hit = start-equity >= hard_limit
     if loss_hit and not held:
         raise LiveBlocked("Maximum daily account drawdown hit")
@@ -572,17 +576,22 @@ def attempt(client, account_hash, ledger, now, submit):
             return
         symbol=candidate.symbol
         candle=candidate.candle
+        # The strategy budget can be larger than $100 when explicitly saved,
+        # but never exceeds real Schwab-reported account equity or cash.
+        capital=min(equity,Decimal(str(limits['strategy_capital_usd'])))
+        position_budget=capital*Decimal(str(limits['max_position_pct']))/100
         discretionary=min(cash*Decimal(str(limits['allocation_pct']))/100,
                          Decimal(str(limits['max_order_usd'])),
-                         CAPITAL*Decimal(str(limits['max_position_pct']))/100)
-        qty,price=buy_quantity(candidate.ask,discretionary,exposure)
+                         position_budget)
+        qty,price=buy_quantity(candidate.ask,discretionary,exposure,
+                               capital=capital,max_position=position_budget)
         action="BUY"
         reason=(candidate.reason+f"; {ai_reason}; selected quantity={qty}; "
                 f"budgeted limit={price}; verified cash={cash}")
     if candle<=ledger.data.get("last_candle",0):
         print("Signal already processed on this candle; skip.")
         return
-    if not qty or price<=0 or (action=="BUY" and price*qty>CAPITAL):
+    if not qty or price<=0 or (action=="BUY" and price*qty>capital):
         print("Strategy signal exists but cash/capital prevents order.")
         return
     print(f"AUTONOMOUS DECISION: {action} {qty} {symbol} @ {price}; {reason}")
@@ -601,7 +610,8 @@ def attempt(client, account_hash, ledger, now, submit):
     from schwab.orders.equities import equity_buy_limit,equity_sell_limit
     from schwab.utils import Utils
     entry=ledger.record_before_network(symbol,action,qty,price,candle,
-                                       reason=reason)
+                                       reason=reason,
+                                       capital_limit=capital if action=="BUY" else CAPITAL)
     try:
         order=(equity_buy_limit(symbol,qty,float(price)) if action=="BUY"
                else equity_sell_limit(symbol,qty,float(price))).build()

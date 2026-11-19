@@ -16,20 +16,31 @@ from collections import deque
 from xml.sax.saxutils import escape
 from zipfile import ZipFile, ZIP_DEFLATED
 
+# Defaults remain conservative for new or migrated Schwab accounts.
+# The account owner can raise each limit explicitly in authenticated Risk & Start.
+# Broker cash, verified equity, holdings and every safety gate still take priority.
 RISK_DEFAULTS={
+  "strategy_capital_usd":100.0,
   "allocation_pct":100.0, "max_order_usd":25.0, "max_position_pct":25.0,
   "max_daily_loss":5.0, "max_open_positions":3, "max_buys_per_day":3,
   "max_orders_per_day":7, "daily_growth_target_pct":1.0}
 RISK_BOUNDS={
-  "allocation_pct":(0,100), "max_order_usd":(1,25),
-  "max_position_pct":(1,25), "max_daily_loss":(0.5,5),
-  "max_open_positions":(1,3), "max_buys_per_day":(1,3),
-  "max_orders_per_day":(1,7), "daily_growth_target_pct":(0,10)}
+  "strategy_capital_usd":(25,100000),
+  "allocation_pct":(0,100), "max_order_usd":(1,100000),
+  "max_position_pct":(1,100), "max_daily_loss":(0.5,100000),
+  "max_open_positions":(1,30), "max_buys_per_day":(1,30),
+  "max_orders_per_day":(1,100), "daily_growth_target_pct":(0,25)}
 INTEGERS={"max_open_positions","max_buys_per_day","max_orders_per_day"}
 
 def validate_risk(settings):
-    if not isinstance(settings,dict) or set(settings)!=set(RISK_DEFAULTS):
-        raise ValueError("Exactly eight supported live risk settings required")
+    if not isinstance(settings,dict):
+        raise ValueError("Expected a Schwab risk settings object")
+    # Existing v1.2.3 settings have eight fields and no strategy-capital
+    # key. Migrate them in memory without silently raising any live exposure.
+    if set(settings)==set(RISK_DEFAULTS)-{"strategy_capital_usd"}:
+        settings={**settings,"strategy_capital_usd":100.0}
+    if set(settings)!=set(RISK_DEFAULTS):
+        raise ValueError("Exactly nine supported live risk settings required")
     result={}
     for name,(low,high) in RISK_BOUNDS.items():
         val=settings[name]
@@ -41,6 +52,10 @@ def validate_risk(settings):
         else:result[name]=round(float(val),4)
     if result["max_orders_per_day"]<result["max_buys_per_day"]:
         raise ValueError("Total order cap cannot be below daily buy cap")
+    if result["max_order_usd"]>result["strategy_capital_usd"]:
+        raise ValueError("Per-order limit cannot exceed strategy capital; raise capital too")
+    if result["max_daily_loss"]>result["strategy_capital_usd"]:
+        raise ValueError("Daily loss threshold cannot exceed strategy capital")
     return result
 
 def read_live_risk(state_dir):

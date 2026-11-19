@@ -189,7 +189,7 @@ function renderLiveDecisions(items){
   window.AutoTraderAudit?.decorateTable("live-decisions-table");
 }
 const LIVE_RISK_FIELDS=[
-  "allocation_pct","max_order_usd","max_position_pct","max_daily_loss",
+  "strategy_capital_usd","allocation_pct","max_order_usd","max_position_pct","max_daily_loss",
   "max_open_positions","max_buys_per_day","max_orders_per_day",
   "daily_growth_target_pct"
 ];
@@ -216,13 +216,20 @@ function liveRiskValues(){
 }
 function updateLiveRiskPreview(){
   const values=liveRiskValues();
-  const cash=Math.max(0,Number(lastLive?.account?.cash)||0);
-  const allocation=Math.max(0,Number(values.allocation_pct)||0)/100;
-  const cap=Math.min(25,cash*allocation,
-    Math.max(0,Number(values.max_order_usd)||0),
-    Math.max(0,Number(values.max_position_pct)||0));
-  $("live-risk-order-preview").textContent=money(cap);
-  $("live-risk-cash-preview").textContent=money(cash);
+  const account=lastLive?.account||{};
+  const cash=Number(account.cash),equity=Number(account.equity),exposure=Number(account.exposure);
+  const hasBrokerSnapshot=Number.isFinite(cash)&&Number.isFinite(equity)&&Number.isFinite(exposure)
+    &&Boolean(account.at);
+  const capital=hasBrokerSnapshot?Math.min(equity,Math.max(0,values.strategy_capital_usd)):0;
+  const headroom=hasBrokerSnapshot?Math.max(0,capital-exposure):0;
+  const cap=hasBrokerSnapshot?Math.max(0,Math.min(
+    cash*Math.max(0,values.allocation_pct)/100,
+    Math.max(0,values.max_order_usd),
+    capital*Math.max(0,values.max_position_pct)/100,
+    headroom)):0;
+  $("live-risk-order-preview").textContent=hasBrokerSnapshot?money(cap):"—";
+  $("live-risk-cash-preview").textContent=hasBrokerSnapshot?money(cash):"—";
+  $("live-risk-headroom-preview").textContent=hasBrokerSnapshot?money(headroom):"—";
   $("live-risk-loss-preview").textContent=money(values.max_daily_loss);
   $("live-risk-orders-preview").textContent=values.max_orders_per_day+" per day";
   $("live-risk-target-preview").textContent=values.daily_growth_target_pct+"% (reporting only)";
@@ -237,8 +244,14 @@ async function saveLiveRisk(ev){
     ||!Number.isInteger(settings.max_orders_per_day)
     ||settings.max_orders_per_day<settings.max_buys_per_day)
     return toast("Invalid daily order/position limits.",true);
+  if(settings.max_order_usd>settings.strategy_capital_usd
+     ||settings.max_daily_loss>settings.strategy_capital_usd)
+    return toast("Maximum purchase and daily loss must not exceed strategy capital.",true);
   const increasing=LIVE_RISK_FIELDS.some(k=>k!=="daily_growth_target_pct"&&settings[k]>previous[k]);
-  if(increasing&&!confirm("This raises at least one REAL-MONEY trading limit within its hard cap. Continue?"))return;
+  if(increasing&&!confirm(
+    "This increases REAL-MONEY Schwab exposure or trade-frequency limits. "+
+    "It can result in larger losses or more orders. Broker and account restrictions still apply. Save these limits?"
+  ))return;
   const save=$("live-risk-save");save.disabled=true;
   try{
     const reply=await request("/api/live/risk",{method:"POST",

@@ -810,23 +810,24 @@
         <div class="page-header"><div>
           <p class="eyebrow">LIVE SCHWAB · CASH-FUNDED CAPITAL</p>
           <h1>Live trading risk settings</h1>
-          <p class="muted">Adjust how much real money the bot may commit. Values cannot exceed built-in cash-only safety limits.</p>
+          <p class="muted">Control Schwab strategy capital, per-order exposure, loss limits, position slots, and trade frequency. Every new order still requires broker-verified cash and eligibility.</p>
         </div><span class="paper-label">LIVE · REAL MONEY</span></div>
         <div class="notice"><span class="notice-icon">!</span><div>
           <strong>These controls affect real brokerage orders</strong>
-          <p>Changes are applied on the worker's next scan. They will not modify existing broker orders or loosen hard limits. Pausing the worker is separate.</p></div></div>
+          <p>Changes take effect on the worker's next scan. Increasing limits permits greater real-money exposure but does not force a trade, change existing orders, or override Schwab, market-hours, settlement and duplicate-order protections.</p></div></div>
         <form id="live-risk-form" class="settings-layout">
           <section class="panel settings-main">
-            <div class="panel-heading"><div><h2>Cash allocation</h2><p>All purchases require broker-confirmed, non-borrowed cash</p></div></div>
+            <div class="panel-heading"><div><h2>Strategy capital &amp; cash allocation</h2><p>All purchases require broker-confirmed, non-borrowed cash</p></div></div>
+            <div class="setting-item"><div><label for="live-strategy_capital_usd">Maximum Schwab strategy capital</label><p>Your selected total strategy exposure ceiling; actual deployable capital is limited to verified brokerage equity. Raise this only if funds are available and you accept the increased risk.</p></div><div class="setting-control"><span>$</span><input id="live-strategy_capital_usd" type="number" min="25" max="100000" step=".01" required></div></div>
             <div class="setting-item"><div><label for="live-allocation_pct">Available cash allocation</label><p>Percent of verified cash available for each new order.</p></div><div class="setting-control"><input id="live-allocation_pct" type="number" min="0" max="100" step="1" required><span>%</span></div></div>
-            <div class="setting-item"><div><label for="live-max_order_usd">Maximum purchase amount</label><p>Per-order dollar cap; hard maximum $25.</p></div><div class="setting-control"><span>$</span><input id="live-max_order_usd" type="number" min="1" max="25" step=".01" required></div></div>
-            <div class="setting-item"><div><label for="live-max_position_pct">Maximum position size</label><p>Percent of the $100 strategy capital that one purchase can use.</p></div><div class="setting-control"><input id="live-max_position_pct" type="number" min="1" max="25" step=".1" required><span>%</span></div></div>
-            <div class="panel-heading separator"><div><h2>Trade &amp; loss limits</h2><p>Strict upper bounds remain enforced in the live worker</p></div></div>
-            <div class="setting-item"><div><label for="live-max_daily_loss">Daily loss threshold</label><p>Blocks new buys when the equity drawdown hits this amount; not a guaranteed stop-loss.</p></div><div class="setting-control"><span>$</span><input id="live-max_daily_loss" type="number" min=".5" max="5" step=".5" required></div></div>
-            <div class="setting-item"><div><label for="live-max_open_positions">Simultaneous holdings</label><p>Hard maximum of three distinct positions.</p></div><div class="setting-control"><input id="live-max_open_positions" type="number" min="1" max="3" step="1" required><span>slots</span></div></div>
-            <div class="setting-item"><div><label for="live-max_buys_per_day">Daily buy orders</label><p>Up to three purchases, only when signals and funding qualify.</p></div><div class="setting-control"><input id="live-max_buys_per_day" type="number" min="1" max="3" step="1" required><span>buys</span></div></div>
-            <div class="setting-item"><div><label for="live-max_orders_per_day">Total daily orders</label><p>Up to seven orders including sells. This must not be less than daily buys.</p></div><div class="setting-control"><input id="live-max_orders_per_day" type="number" min="1" max="7" step="1" required><span>orders</span></div></div>
-            <div class="setting-item"><div><label for="live-daily_growth_target_pct">Daily growth objective</label><p>For reporting only; never forces a trade or promises a result.</p></div><div class="setting-control"><input id="live-daily_growth_target_pct" type="number" min="0" max="10" step=".1" required><span>%</span></div></div>
+            <div class="setting-item"><div><label for="live-max_order_usd">Maximum purchase amount</label><p>Dollar cap for any new order, up to your strategy-capital ceiling. Must be supported by verified cash and available exposure.</p></div><div class="setting-control"><span>$</span><input id="live-max_order_usd" type="number" min="1" max="100000" step=".01" required></div></div>
+            <div class="setting-item"><div><label for="live-max_position_pct">Maximum position size</label><p>Maximum new-position budget as a percentage of your selected capital, capped by current broker equity.</p></div><div class="setting-control"><input id="live-max_position_pct" type="number" min="1" max="100" step=".1" required><span>%</span></div></div>
+            <div class="panel-heading separator"><div><h2>Trade frequency &amp; loss controls</h2><p>Choose your limits; the live worker enforces the saved values and independent broker safeguards</p></div></div>
+            <div class="setting-item"><div><label for="live-max_daily_loss">Daily loss threshold</label><p>Blocks new buys when the equity drawdown hits this amount; not a guaranteed stop-loss.</p></div><div class="setting-control"><span>$</span><input id="live-max_daily_loss" type="number" min=".5" max="100000" step=".5" required></div></div>
+            <div class="setting-item"><div><label for="live-max_open_positions">Simultaneous holdings</label><p>Maximum simultaneous stock/ETF holdings; currently held assets count toward this limit.</p></div><div class="setting-control"><input id="live-max_open_positions" type="number" min="1" max="30" step="1" required><span>slots</span></div></div>
+            <div class="setting-item"><div><label for="live-max_buys_per_day">Daily buy orders</label><p>Maximum buy submissions per session; eligible signals, AI review, and verified cash still required.</p></div><div class="setting-control"><input id="live-max_buys_per_day" type="number" min="1" max="30" step="1" required><span>buys</span></div></div>
+            <div class="setting-item"><div><label for="live-max_orders_per_day">Total daily orders</label><p>Maximum combined daily orders, including sells. Must be at least your daily buy limit.</p></div><div class="setting-control"><input id="live-max_orders_per_day" type="number" min="1" max="100" step="1" required><span>orders</span></div></div>
+            <div class="setting-item"><div><label for="live-daily_growth_target_pct">Daily growth objective</label><p>For reporting only; never forces a trade or promises a result.</p></div><div class="setting-control"><input id="live-daily_growth_target_pct" type="number" min="0" max="25" step=".1" required><span>%</span></div></div>
             <div class="settings-submit"><p id="live-risk-message" role="status"></p><button class="btn primary" id="live-risk-save" type="submit">Save live risk limits</button></div>
           </section>
           <aside class="settings-side">
@@ -834,12 +835,13 @@
               <h2>Next live purchase ceiling</h2><p>Calculated from the latest broker snapshot; quotes and live eligibility are checked again before an order.</p>
               <div class="preview-big" id="live-risk-order-preview">—</div><small>Maximum nominal purchase budget</small>
               <div class="preview-breakdown"><span>Verified cash</span><strong id="live-risk-cash-preview">—</strong></div>
+              <div class="preview-breakdown"><span>Available strategy headroom</span><strong id="live-risk-headroom-preview">—</strong></div>
               <div class="preview-breakdown"><span>Daily loss cap</span><strong id="live-risk-loss-preview">—</strong></div>
               <div class="preview-breakdown"><span>Order slots/day</span><strong id="live-risk-orders-preview">—</strong></div>
               <div class="preview-breakdown"><span>Growth objective</span><strong id="live-risk-target-preview">—</strong></div>
             </section>
             <section class="panel instruction-panel"><span>◈</span><h2>Independent hard guardrails</h2>
-              <p>$100 strategy capital · no margin debt · no shorts · no options · one unresolved brokerage order at a time.</p>
+              <p>Broker-verified cash and equity · no margin debt · no shorts · no options · one unresolved brokerage order at a time. Your displayed maximum order budget may be smaller than saved limits when cash or exposure is constrained.</p>
               <p>Changes do not force Monday profits or bypass settlement and duplicate-order controls.</p>
             </section>
           </aside>
