@@ -1,3 +1,9 @@
+## v1.2.1 — Mobile workstation and Robinhood valuation (source candidate, 2026-11-19)
+
+This release simplifies the existing Schwab, Robinhood, Webull and Paper trading workspaces for narrow and portrait touch screens, with account selection and primary tabs always available. It also distinguishes genuinely unavailable Robinhood quote data from zero and supports a timestamp-checked external indicative USDC price when the broker does not offer one. External price marks are display-only and never authorize orders or substitute for broker execution checks. P/L is never invented when purchase history is missing.
+
+Verification: Python and JavaScript test suites plus real-device-dimension browser rendering. A successful source build or installed container does not establish broker-side fills or profitability.
+
 # Releases
 
 > **Source milestone (November 5, 2026):** `main` declares **v1.2.0**. This is the checked-in source version, **not** a verified running TrueNAS version or an immutable tagged release. The existing deployment may continue to display v1.1.10 until intentionally rebuilt and updated. GitHub branch pushes publish candidate images; an explicit `v*` tag publishes `:stable`. A stable tag and production upgrade were intentionally **not** performed by this documentation change.

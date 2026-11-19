@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **Source status (November 5, 2026):** `main` declares **v1.2.0** (`VERSION` / `app/VERSION`), covering the unified four-broker UI and newer brokerage diagnostics. This is a **source milestone**, not proof that the existing TrueNAS app or the mutable `:stable` image runs v1.2.0. See the [production baseline](docs/truenas-production-baseline.md), [release notes](RELEASE_NOTES.md), and [changelog](CHANGELOG.md). Auto Trader is experimental; neither profitability nor broker-side fills across providers are certified.
+> **Feature source (November 19, 2026):** this branch declares **v1.2.1**, adding a compact four-trader mobile workstation and a read-only Robinhood USDC valuation fallback. This is a source/release milestone, not evidence of live broker fills. The TrueNAS container version must be verified separately after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

@@ -864,6 +864,8 @@ function robinhoodDirection(value){
   return n===null?"":n>0?"pnl-up":n<0?"pnl-down":"pnl-flat";
 }
 function renderRobinhoodPortfolio(portfolio){
+  // Portfolio preview uses the same sanitized read-only broker response.
+  window.AutoTraderMobile?.renderPortfolio?.(portfolio);
   const box=$("robinhood-positions-list");
   const status=$( "robinhood-positions-status");
   if(box)box.replaceChildren();
@@ -885,9 +887,12 @@ function renderRobinhoodPortfolio(portfolio){
   const amount=complete?portfolio.unrealized_pnl_usd:portfolio.known_unrealized_pnl_usd;
   const percent=complete?portfolio.unrealized_pnl_pct:portfolio.known_unrealized_pnl_pct;
   const value=$("rh-performance-value");
-  if(value)value.textContent=portfolio.known_holdings_value_usd==null?
-    "Unavailable":(portfolio.unpriced_holdings?.length?"Partial ":"")+
-    money(portfolio.known_holdings_value_usd);
+  const pricedCount=Number.isInteger(portfolio.valuation_coverage?.priced)
+    ?portfolio.valuation_coverage.priced
+    :holdings.length-(Array.isArray(portfolio.unpriced_holdings)?portfolio.unpriced_holdings.length:0);
+  if(value)value.textContent=portfolio.known_holdings_value_usd==null || (holdings.length>0&&pricedCount===0)
+    ?"Price unavailable"
+    :(portfolio.unpriced_holdings?.length?"Partial ":"")+money(portfolio.known_holdings_value_usd);
   for(const [id,raw,format] of [
     ["rh-performance-pnl",amount,robinhoodReturnUsd],
     ["rh-performance-pct",percent,robinhoodReturnPct]]){
@@ -898,17 +903,18 @@ function renderRobinhoodPortfolio(portfolio){
     const direction=robinhoodDirection(raw);
     if(direction)el.classList.add(direction);
   }
-  const coverage=covered+" of "+holdings.length+" holdings have estimated P/L";
+  const coverage=covered===0&&holdings.length>0?"P/L not verified":
+    covered+" of "+holdings.length+" holdings have estimated P/L";
   if($("rh-pnl-coverage"))$("rh-pnl-coverage").textContent=coverage;
   if($("rh-holdings-summary"))$("rh-holdings-summary").textContent=
     holdings.length+" open holdings · "+covered+" with basis";
   if($("rh-performance-pnl-label"))$("rh-performance-pnl-label").textContent=
-    complete?"Estimated on all holdings":"PARTIAL · "+coverage;
+    complete?"Estimated on all holdings":covered===0?"Cost basis unavailable":"PARTIAL · "+coverage;
   if($("rh-performance-disclosure"))$("rh-performance-disclosure").textContent=
-    "Estimated P/L is based on accessible broker fills reconciled to quantity, not Robinhood's official app average cost. "+
-    "Fees, rewards, transfers, and missing history can affect results. This is since-purchase return, not today's move.";
-  if(status)status.textContent=holdings.length+" holdings · "+covered+
-    " estimated cost bases · "+(portfolio.order_count??"unknown")+" broker order records";
+    (portfolio.valuation_note || "Portfolio marks are indicative, not executable.")+
+    " P/L remains unavailable without reconciled purchase history; it is not a daily return.";
+  if(status)status.textContent=holdings.length+" holdings · "+pricedCount+
+    " priced · "+covered+" verified estimated cost bases · "+(portfolio.order_count??"unknown")+" broker order records";
   if(!box)return;
   const intro=document.createElement("p");
   intro.className="panel-note";

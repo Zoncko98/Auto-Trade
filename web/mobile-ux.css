@@ -1,0 +1,176 @@
+/* Auto Trader mobile workstation refinements.
+   Inspired by compact trading terminals: operational state first, positions next,
+   diagnostics only when requested. Existing safety controls remain in place. */
+:root{--mobile-paper:#091321;--mobile-surface:#112039;--mobile-line:#27415c;--mobile-accent:#5bd2bb}
+.mobile-trader-nav,.mobile-trader-picker{display:none}
+.unified-shell .unified-dashboard > .rh-portfolio-performance{
+  background:linear-gradient(180deg,#13243a,#101e30);
+  border:1px solid #2e4761;
+  padding:20px 22px;
+}
+.unified-shell .unified-dashboard .rh-portfolio-metrics{
+  display:grid;grid-template-columns:minmax(0,1.18fr) repeat(2,minmax(0,1fr));
+  gap:0;border:0;margin:0;
+}
+.unified-shell .unified-dashboard .rh-portfolio-metrics > div{
+  padding:12px 18px;border:0;border-left:1px solid #29425b;
+  min-width:0;text-align:left
+}
+.unified-shell .unified-dashboard .rh-portfolio-metrics > div:first-child{
+  border-left:0;padding-left:0
+}
+.unified-shell .unified-dashboard .rh-portfolio-metrics > div > span{
+  display:block;line-height:1.35;color:#9db1c9;font-size:11px;font-weight:750;letter-spacing:.1px
+}
+.unified-shell .unified-dashboard .rh-portfolio-metrics strong{
+  display:block;margin:8px 0 5px;font-size:clamp(17px,1.8vw,25px);
+  line-height:1.25;letter-spacing:-.5px;word-break:normal;overflow-wrap:anywhere
+}
+.unified-shell .unified-dashboard .rh-portfolio-metrics > div:first-child strong{
+  font-size:clamp(23px,2.25vw,34px);color:#f7fbff
+}
+.unified-shell .unified-dashboard .rh-portfolio-metrics small{
+  color:#89a0ba;font-size:10px;line-height:1.45
+}
+.unified-shell .unified-dashboard .stat-card{
+  box-shadow:none;border-color:#28435d;
+  background:#12243a;padding:16px 17px;min-height:110px
+}
+.unified-shell .unified-dashboard .stat-card .stat-top{color:#a3b7d0;margin-bottom:12px}
+.unified-shell .unified-dashboard .stat-card strong{letter-spacing:-.6px}
+.unified-shell .unified-dashboard .stat-card small{color:#879db9;font-size:10px}
+.unified-shell .unified-dashboard .hero-head h1{font-weight:800;letter-spacing:-1.1px}
+.unified-shell .unified-dashboard .control-panel{box-shadow:none}
+.mobile-holding-preview{display:block;margin-top:18px;border-top:1px solid #304965}
+.mobile-holding-preview h3{
+  font-size:12px;font-weight:800;letter-spacing:.4px;margin:17px 0 5px;color:#d6e8ff
+}
+.mobile-holding-row{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:13px 0;border-bottom:1px solid #253c55}
+.mobile-holding-row:last-of-type{border-bottom:0}
+.mobile-holding-identity,.mobile-holding-mark{display:grid;gap:5px;min-width:0}
+.mobile-holding-identity strong,.mobile-holding-mark strong{font-size:17px;color:#f3f8ff;font-variant-numeric:tabular-nums}
+.mobile-holding-identity small,.mobile-holding-mark small{font-size:11px;color:#96aec9;line-height:1.3}
+.mobile-holding-mark{text-align:right}
+.mobile-holding-note{font-size:10px;color:#8fa8c3;margin:12px 0 4px;line-height:1.6}
+.mobile-holding-warning{font-size:11px;color:#f1c98a;margin:12px 0}
+.mobile-method-disclosure{margin:15px 0 0;border-top:1px solid #304965}
+.mobile-method-disclosure summary{
+  cursor:pointer;padding:12px 0;color:#91c1ed;font-weight:700;font-size:11px
+}
+.mobile-method-disclosure p{font-size:10px;color:#94a9c0;line-height:1.55;margin:3px 0 12px}
+.unified-dashboard > .rh-portfolio-performance .panel-heading{
+  align-items:center;gap:15px;margin-bottom:13px
+}
+.unified-dashboard > .rh-portfolio-performance .panel-heading h2{
+  font-size:14px;line-height:1.35;margin:0 0 3px
+}
+.unified-dashboard > .rh-portfolio-performance .panel-heading p{
+  font-size:10px;line-height:1.35;color:#91a8bf
+}
+@media (max-width:940px), (pointer:coarse) and (orientation:portrait){
+  body.unified-shell{background:#081421;}
+  body.unified-shell .sidebar{display:none!important}
+  body.unified-shell .main-shell{width:100%;max-width:100%;min-width:0;margin:0}
+  body.unified-shell .topbar{
+    position:sticky;top:0;z-index:40;width:100%;min-height:60px;height:auto;
+    padding:10px 14px;display:flex;flex-wrap:wrap;align-items:center;
+    gap:7px 13px;background:#091728;
+    border-bottom:1px solid #24435c;backdrop-filter:blur(12px)
+  }
+  body.unified-shell .topbar .breadcrumb{flex:1 1 110px;font-size:11px;min-width:0}
+  body.unified-shell .topbar .breadcrumb strong{display:none}
+  body.unified-shell .topbar .breadcrumb span{display:none}
+  body.unified-shell .topbar .top-actions{display:flex;gap:8px;align-items:center;
+    justify-content:flex-end;flex:0 0 auto;margin-left:auto}
+  body.unified-shell .topbar #refresh-btn{width:33px;height:33px}
+  body.unified-shell .topbar #profile-btn{padding:5px 10px;min-height:33px;font-size:11px}
+  body.unified-shell #ai-header-status{min-width:0;max-width:125px;padding:7px 8px}
+  body.unified-shell #ai-header-status .ai-header-copy{max-width:93px}
+  body.unified-shell #ai-header-status #ai-header-state{font-size:10px}
+  body.unified-shell #ai-header-status #ai-header-model{font-size:9px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+  .mobile-trader-picker{display:flex;align-items:center;gap:7px;flex:1 1 135px;max-width:230px}
+  .mobile-trader-picker label{font-size:10px;color:#84b8d8;font-weight:800}
+  .mobile-trader-picker select{height:35px;min-width:0;width:100%;max-width:176px;
+    border:1px solid #355978;border-radius:9px;padding:4px 8px;
+    color:#ebf4ff;background:#172e46;font-size:12px;font-weight:750}
+  .mobile-trader-nav{
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+    position:fixed;bottom:0;left:0;right:0;z-index:100;
+    min-height:calc(64px + env(safe-area-inset-bottom));
+    padding:5px 6px calc(6px + env(safe-area-inset-bottom));
+    border-top:1px solid #33536e;background:#0d2032;
+    box-shadow:0 -10px 35px #0005
+  }
+  .mobile-trader-tab{display:grid;align-content:center;justify-items:center;gap:3px;
+    min-width:0;min-height:52px;border:0;border-radius:9px;
+    background:transparent;color:#95adc7;font:inherit;cursor:pointer}
+  .mobile-trader-tab.active{background:#183f51;color:#76e1c7}
+  .mobile-trader-tab:disabled{opacity:.45;cursor:default}
+  .mobile-trader-tab .mobile-trader-icon{font-size:19px;line-height:1}
+  .mobile-trader-tab .mobile-trader-label{font-size:10px;font-weight:750}
+  .mobile-trader-tab:focus-visible{outline:2px solid #8ad6ff;outline-offset:-2px}
+  body.unified-shell .content{padding:15px 12px calc(100px + env(safe-area-inset-bottom));
+    max-width:100%;overflow-x:hidden}
+  body.unified-shell .unified-dashboard{gap:10px}
+  body.unified-shell .unified-dashboard > .hero-head{display:flex;flex-direction:column;gap:10px;margin:0}
+  body.unified-shell .unified-dashboard .hero-head > div:first-child{padding:1px 1px 2px}
+  body.unified-shell .unified-dashboard .hero-head h1{font-size:23px;margin:3px 0 4px}
+  body.unified-shell .unified-dashboard .hero-head .muted{font-size:11px;line-height:1.45;margin:0}
+  body.unified-shell .unified-dashboard .hero-head .eyebrow{font-size:8px;margin:0;letter-spacing:1.1px}
+  body.unified-shell .unified-dashboard .control-panel{width:100%;padding:12px 13px;border-radius:12px}
+  body.unified-shell .unified-dashboard .control-caption{margin-bottom:10px;font-size:9px}
+  body.unified-shell .unified-dashboard .unified-actions{display:grid;grid-template-columns:1.25fr .85fr 1fr;gap:6px}
+  body.unified-shell .unified-dashboard .unified-actions .btn{min-width:0;min-height:39px;padding:7px 6px;font-size:10px}
+  body.unified-shell .unified-dashboard .unified-action-feedback{font-size:10px;margin:9px 0 0}
+  body.unified-shell .unified-dashboard .unified-extra-actions > summary{padding:6px 0 0}
+  body.unified-shell .unified-dashboard > .notice{padding:10px 11px;gap:8px;margin:0}
+  body.unified-shell .unified-dashboard > .notice .notice-icon{font-size:16px}
+  body.unified-shell .unified-dashboard > .notice strong{font-size:11px}
+  body.unified-shell .unified-dashboard > .notice p{font-size:10px}
+  body.unified-shell .unified-dashboard .stats-grid{display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0}
+  body.unified-shell .unified-dashboard .stat-card{padding:12px 12px 11px;min-height:95px;border-radius:12px}
+  body.unified-shell .unified-dashboard .stat-top{font-size:8px;line-height:1.35;margin:0 0 7px}
+  body.unified-shell .unified-dashboard .stat-top .stat-icon{font-size:14px}
+  body.unified-shell .unified-dashboard .stat-card strong{font-size:clamp(18px,3.5vw,23px);line-height:1.2;margin:0 0 4px}
+  body.unified-shell .unified-dashboard .stat-card small{font-size:9px;line-height:1.35}
+  body.unified-shell .unified-dashboard > .rh-portfolio-performance{padding:13px 14px;border-radius:12px;margin:0}
+  body.unified-shell .unified-dashboard > .rh-portfolio-performance .panel-heading{margin:0 0 8px;flex-wrap:wrap}
+  body.unified-shell .unified-dashboard > .rh-portfolio-performance .panel-heading h2{font-size:13px}
+  body.unified-shell .unified-dashboard > .rh-portfolio-performance .panel-heading p{font-size:10px}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics > div{
+    padding:12px 6px 9px 0;border:0;border-top:1px solid #2e4560;min-width:0}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics > div:first-child{grid-column:span 2;border-top:0;padding:7px 0 10px}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics > div:nth-child(3){padding-left:12px;border-left:1px solid #2e4560}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics > div strong{font-size:clamp(16px,3.1vw,21px);margin:5px 0}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics > div:first-child strong{font-size:27px}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics > div small{display:none}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics > div > span{font-size:10px}
+  body.unified-shell .unified-dashboard .rh-portfolio-metrics #rh-performance-pnl-label{display:block;font-size:9px}
+  body.unified-shell .mobile-holding-preview{margin-top:8px}
+  body.unified-shell .mobile-holding-row{padding:10px 0}
+  body.unified-shell .mobile-holding-row strong{font-size:15px}
+  body.unified-shell .mobile-holding-row small{font-size:10px}
+  body.unified-shell .unified-section-disclosure > summary{padding:12px 14px;font-size:11px;min-height:46px}
+  body.unified-shell .unified-section-disclosure > :not(summary){margin:9px}
+  body.unified-shell .unified-section-disclosure .content-grid{display:block;max-width:100%;overflow:auto}
+  body.unified-shell .unified-section-disclosure .content-grid > *{margin-bottom:8px}
+  body.unified-shell .unified-risk-guide{padding:12px;gap:10px}
+  body.unified-shell .workspace-hero{margin-top:4px;gap:14px}
+  body.unified-shell .workspace-tile-grid{grid-template-columns:1fr;gap:9px}
+  body.unified-shell .workspace-tile-featured{min-height:176px;padding:15px}
+  body.unified-shell .workspace-tile-title{font-size:18px}
+  body.unified-shell .workspace-tile-subtitle{margin:6px 0 11px}
+  body.unified-shell .workspace-tile-balance{font-size:22px}
+}
+@media (max-width:395px){
+ body.unified-shell .topbar #ai-header-status{max-width:96px}
+ body.unified-shell .topbar #profile-btn{padding:5px 8px}
+ body.unified-shell .mobile-trader-picker{max-width:150px}
+ body.unified-shell .unified-dashboard .stat-card{padding:10px 9px;min-height:100px}
+ body.unified-shell .unified-dashboard .stat-card strong{font-size:18px}
+ body.unified-shell .unified-dashboard .unified-actions .btn{font-size:9px}
+}

@@ -1,3 +1,12 @@
+## v1.2.1 — Mobile workstation and Robinhood USDC portfolio valuation (candidate, 2026-11-19)
+
+- Made all four existing broker dashboards touch-first: compact cards, uniform account picker, bottom Overview / Risk / Activity navigation, accessible details, consistent portfolio and trading controls.
+- Corrected misleading Robinhood Partial $0.00 when the account has holdings but none can be priced. Unpriced holdings are explicitly labeled unavailable rather than zero.
+- Added fresh, display-only CoinGecko USDC/USD indicative fallback when Robinhood's signed v2 bid/ask endpoint cannot quote a broker-reported USDC position. Validates source identity, timestamp, positive finite price, and fails closed when stale or offline. No use in execution, AI decisions or risk gates.
+- Surfaced the held coin and valuation source in an at-a-glance Robinhood holding row. Cost basis and P/L remain unavailable without verified fills; no synthetic profits are shown.
+- Added tests for live quote failure, malformed/stale price data, no-price handling, unchanged order safety, mobile navigation and four-account responsive layouts.
+- Source candidate and verification evidence are separate from real brokerage fills. No market orders are created by this feature or its tests.
+
 ## v1.2.0 — Unified broker workspaces and trade diagnostics (source milestone, 2026-11-05)
 
 ## Unreleased — Unified trader workspace & simplified activation (feature branch, 2026-11-18)

@@ -335,12 +335,14 @@ class Handler(BaseHTTPRequestHandler):
             "/app.js": ("app.js", "text/javascript; charset=utf-8"),
             "/ui-audit.js": ("ui-audit.js", "text/javascript; charset=utf-8"),
             "/unified.js": ("unified.js", "text/javascript; charset=utf-8"),
+            "/mobile-ux.js": ("mobile-ux.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
             "/forecast.js": ("forecast.js", "text/javascript; charset=utf-8"),
             "/brokers.js": ("brokers.js","text/javascript; charset=utf-8"),
             "/app.css": ("app.css", "text/css; charset=utf-8"),
             "/workspace.css": ("workspace.css", "text/css; charset=utf-8"),
             "/unified.css": ("unified.css", "text/css; charset=utf-8"),
+            "/mobile-ux.css": ("mobile-ux.css", "text/css; charset=utf-8"),
             "/assets/brands/alpaca-official-light.png": ("assets/brands/alpaca-official-light.png", "image/png"),
         }
         if path in assets:

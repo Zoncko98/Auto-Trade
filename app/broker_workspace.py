@@ -433,6 +433,8 @@ def robinhood_portfolio(state):
                 symbol=code.upper()+"-USD"
                 value=None
                 midpoint=None
+                valuation_source="unavailable"
+                price_as_of=None
                 if qty==0:value=Decimal("0")
                 else:
                     try:
@@ -444,7 +446,19 @@ def robinhood_portfolio(state):
                             if bid is not None and ask is not None and 0<bid<=ask:
                                 midpoint=(bid+ask)/2
                                 value=qty*midpoint
+                                valuation_source="robinhood_v2_bid_ask_midpoint"
                     except (RobinhoodUnavailable,ValueError,TypeError,KeyError):pass
+                    # Display-only mark for canonical USDC when the broker
+                    # cannot provide market data. NEVER feed this fallback to
+                    # order execution, eligibility or the AI signal scanner.
+                    if value is None and symbol=="USDC-USD":
+                        from robinhood_portfolio_quotes import get_display_only_mark
+                        external=get_display_only_mark(symbol)
+                        if external is not None:
+                            midpoint=external["price"]
+                            value=qty*midpoint
+                            valuation_source="coingecko_usdc_usd_indicative"
+                            price_as_of=external["as_of"]
                 average_cost,basis_issue=estimated_acquisition_cost(symbol,qty,broker_orders)
                 pnl,pnl_pct=position_return(qty,midpoint,average_cost)
                 holdings.append({"symbol":symbol,"quantity":str(qty),
@@ -457,7 +471,8 @@ def robinhood_portfolio(state):
                     "cost_basis_source":"estimated_broker_fill_history" if average_cost is not None else "unavailable",
                     "cost_basis_note":basis_issue if basis_issue is not None else
                         "Estimated from accessible Robinhood filled orders; excludes purchase fees and transfers",
-                    "valuation":"broker_bid_ask_midpoint" if value is not None else "unavailable"})
+                    "valuation":valuation_source if value is not None else "unavailable",
+                    "price_as_of":price_as_of})
         priced=[h for h in holdings if h["market_value_usd"] is not None]
         unpriced=[h["symbol"] for h in holdings if h["market_value_usd"] is None]
         known_value=sum((Decimal(h["market_value_usd"]) for h in priced),Decimal("0"))
@@ -476,6 +491,9 @@ def robinhood_portfolio(state):
             "estimated_crypto_account_value_usd":str(total) if total is not None else None,
             "known_holdings_value_usd":str(known_value),
             "unpriced_holdings":unpriced,
+            "valuation_coverage":{"priced":len(priced),"total":len(holdings),
+                "externally_marked":sum(h.get("valuation")=="coingecko_usdc_usd_indicative"
+                                        for h in priced)},
             "known_unrealized_pnl_usd":str(known_pnl) if priced_basis else None,
             "known_unrealized_pnl_pct":str(known_pnl_pct) if known_pnl_pct is not None else None,
             "unrealized_pnl_usd":str(known_pnl) if all_covered else None,
@@ -483,6 +501,6 @@ def robinhood_portfolio(state):
             "pnl_covered_holdings":len(priced_basis),
             "pnl_total_holdings":len(holdings),
             "pnl_completeness":"complete_estimate" if all_covered else "partial_or_unavailable",
-            "valuation_note":"Broker bid/ask midpoint estimates, not executable prices. Estimated P/L uses available filled-order history, not Robinhood's official average cost. Transfers, rewards, missing history and fees can change results. USD buying power may differ from cash balance."}
+            "valuation_note":"Broker marks use indicative bid/ask midpoint. If Robinhood cannot quote USDC, its display valuation may use a fresh independently timestamped CoinGecko USDC/USD mark. Neither is an executable sale price or trading input. P/L uses reconciled purchase history, not Robinhood's official average cost. Transfers, rewards and fees can affect results."}
     except (OSError,ValueError,KeyError,TypeError,RobinhoodUnavailable):
         return {"available":False,"reason":"Robinhood account portfolio request failed"}
