@@ -1,3 +1,9 @@
+## v1.2.3 — Schwab worker and portfolio heartbeat recovery
+
+A temporary missing or stale completed stock candle no longer terminates Schwab monitoring; all broker orders remain blocked during that incomplete-data cycle. While order permission is paused, the worker refreshes read-only Schwab account holdings and valuation every 60 seconds. The supervisor still refuses automatic restarts after other live-order worker failures.
+
+This release must be deployed with live Schwab order submission deliberately paused; users reauthorize live orders in the UI after successful monitoring and reconciliation verification. No real-money test orders are part of the acceptance test.
+
 ## v1.2.2 — Broker worker recovery (2026-11-19)
 
 This release addresses Webull SDK rate limits in dashboard control requests and Robinhood history overrun above 50 pages. Operator authorization never bypasses per-order broker checks. Broker order-history outages leave the Robinhood scanner online in a degraded state while order submissions remain blocked. The release itself does not establish any Webull broker fills or Robinhood profitability.

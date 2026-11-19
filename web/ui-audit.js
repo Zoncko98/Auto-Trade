@@ -155,7 +155,10 @@
    setStatus("live",{
      at:data?.account?.at||"",
      connection:{text:fresh?"Broker snapshot current":"Broker snapshot stale/unverified",state:fresh?"good":"bad"},
-     scanner:{text:data?.worker_online?"Worker reporting; last scan requires decision evidence":"Not reporting",state:data?.worker_online?"good":"bad"},
+     scanner:{text:data?.worker_online?
+       (data?.order_permission==="paused"?"Order scan paused · account monitoring online":
+        "Worker reporting; last scan requires decision evidence"):"Not reporting",
+       state:data?.worker_online?"good":"bad"},
      permission:{text:running?"Running (cash only)":halted?"Halted":armed?"Paused":"Not armed",state:running?"good":"warn"},
      block:{text:halted?"Reconciliation halt":locked?"Unresolved order state — review":"No unresolved journal orders; other gates apply",state:halted||locked?"bad":"warn"},
      fill:{text:fillFromOrders(data?.orders),state:"neutral"}});

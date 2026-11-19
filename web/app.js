@@ -65,7 +65,9 @@ function updateAccountActivity(paper,live){
   const rows=[
     ["live", latest?
        "Latest: "+latest.decision.replaceAll("_"," ")+(latest.summary?" — "+latest.summary:""):
-       live?.worker_online?"Worker online · last scan NOT VERIFIED; no decisions recorded":"Worker offline or no heartbeat"],
+       live?.worker_online?(live?.order_permission==="paused"?
+         "Live orders paused · read-only account monitor online":
+         "Worker online · last scan NOT VERIFIED; no decisions recorded"):"Worker offline or no heartbeat"],
     ["paper", "Last scan: "+paperDecision.replaceAll("_"," ")+
        (paper?.runtime?.last_paper_symbol?" · "+paper.runtime.last_paper_symbol:"")+
        (paper?.runtime?.last_paper_reason?" · "+paper.runtime.last_paper_reason:"")+

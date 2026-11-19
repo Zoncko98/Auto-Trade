@@ -480,15 +480,32 @@ def attempt(client, account_hash, ledger, now, submit):
         sell=("SPYD",positions["SPYD"],int(now.timestamp()*1000),
               "Authorized one-time liquidation of 2 existing SPYD ETF shares")
     if sell is None:
+        unavailable_held=[]
         for sym,held in sorted(positions.items()):
             if same_day_filled_buy(ledger,sym,now):
                 print(f"Holding {sym} until next session to avoid settlement/day-trade issues.")
                 continue
-            action,candle=cross_signal(recent_candles(client,sym),now)
-            if action=="SELL":
+            try:
+                action,candle=cross_signal(recent_candles(client,sym),now)
+            except (LiveBlocked,KeyError,ValueError,TypeError) as exc:
+                # Broker can temporarily omit a completed bar for an existing
+                # holding. Never exit the entire worker for a transient candle
+                # gap, and never SELL or BUY while any held exit is unverified.
+                unavailable_held.append((sym,type(exc).__name__))
+                continue
+            if action=="SELL" and sell is None:
                 sell=(sym,held,candle,
                       "Automatic exit: completed 3/5-bar downward crossover")
-                break
+        if unavailable_held:
+            if submit:
+                _audit(now,"-","HELD_CANDLES_UNAVAILABLE",
+                       "One or more held symbols lack verified completed candles; "
+                       "all new orders blocked for this cycle",
+                       signals={"unverified_held_symbols":[s for s,_ in unavailable_held],
+                                "symbols_held":len(positions)})
+            print("Held-stock candle data unavailable; monitoring continues, "
+                  "but no broker orders are permitted this scan.",flush=True)
+            return
 
     if sell is not None:
         symbol,qty,candle,reason=sell
@@ -602,6 +619,29 @@ def attempt(client, account_hash, ledger, now, submit):
         ledger.halt("Order POST outcome requires broker verification")
         raise
 
+def refresh_paused_account(client, account_hash, last_checked,
+                           prior_verified=True, interval=60):
+    """Read-only Schwab account snapshot while order permission is paused.
+
+    A missing market candle or unavailable account never enables an order.
+    The broker account refresh is separate from the strategy scan and does
+    not mutate the trade journal, reconcile or send order requests.
+    """
+    now=time.monotonic()
+    if last_checked and now-last_checked<interval:
+        # Do not turn an earlier failed refresh into an apparently verified
+        # broker snapshot merely because the 60-second throttle is active.
+        return last_checked,prior_verified
+    try:
+        get_snapshot(client,account_hash)
+        return now,True
+    except Exception as exc:
+        # A monitoring failure must be visible, never silently marked verified.
+        print("Schwab paused read-only account refresh unavailable: "+
+              type(exc).__name__,file=sys.stderr,flush=True)
+        return now,False
+
+
 def no_ambiguous_order_intent(ledger):
     """Network retries are safe only before any unresolved broker order intent.
 
@@ -689,15 +729,20 @@ def main():
             print("No order submission in --check mode.")
             return
         ledger=OrderLedger.open(JOURNAL)
+        last_paused_refresh=0.0
+        broker_snapshot_verified=True
         while True:
             try:
                 mode=operator_mode()
-                write_heartbeat(activated,mode)
                 if mode=="running":
+                    write_heartbeat(activated,mode)
                     attempt(client,account_hash,ledger,datetime.now(timezone.utc),
                             submit=activated)
                 else:
-                    print("Trading permission paused in authenticated dashboard; no new orders.")
+                    last_paused_refresh,broker_snapshot_verified=refresh_paused_account(
+                        client,account_hash,last_paused_refresh,broker_snapshot_verified)
+                    write_heartbeat(activated and broker_snapshot_verified,mode)
+                    print("Trading permission paused; read-only Schwab account monitoring enabled.")
             except (httpx.ConnectError,httpx.ConnectTimeout) as exc:
                 if not args.run or not no_ambiguous_order_intent(ledger):
                     raise LiveBlocked("Schwab network failure with unresolved order intent; "
@@ -719,7 +764,10 @@ def main():
             for _ in range(30):
                 time.sleep(10)
                 next_mode=operator_mode()
-                write_heartbeat(activated,next_mode)
+                if next_mode=="paused":
+                    last_paused_refresh,broker_snapshot_verified=refresh_paused_account(
+                        client,account_hash,last_paused_refresh,broker_snapshot_verified)
+                write_heartbeat(activated and broker_snapshot_verified,next_mode)
                 if next_mode!=mode:
                     break
 

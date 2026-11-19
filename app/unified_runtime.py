@@ -117,6 +117,7 @@ def main():
              DASHBOARD_BIND="0.0.0.0",DASHBOARD_PORT="8765")
     spawn("dashboard",["/app/dashboard_server.py"],env)
     live_started_signature=None
+    live_stop_logged=False
     paper_last_spawn=0.0
     webull_last_spawn=0.0
     webull_feed_last_spawn=0.0
@@ -186,11 +187,17 @@ def main():
                                       LIVE_ACCOUNT_HASH=cfg["live_account_hash"])
                         spawn("live",["/app/live_worker.py","--account","schwab","--run"],live_env)
                         live_started_signature=str(cfg["live_account_hash"])
+                        live_stop_logged=False
                     elif CHILDREN.get("live") and CHILDREN["live"].poll() is not None:
-                        # Never auto-restart a dead broker worker after an exception.
-                        print("Live worker stopped; operator review required.",flush=True)
+                        # A failed real-money worker must NOT restart by itself.
+                        # Log once per failure instead of flooding the host log
+                        # every four seconds while it awaits operator review.
+                        if not live_stop_logged:
+                            print("Live worker stopped; operator review required.",flush=True)
+                            live_stop_logged=True
                 else:
                     stop_process("live");live_started_signature=None
+                    live_stop_logged=False
             except (OSError,ValueError,TypeError,KeyError) as exc:
                 print("Invalid stored app settings; optional workers stopped.",flush=True)
                 for name in ("paper","market","live"):stop_process(name)

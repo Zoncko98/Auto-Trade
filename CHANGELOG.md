@@ -1,3 +1,13 @@
+## v1.2.3 — Schwab stale-market-data recovery and live account monitoring (2026-11-19)
+
+- Prevent a temporary missing or stale five-minute candle for any existing Schwab holding from killing the live worker. If any held position's completed candles are unavailable, block ALL orders in that cycle and write a decision reason; retry on the normal scan schedule.
+- Keep broker authentication, order journal reconciliation, market hours, risk limits, exposure, and duplicate-order prevention untouched.
+- Refresh Schwab's authenticated account/positions/equity snapshot every 60 seconds while operator order permission is paused, without submitting or reconciling orders in the paused path.
+- Report a paused but online Schwab monitor accurately on the account readiness panel and workspace tile.
+- Keep the supervisor's explicit no-auto-restart rule for other stopped real-money workers, logging the stop once instead of flooding logs every four seconds.
+- Add tests for stale held-asset market data, fail-closed execution, paused-only refresh cadence, and accurate UI status.
+- Operator authorization will be placed in the paused state before production restart for read-only verification. Re-arming requires a deliberate Start action in the dashboard.
+
 ## v1.2.2 — Webull quota and Robinhood order-history recovery (2026-11-19)
 
 - Handle Webull SDK HTTP 429 in dashboard authorization and portfolio API with an actionable 503 response instead of a connection-aborting 502.
