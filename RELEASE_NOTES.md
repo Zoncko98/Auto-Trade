@@ -1,3 +1,11 @@
+## v1.3.0 — V2 experimental foundation, V1 remains the production trading engine
+
+V2 2.0.0-alpha.1 introduces canonical shared trading models, transactional order events, separate stock/crypto strategy controllers and simulated-only execution. This is the first milestone of the V2 architecture and does NOT constitute a live-trading cutover.
+
+The new collapsed V2 foundation panel in existing Trading operations reads an authenticated GET status endpoint. The V2 feature flag defaults off; AUTO_TRADER_V2_LIVE cannot enable live brokerage orders in this release. Legacy V1 live brokers and account permissions remain the same.
+
+Outstanding: source-specific market feeds and live adapters, shared AI policy service, historical replay analytics, identical V2 account pages, full shadow comparison and account-by-account live cutover. No new live broker fills or V2 trading profitability are claimed.
+
 ## v1.2.5 — Restore monitoring after safe worker errors
 
 Schwab no longer remains inactive forever after an ordinary pre-order data failure. When no previous order is ambiguous, the worker keeps monitoring and a crashed subprocess can restart with bounded backoff, re-running all broker and order checks. Unresolved or replaced orders, halted journals, missing history and repeated failures continue to block autonomous recovery.

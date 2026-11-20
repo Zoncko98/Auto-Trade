@@ -336,6 +336,7 @@ class Handler(BaseHTTPRequestHandler):
             "/ui-audit.js": ("ui-audit.js", "text/javascript; charset=utf-8"),
             "/unified.js": ("unified.js", "text/javascript; charset=utf-8"),
             "/mobile-ux.js": ("mobile-ux.js", "text/javascript; charset=utf-8"),
+            "/v2-status.js": ("v2-status.js", "text/javascript; charset=utf-8"),
             "/local.js": ("local.js", "text/javascript; charset=utf-8"),
             "/forecast.js": ("forecast.js", "text/javascript; charset=utf-8"),
             "/brokers.js": ("brokers.js","text/javascript; charset=utf-8"),
@@ -370,6 +371,13 @@ class Handler(BaseHTTPRequestHandler):
         if not nonce:
             return self._json(401, {"error": "Sign in required"})
         try:
+            if UNIFIED_APP and path == "/api/v2/status":
+                # Authenticated, read-only, no V2 live-order endpoints.
+                from trader_v2.status import summary as v2_summary
+                try:
+                    return self._json(200,v2_summary(STATE_DIR))
+                except (OSError,ValueError,TypeError):
+                    return self._json(503,{"error":"V2 foundation status unavailable"})
             if UNIFIED_APP and path == "/api/ai/readiness":
                 cfg=integration_settings(STATE_DIR)
                 model=effective_selected_model(cfg,STATE_DIR)

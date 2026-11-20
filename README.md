@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **Feature source (November 19, 2026):** this branch declares **v1.2.5**, adding a compact four-trader mobile workstation and a read-only Robinhood USDC valuation fallback. This is a source/release milestone, not evidence of live broker fills. The TrueNAS container version must be verified separately after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **Feature source (November 19, 2026):** this branch declares **v1.3.0**, adding a compact four-trader mobile workstation and a read-only Robinhood USDC valuation fallback. This is a source/release milestone, not evidence of live broker fills. The TrueNAS container version must be verified separately after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

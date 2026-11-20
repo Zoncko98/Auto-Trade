@@ -16,6 +16,7 @@
 <script defer src="/ui-audit.js"></script>
 <script defer src="/unified.js"></script>
 <script defer src="/mobile-ux.js"></script>
+<script defer src="/v2-status.js"></script>
 </head>
 <body>
 <div id="login-screen" class="login-screen">
@@ -155,6 +156,12 @@
           <select id="ops-decision-select" class="ops-select"><option value="">No evidence loaded</option></select>
           <div id="ops-decision-detail" class="ops-records">Choose a decision.</div>
           <button class="btn secondary" type="button" data-view="robinhood-decisions">Open full Robinhood decision history</button></section>
+        <details class="panel" id="v2-foundation-card" style="padding:16px;margin-top:12px">
+          <summary><strong>Auto Trader V2 foundation (experimental)</strong></summary>
+          <p class="muted">Shared data models, durable event journal and simulated execution. No V2 live-broker order authority.</p>
+          <p id="v2-foundation-status" role="status">Open Trading operations to load the authenticated V2 feature status.</p>
+          <button id="v2-status-refresh" class="btn secondary tiny" type="button">Refresh V2 status</button>
+        </details>
       </section>
       <section class="view" id="view-workspaces">
         <div class="workspace-hero">

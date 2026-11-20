@@ -1,3 +1,13 @@
+## v1.3.0 — V2 Phase 1 paper-only foundation (2026-11-20)
+
+- Implemented experimental V2 core with typed canonical accounts, capabilities, market snapshots, normalized candles, candidates, AI reviews, risk decisions and durable order intents.
+- Added private V2 SQLite journal with WAL, synchronous FULL writes, transactional append-only events, idempotency fingerprints, validated transitions and UNKNOWN_REQUIRES_RECONCILIATION.
+- Added separate deterministic stock and crypto controllers, and a shared risk service that evaluates risk-reducing exits independently of entry-count/loss limits.
+- Added persistent simulated broker for whole-share/fractional virtual fills, cash, positions, fees, slippage and broker-side idempotent lookup. V2 paper pipeline requires SimulatedBroker and cannot invoke real brokers.
+- Added reproducible synthetic smoke demo, 32 Python regression tests (including authenticated status API), and browser UI checks.
+- Added signed-in read-only V2 status API and collapsed foundation details under existing Trading operations. AUTO_TRADER_V2_ENABLED defaults to false; no V2 live-broker order authority exists.
+- Original Schwab, Webull, Robinhood and paper V1 workers, credentials, risk policies and journals are unchanged. No live trades submitted to validate V2.
+
 ## v1.2.5 — Recoverable Schwab worker lifecycle and truthful readiness (2026-11-20)
 
 - Diagnosed running TrueNAS v1.2.4 deployment without resetting data. Schwab live worker heartbeat and account snapshot were stale for approximately 23 hours, though all 19 journal orders were terminal and operator order permission remained running.
