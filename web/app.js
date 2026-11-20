@@ -723,11 +723,13 @@ async function loadRobinhoodDecisionEvidence(){
   const data=await request("/api/robinhood/status");
   const effective=robinhoodEffective(data);
   const lastWorkerState=String(data.worker?.execution_status||"");
-  const workerBlocked=/^(NOT_ARMED|BLOCKED|RECONCILIATION_PENDING)/.test(lastWorkerState);
+  const workerBlocked=/^(BLOCKED|RECONCILIATION_PENDING|BROKER_HISTORY_UNAVAILABLE)/.test(lastWorkerState);
+  const noSignal=data.policy_enabled===true&&lastWorkerState==="NOT_ARMED";
   $("rh-decision-status").textContent=effective.label+" · "+effective.detail+
     (data.policy_enabled===true&&workerBlocked?
        " · Last worker order state: "+(window.AutoTraderAudit?.statusText(lastWorkerState)||lastWorkerState)+
-       ". Armed policy does not override this block.":"");
+       ". Armed policy does not override this block.":"")+
+    (noSignal?" · Broker policy is armed; no entry passed every signal, fee and AI gate this scan.":"");
   $("rh-ai-connectivity").textContent="Latest recorded AI gate: "+
     (window.AutoTraderAudit?.statusText(data.worker?.ai_review_status||"not evaluated")||"not evaluated")+
     ". Model availability is shown only in the global top bar; this is historical trade evidence.";
@@ -1052,7 +1054,8 @@ async function loadRobinhoodWorkspace(){
       }
     }
     if(executionEl)executionEl.textContent=effective.detail+
-      " · Worker status: "+(worker.execution_status||"unavailable")+
+      " · Worker status: "+(worker.execution_status==="NOT_ARMED"&&result.policy_enabled===true?
+        "ARMED_WAITING_QUALIFIED_SIGNAL":worker.execution_status||"unavailable")+
       " · Risk: "+(worker.risk_check||"unavailable")+
       " · Bot positions: "+(worker.bot_open_positions??"unavailable")+
       " · Daily realized P/L: "+(worker.daily_realized_pnl_usd==null?"unavailable":money(Number(worker.daily_realized_pnl_usd)))+
@@ -1692,8 +1695,14 @@ async function loadWebullTrader(){
   }
   const readiness=worker.stock_buy_readiness||{};
   if($("webull-entry-readiness"))
-    $("webull-entry-readiness").textContent=worker.execution_reason||
-      (policy.enabled===true?"No new orders; inspect recent candidates":"Webull disarmed");
+    $("webull-entry-readiness").textContent=policy.enabled!==true?
+      "Live trading disabled in saved Webull policy; "+
+      (worker.stock_buy_readiness?.status==="EXPOSURE_OR_CASH_BUDGET_EXHAUSTED"?
+       "stock account also has $0 permitted cash/exposure headroom":
+       "scanner remains read-only"):
+      worker.stock_buy_readiness?.status==="EXPOSURE_OR_CASH_BUDGET_EXHAUSTED"?
+       "Armed but stock cash/exposure headroom is $0; broker orders remain blocked":
+      worker.execution_reason||"No new orders; inspect recent candidates";
   if($("webull-stock-headroom"))
     $("webull-stock-headroom").textContent=readiness.max_new_stock_usd!=null?
       money(Number(readiness.max_new_stock_usd)):readiness.status||"Unavailable";

@@ -32,3 +32,12 @@ test("Worker publishes fail-closed preflight status after an eligible safe block
  assert.match(src,/"state":"PRE_ORDER_BLOCKED"/);
  assert.match(src,/and not cycle_blocked,next_mode/);
 });
+
+test("Webull and Robinhood display true reasons for no orders",()=>{
+ const app=read("web/app.js");
+ const audit=read("web/ui-audit.js");
+ assert.match(app,/ARMED_WAITING_QUALIFIED_SIGNAL/);
+ assert.match(app,/stock account also has \$0 permitted cash\/exposure headroom/);
+ assert.match(app,/Broker policy is armed; no entry passed every signal, fee and AI gate/);
+ assert.match(audit,/Policy armed · no qualified signal or approved entry this scan/);
+});

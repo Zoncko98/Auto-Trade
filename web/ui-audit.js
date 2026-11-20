@@ -222,12 +222,14 @@
    const blocked=String(worker.execution_status||"").startsWith("BLOCKED")||
      (Number.isInteger(unresolved)&&unresolved>0);
    const reason=String(worker.execution_reason||worker.risk_check||"").slice(0,180);
+   const waitingSignal=result?.policy_enabled===true&&worker.execution_status==="NOT_ARMED";
    setStatus("robinhood",{
      at,
      connection:{text:connected?"Authenticated Crypto account":"Broker account unverified",state:connected?"good":"bad"},
      scanner:{text:fresh?"Scanner reporting · "+(worker.quotes_checked??"—")+" quotes":"Scanner stale or unverified",state:fresh?"good":"bad"},
      permission:{text:effective?.armed?"Policy armed; other gates apply":"Not armed / restricted",state:effective?.armed?"warn":"bad"},
      block:{text:blocked?"Order/risk block · "+statusText(reason||worker.execution_status):
+       waitingSignal?"Policy armed · no qualified signal or approved entry this scan":
        "No open intent reported; signal and risk still required",state:blocked?"bad":"warn"},
      fill:{text:worker.last_order_confirmed===true?
        "Bot fill reported; see order evidence (time unavailable)":
