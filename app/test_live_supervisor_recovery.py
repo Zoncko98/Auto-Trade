@@ -1,5 +1,5 @@
 """Schwab fail-closed restart and recovery tests; no broker or live orders."""
-import json,os,stat,sys,tempfile,unittest
+import json,os,stat,sys,tempfile,unittest,types
 from pathlib import Path
 from unittest.mock import patch,MagicMock
 import live_worker,unified_runtime
@@ -38,7 +38,14 @@ class SafeLiveRestart(unittest.TestCase):
 class RecoverableBlock(unittest.TestCase):
  class StopScan(Exception):pass
  def invoke(self,journal):
-  with tempfile.TemporaryDirectory() as t,patch.object(live_worker,"STATE_DIR",Path(t)),patch.object(
+  # The unified image installs httpx for real Schwab calls; the minimal CI
+  # suite deliberately does not. Mock only the transport exception types
+  # because this synthetic test makes no Schwab network requests.
+  fake_httpx=types.ModuleType("httpx")
+  fake_httpx.ConnectError=OSError
+  fake_httpx.ConnectTimeout=TimeoutError
+  with tempfile.TemporaryDirectory() as t,patch.dict(
+       sys.modules,{"httpx":fake_httpx}),patch.object(live_worker,"STATE_DIR",Path(t)),patch.object(
        live_worker,"JOURNAL",Path(t)/"orders.json"),patch.dict(os.environ,
        {"LIVE_MODE":"AUTONOMOUS","LIVE_TRADING":"true","LIVE_ACCOUNT_HASH":"demo"}),patch.object(
        sys,"argv",["live_worker","--run"]),patch.object(live_worker,"broker",return_value=MagicMock()),patch.object(
