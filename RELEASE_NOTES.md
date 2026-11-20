@@ -1,3 +1,9 @@
+## v1.3.1 — V2 Phase 2 read-only data adapters
+
+The shared V2 core now has read-only broker/account observations for the existing Schwab, Webull, Robinhood and Paper accounts, source-specific quotes, and a cached data provider. The existing Trading operations panel displays freshness, broker permission and account-value coverage without inventing missing numbers.
+
+V2 engine 2.0.0-alpha.2 remains disabled by default and has no live-order write API. It does not start a second live worker or alter existing risk limits. Full source-specific live SDK probes, shared AI, historical profitability replay and live broker cutover remain outstanding.
+
 ## v1.3.0 — V2 experimental foundation, V1 remains the production trading engine
 
 V2 2.0.0-alpha.1 introduces canonical shared trading models, transactional order events, separate stock/crypto strategy controllers and simulated-only execution. This is the first milestone of the V2 architecture and does NOT constitute a live-trading cutover.

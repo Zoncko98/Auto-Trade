@@ -3,19 +3,30 @@ from __future__ import annotations
 from pathlib import Path
 import os,sqlite3
 from .models import OrderState,TERMINAL
+from .readonly_adapters import ReadOnlyBrokerRegistry
+from .market_sources import cached_market_status
 
 def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.1","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.2","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
-            "stage":"PHASE_1_FOUNDATION",
+            "stage":"PHASE_2_READ_ONLY_BROKER_AND_MARKET_DATA",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
-            "missing_components":["LIVE_BROKER_ADAPTERS","AI_SERVICE",
-                "HISTORICAL_REPLAY_VALIDATION","V2_ACCOUNT_DASHBOARD","LIVE_CUTOVER"]}
+            "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","SHARED_AI_SERVICE",
+                "HISTORICAL_REPLAY_VALIDATION","V2_ACCOUNT_TEMPLATE","LIVE_CUTOVER"]}
+    try:
+        # Always read-only; status never refreshes broker OAuth or sends SDK calls.
+        status["broker_adapters"]=[
+            row.public() for row in ReadOnlyBrokerRegistry(state_dir).inspect_all()]
+        status["market_sources"]=cached_market_status(state_dir)
+    except (ValueError,TypeError,OSError):
+        status["broker_adapters"]=[]
+        status["market_sources"]={}
+        status["adapters_error"]="READ_ONLY_OBSERVATIONS_UNAVAILABLE"
     if not enabled():return status
     path=Path(state_dir)/"v2"/"events.sqlite3"
     if not path.is_file():return status

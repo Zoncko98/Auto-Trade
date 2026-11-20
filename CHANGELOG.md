@@ -1,3 +1,13 @@
+## v1.3.1 — V2 Phase 2 read-only broker and market normalization (2026-11-20)
+
+- Implemented source-specific owner-only read-only account adapters for Schwab, Webull, Robinhood Crypto and Paper; consistent auth, heartbeat, permission, provenance and reason codes.
+- Reject stale observations, rotated Webull credentials, wrong account selections, invalid balances, oversized or world-readable files, and symlinked private state. Align Schwab online readiness with its 120-second worker heartbeat.
+- Robinhood buying power is separate from cash/equity; Webull exposes real cash/exposure budget. Unknown values are not interpreted as zero.
+- Implemented read-only Schwab, Webull, Robinhood and Coinbase quote parsers requiring actual exchange timestamp, valid bid/ask and freshness. Coinbase midpoint never substitutes for an executable last trade.
+- Implemented completed-candle replay parser and cached MarketDataProvider protocol adapter. Sources make no extra broker SDK calls; market session and execution authority remain disabled.
+- Added authenticated Phase 2 broker/source status to the existing Trading operations panel, without adding another account dashboard or order controls.
+- Expanded Python market/provider and account contract tests and JavaScript UI tests. V1 broker workers, policies, journals and accounts are unchanged. V2 remains paper-only and disabled by default.
+
 ## v1.3.0 — V2 Phase 1 paper-only foundation (2026-11-20)
 
 - Implemented experimental V2 core with typed canonical accounts, capabilities, market snapshots, normalized candles, candidates, AI reviews, risk decisions and durable order intents.

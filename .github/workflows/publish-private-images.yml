@@ -62,6 +62,7 @@ jobs:
           node tests/test_worker_recovery_ui_nov20.cjs
           node --check web/v2-status.js
           node tests/test_v2_foundation_ui.cjs
+          node tests/test_v2_phase2_ui.cjs
           node --check web/setup.js
           node tests/test_setup_pages.cjs
           node tests/test_workspace_balances.cjs
