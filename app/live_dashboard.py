@@ -125,9 +125,13 @@ def set_operator_mode(state_dir, mode, atomic_writer):
 def live_state(state_dir):
     root=Path(state_dir)/"live"
     heartbeat=_load(root/"worker_heartbeat.json",{})
+    supervisor=_load(root/"supervisor_status.json",{})
+    scan_health=_load(root/"scan_health.json",{})
     snapshot=_load(root/"account_snapshot.json",{})
     journal=_load(root/"orders.json",{})
     if not isinstance(heartbeat,dict): heartbeat={}
+    if not isinstance(supervisor,dict): supervisor={}
+    if not isinstance(scan_health,dict): scan_health={}
     if not isinstance(snapshot,dict): snapshot={}
     if not isinstance(journal,dict): journal={}
     orders=journal.get("orders",[])
@@ -161,6 +165,17 @@ def live_state(state_dir):
     return {
         "worker_online":online,
         "heartbeat_age_sec":age,
+        "last_scan_health":{
+            "state":str(scan_health.get("state","UNKNOWN"))[:30],
+            "reason":str(scan_health.get("reason",""))[:160],
+            "at":str(scan_health.get("at",""))[:45],
+        },
+        "worker_supervisor":{
+            "state":str(supervisor.get("state","UNKNOWN"))[:45],
+            "reason":str(supervisor.get("reason",""))[:90],
+            "recovery_attempts_last_hour":supervisor.get("recovery_attempts_last_hour",0),
+            "last_exit_code":supervisor.get("last_exit_code"),
+        },
         "armed":armed,
         "order_permission":operator_mode(state_dir),
         "last_model":str(heartbeat.get("model",""))[:96] if online else "",

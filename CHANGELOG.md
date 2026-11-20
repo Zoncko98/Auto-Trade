@@ -1,3 +1,13 @@
+## v1.2.5 — Recoverable Schwab worker lifecycle and truthful readiness (2026-11-20)
+
+- Diagnosed running TrueNAS v1.2.4 deployment without resetting data. Schwab live worker heartbeat and account snapshot were stale for approximately 23 hours, though all 19 journal orders were terminal and operator order permission remained running.
+- A Schwab pre-order LiveBlocked condition now records a blocked, unarmed heartbeat and explanatory scan-health record and retries on the normal five-minute scan schedule, only when the existing journal is complete and unhalted.
+- A stopped Schwab subprocess may relaunch after a bounded 120-second backoff only when an explicitly enabled account has an unhalted order journal with no unresolved or replaced orders. At most three such restarts per hour; other states demand reconciliation or operator review.
+- Journal fsync-before-POST, broker reconciliation, authentication, risk controls, AI gates, account cash, order minimums and duplicate-order prevention remain unchanged. No test order is submitted.
+- Supervisor lifecycle and scan-block reasons are visible in authenticated Schwab dashboard; status files are atomic and owner-only.
+- Preserved Robinhood risk/fee filters and Webull user-controlled disarmed policy; no automatic broker reauthorization or forcing of trades.
+- Added tests covering transient scan errors, ambiguous order refusal, restart budget, status persistence and UI readiness.
+
 ## v1.2.4 — Owner-controlled Schwab risk ceilings (2026-11-19)
 
 - Made Schwab live strategy capital an explicit user-editable amount rather than an immutable $100 ceiling, while limiting usable strategy capital to the lower of saved capital and broker-verified account equity.

@@ -742,12 +742,17 @@ def main():
         last_paused_refresh=0.0
         broker_snapshot_verified=True
         while True:
+            cycle_blocked=False
             try:
                 mode=operator_mode()
                 if mode=="running":
                     write_heartbeat(activated,mode)
                     attempt(client,account_hash,ledger,datetime.now(timezone.utc),
                             submit=activated)
+                    broker_snapshot_verified=True
+                    write_private_json(STATE_DIR/"scan_health.json",{
+                        "at":datetime.now(timezone.utc).isoformat(),
+                        "state":"MONITORING","reason":"Last scan completed without a fatal error"})
                 else:
                     last_paused_refresh,broker_snapshot_verified=refresh_paused_account(
                         client,account_hash,last_paused_refresh,broker_snapshot_verified)
@@ -762,11 +767,24 @@ def main():
                 wait_for_schwab_network_recovery()
                 continue
             except LiveBlocked as exc:
-                print(f"BLOCKED: {exc}",file=sys.stderr)
-                if args.run:
-                    # Never spin while an unresolved order or bad broker state persists.
+                print(f"BLOCKED: {exc}",file=sys.stderr,flush=True)
+                if not args.run:
+                    return 2
+                # A blocked scan is NOT permission to send an order. Recovery
+                # is safe only if every previous order is terminal and the
+                # journal is unhalted. A failed broker POST, unresolved order,
+                # or ambiguous fill still stops this worker for manual review.
+                if not no_ambiguous_order_intent(ledger):
                     raise
-                return 2
+                cycle_blocked=True
+                broker_snapshot_verified=False
+                write_private_json(STATE_DIR/"scan_health.json",{
+                    "at":datetime.now(timezone.utc).isoformat(),
+                    "state":"PRE_ORDER_BLOCKED","reason":str(exc)[:160]})
+                write_heartbeat(False,operator_mode())
+                print("Recoverable Schwab pre-order block; monitoring will retry "
+                      "on the next normal scan without submitting an order.",
+                      file=sys.stderr,flush=True)
             if not args.run:
                 return
             # Refresh heartbeat every 10 seconds, scan at most every 5 minutes.
@@ -777,7 +795,8 @@ def main():
                 if next_mode=="paused":
                     last_paused_refresh,broker_snapshot_verified=refresh_paused_account(
                         client,account_hash,last_paused_refresh,broker_snapshot_verified)
-                write_heartbeat(activated and broker_snapshot_verified,next_mode)
+                write_heartbeat(activated and broker_snapshot_verified
+                                and not cycle_blocked,next_mode)
                 if next_mode!=mode:
                     break
 

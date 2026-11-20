@@ -157,7 +157,18 @@
      connection:{text:fresh?"Broker snapshot current":"Broker snapshot stale/unverified",state:fresh?"good":"bad"},
      scanner:{text:data?.worker_online?
        (data?.order_permission==="paused"?"Order scan paused · account monitoring online":
-        "Worker reporting; last scan requires decision evidence"):"Not reporting",
+        data?.last_scan_health?.state==="PRE_ORDER_BLOCKED"&&
+        ageFresh(data?.last_scan_health?.at,1200000)?
+        "Pre-order blocked: "+String(data.last_scan_health.reason||"Check status").slice(0,130):
+        "Worker reporting; last scan requires decision evidence"):
+       data?.worker_supervisor?.state==="RECONCILIATION_REQUIRED"?
+       "Worker stopped · broker-order reconciliation required":
+       data?.worker_supervisor?.state==="RETRY_BACKOFF"?
+       "Worker stopped · safe recovery waiting for backoff":
+       data?.worker_supervisor?.state==="RECOVERING"?
+       "Schwab worker restarting · broker checks in progress":
+       data?.worker_supervisor?.state==="MANUAL_REVIEW_REQUIRED"?
+       "Worker stopped · repeated failures require review":"Worker not reporting",
        state:data?.worker_online?"good":"bad"},
      permission:{text:running?"Running (cash only)":halted?"Halted":armed?"Paused":"Not armed",state:running?"good":"warn"},
      block:{text:halted?"Reconciliation halt":locked?"Unresolved order state — review":"No unresolved journal orders; other gates apply",state:halted||locked?"bad":"warn"},

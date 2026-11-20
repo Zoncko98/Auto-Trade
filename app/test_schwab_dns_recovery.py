@@ -74,8 +74,8 @@ class SchwabDnsRecoveryTests(unittest.TestCase):
 
     def test_dns_failure_before_order_retries_after_heartbeat_backoff(self):
         mocks=self.run_worker_mock("--run",attempt_effect=[
-            FakeConnectError("DNS temporary failure"),LiveBlocked("test stop after retry")])
-        with self.assertRaisesRegex(LiveBlocked,"test stop after retry"):
+            FakeConnectError("DNS temporary failure"),ValueError("test stop after retry")])
+        with self.assertRaisesRegex(ValueError,"test stop after retry"):
             live_worker.main()
         self.assertEqual(mocks["attempt"].call_count,2)
         self.assertEqual(mocks["sleep"].call_count,6)
@@ -102,8 +102,8 @@ class SchwabDnsRecoveryTests(unittest.TestCase):
     def test_account_verification_connect_error_retries_without_orders(self):
         mocks=self.run_worker_mock("--run",
             confirm_effect=[FakeConnectTimeout("DNS"),None],
-            attempt_effect=LiveBlocked("test exit before any order"))
-        with self.assertRaisesRegex(LiveBlocked,"test exit before any order"):
+            attempt_effect=ValueError("test exit before any order"))
+        with self.assertRaisesRegex(ValueError,"test exit before any order"):
             live_worker.main()
         self.assertEqual(mocks["confirm"].call_count,2)
         self.assertEqual(mocks["attempt"].call_count,1)

@@ -16,8 +16,10 @@ test("Schwab held-market candle gaps block orders without halting heartbeat loop
  assert.match(src,/HELD_CANDLES_UNAVAILABLE/);
  assert.match(src,/if unavailable_held:[\s\S]*?return/);
  assert.match(src,/refresh_paused_account\(/);
- assert.match(src,/write_heartbeat\(activated and broker_snapshot_verified,next_mode\)/);
+ assert.match(src,/write_heartbeat\(activated and broker_snapshot_verified[\s\S]*?and not cycle_blocked,next_mode\)/);
  const supervisor=read("app/unified_runtime.py");
- assert.match(supervisor,/Live worker stopped; operator review required/);
+ assert.match(supervisor,/live_journal_safe_for_restart/);
+ assert.match(supervisor,/RECONCILIATION_REQUIRED/);
+ assert.match(supervisor,/RESTART_BUDGET_EXHAUSTED/);
  assert.match(supervisor,/if not live_stop_logged/);
 });

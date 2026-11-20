@@ -21,14 +21,21 @@ function renderLiveView(data) {
   const paused=data.order_permission !== "running";
   const active=armed && !paused && !data.journal_halted;
   const heartbeat=data.heartbeat_age_sec;
-  $("live-worker-mode").textContent=!armed?"Not armed":data.journal_halted?"Halted":paused?"Paused":"Running";
+  const workerState=data.worker_supervisor?.state||"UNKNOWN";
+  $("live-worker-mode").textContent=!data.worker_online?
+    (workerState==="RECOVERING"||workerState==="RETRY_BACKOFF"?"Recovering":
+     workerState==="RECONCILIATION_REQUIRED"?"Reconciliation required":
+     workerState==="MANUAL_REVIEW_REQUIRED"?"Manual review required":"Offline"):
+    !armed?"Not armed":data.journal_halted?"Halted":paused?"Paused":"Running";
   $("live-worker-mode").className="mode-tag "+(active?"running":paused?"paused":"stopped");
   $("live-execution-pill").textContent=active?"LIVE · AUTOMATED":armed?"WORKER ACTIVE · PAUSED":"NOT ARMED";
   $("live-mode-banner").textContent=active?"LIVE · CASH ONLY":"LIVE ORDERS OFF";
   $("live-resume-btn").disabled=!armed||active||data.journal_halted;
   $("live-pause-btn").disabled=!armed||paused;
   $("live-order-permission").textContent=present(data.order_permission);
-  $("live-heartbeat").textContent=heartbeat===null?"No heartbeat":heartbeat+" seconds ago";
+  $("live-heartbeat").textContent=(heartbeat===null?"No heartbeat":heartbeat+" seconds ago")+
+    (!data.worker_online&&data.worker_supervisor?.reason?
+      " · "+String(data.worker_supervisor.reason).replaceAll("_"," ").slice(0,75):"");
 
   const a=data.account||{};
   const hasSnapshot=Boolean(a.at);

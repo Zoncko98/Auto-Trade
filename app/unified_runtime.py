@@ -6,7 +6,7 @@ Live execution requires a separate explicit live permission, a broker token,
 and its existing broker preflight/order safeguards.
 """
 from __future__ import annotations
-import os, secrets, signal, subprocess, sys, time
+import json, os, secrets, signal, subprocess, sys, tempfile, time
 from pathlib import Path
 from unified_config import pairing_code, settings,credentials,configured
 
@@ -37,6 +37,55 @@ def certificate():
         os.chmod(key,0o600)
     if key.stat().st_mode & 0o077:raise RuntimeError("Unsafe TLS private-key permissions")
     return cert,key
+
+# Replacements may have a new working broker order outside the old journal.
+_LIVE_TERMINAL = frozenset({"FILLED","CANCELED","REJECTED","EXPIRED"})
+
+def live_journal_safe_for_restart(state_dir):
+    """Never restart an autonomous live worker with an ambiguous broker order."""
+    path=Path(state_dir)/"live"/"orders.json"
+    try:
+        if not path.is_file() or path.stat().st_size>4_000_000:
+            return False,"JOURNAL_MISSING_OR_OVERSIZE"
+        doc=json.loads(path.read_text(encoding="utf-8"))
+        if (not isinstance(doc,dict) or doc.get("version")!=1
+                or doc.get("halted") is not False):
+            return False,"JOURNAL_INVALID_OR_HALTED"
+        orders=doc.get("orders")
+        if (not isinstance(orders,list) or
+                any(not isinstance(o,dict) or o.get("state") not in _LIVE_TERMINAL
+                    for o in orders)):
+            return False,"BROKER_ORDER_RECONCILIATION_REQUIRED"
+        return True,"ALL_BROKER_ORDERS_TERMINAL"
+    except (OSError,ValueError,TypeError):
+        return False,"JOURNAL_UNVERIFIED"
+
+def live_supervisor_event(state,reason,attempts=0,exit_code=None):
+    """Atomic owner-only, nonsecret health evidence for the Schwab dashboard."""
+    path=STATE/"live"/"supervisor_status.json"
+    path.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+    payload={"version":1,"state":str(state)[:45],
+             "reason":str(reason)[:90],"recovery_attempts_last_hour":attempts,
+             "last_exit_code":exit_code if type(exit_code) is int else None,
+             "at":time.time()}
+    # The supervisor loops every four seconds. Avoid repeatedly fsyncing
+    # identical health records when a broker outage lasts for hours.
+    try:
+        previous=json.loads(path.read_text(encoding="utf-8"))
+        if all(previous.get(k)==payload.get(k) for k in
+               ("state","reason","recovery_attempts_last_hour","last_exit_code")):
+            return
+    except (OSError,ValueError,TypeError):
+        pass
+    raw=json.dumps(payload,separators=(",",":"),allow_nan=False).encode()
+    fd,temp=tempfile.mkstemp(prefix=".supervisor-",dir=path.parent)
+    try:
+        with os.fdopen(fd,"wb") as out:
+            os.fchmod(out.fileno(),0o600)
+            out.write(raw);out.flush();os.fsync(out.fileno())
+        os.replace(temp,path)
+    finally:
+        if os.path.exists(temp):os.unlink(temp)
 
 def stop_process(name):
     child=CHILDREN.pop(name,None)
@@ -118,6 +167,8 @@ def main():
     spawn("dashboard",["/app/dashboard_server.py"],env)
     live_started_signature=None
     live_stop_logged=False
+    live_last_spawn_at=0.0
+    live_recovery_attempts=[]
     paper_last_spawn=0.0
     webull_last_spawn=0.0
     webull_feed_last_spawn=0.0
@@ -188,16 +239,52 @@ def main():
                         spawn("live",["/app/live_worker.py","--account","schwab","--run"],live_env)
                         live_started_signature=str(cfg["live_account_hash"])
                         live_stop_logged=False
+                        live_last_spawn_at=time.monotonic()
+                        live_supervisor_event("STARTED","OPERATOR_AUTHORIZED")
                     elif CHILDREN.get("live") and CHILDREN["live"].poll() is not None:
-                        # A failed real-money worker must NOT restart by itself.
-                        # Log once per failure instead of flooding the host log
-                        # every four seconds while it awaits operator review.
+                        child=CHILDREN["live"]
+                        exit_code=child.poll()
                         if not live_stop_logged:
-                            print("Live worker stopped; operator review required.",flush=True)
+                            print("Schwab worker exited; evaluating broker-order journal "
+                                  "before any recovery.",flush=True)
+                            live_supervisor_event("EXITED","VERIFYING_JOURNAL",
+                                len(live_recovery_attempts),exit_code)
                             live_stop_logged=True
+                        safe,why=live_journal_safe_for_restart(STATE)
+                        now=time.monotonic()
+                        live_recovery_attempts=[t for t in live_recovery_attempts
+                                                if now-t<3600]
+                        if not safe:
+                            live_supervisor_event("RECONCILIATION_REQUIRED",why,
+                                len(live_recovery_attempts),exit_code)
+                        elif len(live_recovery_attempts)>=3:
+                            live_supervisor_event("MANUAL_REVIEW_REQUIRED",
+                                "RESTART_BUDGET_EXHAUSTED",len(live_recovery_attempts),exit_code)
+                        elif now-live_last_spawn_at>=120:
+                            # The operator's existing live approval remains
+                            # necessary. The worker will authenticate, reconcile
+                            # and recheck cash, candles, AI, risk and broker orders
+                            # before any submission. No unresolved order replay.
+                            live_env=dict(runtime_env,LIVE_TRADING="true",LIVE_MODE="AUTONOMOUS",
+                                          LIVE_ACCOUNT_HASH=cfg["live_account_hash"])
+                            live_recovery_attempts.append(now)
+                            live_supervisor_event("RECOVERING",why,
+                                len(live_recovery_attempts),exit_code)
+                            spawn("live",["/app/live_worker.py","--account","schwab","--run"],live_env)
+                            live_last_spawn_at=now
+                            live_stop_logged=False
+                        else:
+                            live_supervisor_event("RETRY_BACKOFF",why,
+                                len(live_recovery_attempts),exit_code)
+                    elif CHILDREN.get("live") and CHILDREN["live"].poll() is None:
+                        live_supervisor_event("RUNNING",
+                            "ORDER_GATE_CHECKS_APPLY",len(live_recovery_attempts))
                 else:
+                    if live_started_signature is not None:
+                        live_supervisor_event("DISABLED","USER_OR_CONFIGURATION_DISABLED")
                     stop_process("live");live_started_signature=None
                     live_stop_logged=False
+                    live_recovery_attempts=[]
             except (OSError,ValueError,TypeError,KeyError) as exc:
                 print("Invalid stored app settings; optional workers stopped.",flush=True)
                 for name in ("paper","market","live"):stop_process(name)

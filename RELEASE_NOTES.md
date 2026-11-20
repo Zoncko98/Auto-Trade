@@ -1,3 +1,9 @@
+## v1.2.5 — Restore monitoring after safe worker errors
+
+Schwab no longer remains inactive forever after an ordinary pre-order data failure. When no previous order is ambiguous, the worker keeps monitoring and a crashed subprocess can restart with bounded backoff, re-running all broker and order checks. Unresolved or replaced orders, halted journals, missing history and repeated failures continue to block autonomous recovery.
+
+Webull and Robinhood permissions and strategies are unchanged. Webull is disarmed in the latest production state; no source update automatically authorizes live trading. Robinhood continues scanning and declines entries that lack qualified signals. Paper AI/news settings are unchanged pending a controlled comparison.
+
 ## v1.2.4 — Schwab owner risk controls
 
 Schwab's Risk & Start tab now allows the owner to set strategy capital and all eight existing live risk controls. The old fixed $25/$100/three-position internal clamps no longer override the saved account-specific policy. New orders remain bounded by verified spendable cash, account equity, remaining allocated strategy capital, signal approval and all broker and journal safeguards. Increasing risk settings can cause larger losses or more orders; it does not guarantee more opportunities.
