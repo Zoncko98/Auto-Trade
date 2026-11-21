@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       if(!item||!Object.hasOwn(titles,item.broker))continue;
       const section=document.createElement("p");
       const risk=item.risk||{},journal=item.journal||{};
+      const envelope=item.risk_envelope||{};
       const limits=risk.limits||{};
       const values=Object.entries(limits).slice(0,7).map(([k,v])=>
         k.replaceAll("_"," ")+"="+String(v)).join(" · ");
@@ -37,7 +38,15 @@ document.addEventListener("DOMContentLoaded",()=>{
         (journal.unresolved==null?"":" · Local unresolved: "+Number(journal.unresolved))+
         " · Market: "+String(item.source_state||"UNVERIFIED")+
         " · V1 risk: "+String(risk.state||"UNVERIFIED")+
-        (values?" · Saved limits: "+values:"");
+        (values?" · Saved limits: "+values:"")+
+        " · Effective V1 risk budget preview: "+String(envelope.state||"NOT_VERIFIED")+
+        (envelope.requested_order_ceiling_usd==null?"":" · Requested order ceiling $"+
+          String(envelope.requested_order_ceiling_usd))+
+        (envelope.preliminary_budget_usd==null?"":" · Preliminary permitted new-entry budget $"+
+          String(envelope.preliminary_budget_usd))+
+        (envelope.buying_power_preliminary_ceiling_usd==null?"":" · Buying-power-only ceiling $"+
+          String(envelope.buying_power_preliminary_ceiling_usd))+
+        " · Does NOT authorize any V2 order";
       cutover.append(section);
     }
   }

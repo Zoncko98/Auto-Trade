@@ -9,6 +9,7 @@ from datetime import datetime,timezone
 from decimal import Decimal,InvalidOperation
 from pathlib import Path
 from .readonly_adapters import private_json
+from .risk_envelopes import envelope
 
 BROKERS=("schwab","webull","robinhood_crypto","paper")
 _TERMINAL=frozenset(("FILLED","CANCELED","REJECTED","EXPIRED","REPLACED"))
@@ -125,6 +126,7 @@ def preflight(state_dir,account_rows,market_sources):
                 "source_state":market_state,"v1_writer_active":False})
             continue
         risk=_limits(root,broker)
+        budget=envelope(root,broker,account)
         journal=(_schwab_journal(root) if broker=="schwab"
                  else _other_journal(root,broker))
         v1_writer_active=worker=="ONLINE"
@@ -154,7 +156,7 @@ def preflight(state_dir,account_rows,market_sources):
             "v1_permission_configured":account.get("permission_armed") is True,
             "source_state":market_state,
             "executable_quote_verified":False,
-            "risk":risk,"journal":journal,
+            "risk":risk,"risk_envelope":budget,"journal":journal,
             "requirements_remaining":[
                 "SOURCE_AND_SESSION_EXECUTABILITY",
                 "ACCOUNT_SPECIFIC_V2_RISK_MAPPING",

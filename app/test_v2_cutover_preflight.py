@@ -49,6 +49,8 @@ class CutoverTests(TestCase):
         self.assertEqual(r["journal"]["unresolved"],0)
         self.assertEqual(r["risk"]["limits"]["max_order_usd"],"20")
         self.assertFalse(r["executable_quote_verified"])
+        self.assertFalse(r["risk_envelope"]["ready_to_submit"])
+        self.assertIsNone(r["risk_envelope"]["preliminary_budget_usd"])
     def test_unresolved_intent_halts_schwab_migration_even_online(self):
         self.write("live/orders.json",{"version":1,"halted":False,
           "orders":[{"state":"FILLED"},{"state":"SUBMITTING"}]})

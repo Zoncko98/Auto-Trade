@@ -1,3 +1,9 @@
+## v1.3.16 — V2 displays actual per-account V1 risk budget limits without order authority
+
+The read-only V2 live-cutover preflight now distinguishes the user-requested maximum order size from an observed account-specific preliminary permitted new-entry budget. Schwab uses its saved strategy capital, risk percentages, cash/equity and existing market exposure. Webull's source budget reflects the worker's 25% cash/exposure caps. Robinhood's reported buying power is not treated as settled cash or proof of position headroom.
+
+These calculations are conservative V1 source-model observations only; the actual V2 deterministic policy, broker minimum order sizes, account settlement restrictions and executable order adapters still require verification. The original V1 broker workers remain the only live writers and no V2 live order permission was granted. V2 core is 2.0.0-alpha.12.
+
 ## v1.3.15 — New continuously supervised V2 Schwab stock shadow worker
 
 The existing Schwab scanner now publishes only the five-minute completed price history it already fetched to a separate private V2 directory. A new V2 stock shadow worker consumes those source candles with source-timestamped quotes and evaluates the shared StockController. Qualified candidates can receive bounded local Ollama shadow evidence. Results are durable, duplicate-safe, and visible in Trading Operations across all 24 Schwab stock symbols.

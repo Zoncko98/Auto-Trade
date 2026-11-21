@@ -165,7 +165,7 @@
           <div id="v2-adapter-health" class="ops-records" aria-live="polite">No verified V2 broker observations loaded.</div>
           <div id="v2-cutover-status" class="ops-records" role="status" aria-live="polite" style="margin-top:12px">
             <strong>V2 live-account migration preflight (read-only)</strong>
-            <p class="muted">Verifies independent broker health, V1 risk limits and order journal evidence. No V2 live-order authority, no automatic account cutover, and no test orders.</p>
+            <p class="muted">Verifies independent broker health, V1 risk settings, observed account-specific budget headroom and order journals. Any preliminary budget uses saved V1 rules and current verified account data; it is NOT V2 broker-order approval, excludes per-order settlement/fees, and cannot create orders or cut over automatically.</p>
             Awaiting authenticated V2 account preflight…
           </div>
           <p class="muted">Read-only snapshots never authorize orders. Missing or stale account values remain unavailable. Schwab stock quotes are reused from its existing authenticated V1 scanner when available; exchange timestamps, market hours, executable quotes, and account-specific V2 order rules still require independent verification.</p>

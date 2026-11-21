@@ -155,6 +155,23 @@ test("Schwab V2 stock price bridge reuses V1 quotes without broker submission",(
   assert.match(html,/Schwab stock quotes are reused from its existing authenticated V1 scanner/);
 });
 
+test("V1 source-faithful risk headroom preview never grants a V2 order",()=>{
+  const preview=read("app/trader_v2/risk_envelopes.py");
+  const cutover=read("app/trader_v2/cutover_preflight.py");
+  const ui=read("web/v2-status.js");
+  const html=read("web/index.html");
+  assert.match(preview,/V1_SCHWAB_VERIFIED_CASH_EQUITY_EXPOSURE/);
+  assert.match(preview,/V1_WEBULL_CASH_25PCT_AND_EXPOSURE_25PCT_LIMIT/);
+  assert.match(preview,/ROBINHOOD_BUYING_POWER_ONLY_NOT_CASH_EQUITY/);
+  assert.match(preview,/"v2_order_authorized":False/);
+  assert.match(preview,/"ready_to_submit":False/);
+  assert.doesNotMatch(preview,/submit_order\(|place_order\(|get_account\(/);
+  assert.match(cutover,/risk_envelope":budget/);
+  assert.match(ui,/Effective V1 risk budget preview:/);
+  assert.match(ui,/Does NOT authorize any V2 order/);
+  assert.match(html,/NOT V2 broker-order approval/);
+});
+
 test("V2 migration preflight shows four isolated brokers without arming orders",()=>{
   const html=read("web/index.html");
   const js=read("web/v2-status.js");
