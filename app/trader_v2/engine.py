@@ -5,7 +5,7 @@ An uncertain submit is never repeated; only broker lookup may reconcile it.
 """
 from __future__ import annotations
 from dataclasses import dataclass
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from decimal import Decimal
 import hashlib
 from .contracts import TradingBroker,AIReviewer,BrokerExecution,inspect_paper_adapter
@@ -102,6 +102,7 @@ class PaperPipeline:
                  entries_today=0,exits_today=0)->PipelineResult:
         if not isinstance(candidate,Candidate) or not isinstance(quote,MarketSnapshot):
             raise TypeError("Canonical candidate and quote required")
+        explicit_clock=now is not None
         now=utc(now or datetime.now(timezone.utc))
         key=candidate_key(candidate)
         previous=self.store.get(key)
@@ -123,8 +124,12 @@ class PaperPipeline:
                 review=self.reviewer.review(candidate,quote) if self.reviewer else None
             except Exception:
                 review=None
+            # Re-check elapsed model time; the decision may legitimately complete
+            # after the pre-review timestamp, but cannot be from the future.
+            review_now=now if explicit_clock else utc(datetime.now(timezone.utc))
             if (not isinstance(review,AIReview) or review.symbol!=candidate.symbol
-                    or review.reviewed_at>now or review.expires_at<now):
+                    or review.reviewed_at>review_now+timedelta(seconds=2)
+                    or review.expires_at<review_now):
                 if policy.ai_mode=="REQUIRED":
                     self.store.review(key,candidate.account_id,"AI_UNAVAILABLE","AI review invalid or expired")
                     return PipelineResult("BLOCKED","AI_UNAVAILABLE",key)

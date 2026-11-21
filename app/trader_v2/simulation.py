@@ -18,7 +18,8 @@ class SimulationRejected(ValueError):pass
 
 class SimulatedBroker:
     provider_id="simulation"
-    def __init__(self,path,*,fee_bps=Decimal("0"),slippage_bps=Decimal("0")):
+    def __init__(self,path,*,fee_bps=Decimal("0"),slippage_bps=Decimal("0"),clock=None):
+        self.clock=clock or (lambda: datetime.now(timezone.utc))
         self.path=Path(path)
         self.path.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
         if self.path.parent.stat().st_mode & 0o007:
@@ -103,6 +104,7 @@ class SimulatedBroker:
             quantities[position["symbol"]]=qty
             total+=qty*mark
         cash=Decimal(row["cash"])
+        total=total.quantize(Decimal("0.000000000001"),rounding=ROUND_HALF_UP)
         return Account(account_id,self.provider_id,Capability(frozenset({asset}),
             fractional=bool(row["fractional"]),min_notional=Decimal("1")),
             cash=cash,equity=cash+total,positions=quantities,
@@ -130,8 +132,10 @@ class SimulatedBroker:
         market=self._quotes.get((intent.symbol,intent.asset_class))
         if market is None:raise SimulationRejected("No verified quote")
         if not market.market_open:raise SimulationRejected("Session closed")
-        if (datetime.now(timezone.utc)-market.observed_at).total_seconds()>120:
-            raise SimulationRejected("Stale quote")
+        from .models import utc
+        snapshot_age=(utc(self.clock())-market.observed_at).total_seconds()
+        if snapshot_age < -2 or snapshot_age>120:
+            raise SimulationRejected("Stale or future quote")
         doc=self._document(intent)
         with self._tx() as db:
             existing=db.execute("SELECT * FROM sim_orders WHERE key=?",(intent.key,)).fetchone()
@@ -165,6 +169,7 @@ class SimulatedBroker:
                 raise SimulationRejected("Insufficient simulated holdings")
             new_cash=cash-notional-fee if intent.side is OrderSide.BUY else cash+notional-fee
             if new_cash<0:raise SimulationRejected("Negative simulated cash")
+            new_cash=new_cash.quantize(Decimal("0.00000001"),rounding=ROUND_HALF_UP)
             if intent.side is OrderSide.BUY:
                 new_qty=held+intent.quantity
                 old_basis=Decimal(row["average_cost"]) if row else Decimal("0")
@@ -184,6 +189,6 @@ class SimulatedBroker:
             db.execute("INSERT INTO sim_orders VALUES(?,?,?,?,?,?,?,?)",
                        (intent.key,intent.account_id,doc,"SIM-"+intent.key,
                         str(intent.quantity),str(fill_price),str(fee),
-                        datetime.now(timezone.utc).isoformat()))
+                        self.clock().isoformat()))
             return BrokerExecution(intent.key,"FILLED","SIM-"+intent.key,
                                    intent.quantity,fill_price,fee)

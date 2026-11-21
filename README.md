@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **Feature source (November 19, 2026):** this branch declares **v1.3.1**, adding a compact four-trader mobile workstation and a read-only Robinhood USDC valuation fallback. This is a source/release milestone, not evidence of live broker fills. The TrueNAS container version must be verified separately after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **V2 development source (November 21, 2026):** this branch declares **v1.3.2**, introducing typed shared advisory AI review, bounded Ollama transport and deterministic historical synthetic replay on top of the V2 Phase 1–2 foundation. V2 remains disabled by default, has no live-order authority and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

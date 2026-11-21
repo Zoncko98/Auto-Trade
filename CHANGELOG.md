@@ -1,3 +1,12 @@
+## v1.3.2 — V2 Phase 3 advisory AI and historical synthetic replay foundations (2026-11-21)
+
+- Added a shared, typed AI reviewer for the same V2 paper pipeline. Rejects malformed decisions, wrong symbols, stale quotes, expired signals and oversized payloads; caches short-lived advisory reviews; does not place orders or override deterministic risk.
+- Added bounded Ollama chat/JSON transport with fixed model selection, deterministic model options, explicit transport timeouts and validated response envelopes. Runtime connection and model reliability are not yet verified.
+- Added synthetic historical candle replay through the existing stock/crypto controllers, V2 risk engine, persisted order intents and simulated broker, reporting fills, blockers, after-cost account equity and gross buy-and-hold reference.
+- Corrected historical replay's simulator clock and fractional crypto simulated-cash precision, with regression tests for determinism, costs and time ordering.
+- Expanded V2 status diagnostics to distinguish available Phase 3 libraries from unwired runtime capability. Legacy broker workers and order journals remain untouched. V2 live-order authority stays disabled, and no live broker orders were submitted.
+- Do not interpret synthetic replay as broker quote replay, live-path validation, or evidence of profitability. Real historical feeds, broker reconciliation, frontend parity and account-specific live cutover remain outstanding.
+
 ## v1.3.1 — V2 Phase 2 read-only broker and market normalization (2026-11-20)
 
 - Implemented source-specific owner-only read-only account adapters for Schwab, Webull, Robinhood Crypto and Paper; consistent auth, heartbeat, permission, provenance and reason codes.

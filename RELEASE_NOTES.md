@@ -1,3 +1,11 @@
+## v1.3.2 — V2 Phase 3 advisory AI and synthetic replay libraries
+
+This release adds an isolated V2 shared AI reviewer and Ollama JSON transport. Model decisions are strictly typed, short-lived, symbol-bound and advisory; mandatory AI failures block entry. None of these components can submit live broker orders, and no V2 live adapter or account cutover is enabled.
+
+A historical synthetic candle replay facility runs stock/crypto controllers through the same V2 deterministic risk, order intent and simulated brokerage path. Reports include after-simulated-cost equity, blocked decisions, and a gross buy-and-hold reference. Historical OHLC closes are **not executable broker quotes**; replay profitability is not certified. The simulated broker now supports an explicit historical clock and bounded crypto accounting precision.
+
+V2 API status identifies the Phase 3 libraries as available but not runtime-connected. V2 feature flag defaults to off; Schwab, Robinhood and Webull V1 workers retain existing account permissions, journals and order safeguards. See CHANGELOG.md for detailed tests and pending integration milestones.
+
 ## v1.3.1 — V2 Phase 2 read-only data adapters
 
 The shared V2 core now has read-only broker/account observations for the existing Schwab, Webull, Robinhood and Paper accounts, source-specific quotes, and a cached data provider. The existing Trading operations panel displays freshness, broker permission and account-value coverage without inventing missing numbers.

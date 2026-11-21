@@ -10,14 +10,17 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.2","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.3","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
-            "stage":"PHASE_2_READ_ONLY_BROKER_AND_MARKET_DATA",
+            "stage":"PHASE_3_AI_AND_REPLAY_LIBRARIES_NOT_ARMED",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
-            "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","SHARED_AI_SERVICE",
-                "HISTORICAL_REPLAY_VALIDATION","V2_ACCOUNT_TEMPLATE","LIVE_CUTOVER"]}
+            "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","AI_RUNTIME_CONFIGURATION_AND_VALIDATION",
+                "REAL_MARKET_REPLAY_VALIDATION","V2_ACCOUNT_TEMPLATE","LIVE_CUTOVER"],
+            "phase3_capabilities":{"typed_ai_review":"AVAILABLE_NOT_CONNECTED",
+                                   "ollama_review_transport":"AVAILABLE_NOT_CONNECTED",
+                                   "synthetic_candle_replay":"AVAILABLE_NOT_SCHEDULED"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.
         status["broker_adapters"]=[
