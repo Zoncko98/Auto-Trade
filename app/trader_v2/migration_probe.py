@@ -13,7 +13,8 @@ import argparse
 import time
 import os
 from .models import amount,utc
-from .robinhood_signed_receipts import signed_holding_quantity,BrokerEvidenceUnavailable
+from .robinhood_signed_receipts import (
+    signed_holding_quantity,signed_pair_limits,BrokerEvidenceUnavailable)
 from .market_sources import robinhood_market_quote,MarketSourceError
 from .readonly_adapters import private_json
 from .recorded_replay import _atomic_json
@@ -187,14 +188,18 @@ def _probe(state,client,policy,*,now=None):
         for symbol in ("BTC-USD","ETH-USD"):
             meta=verified.get(symbol)
             if not meta:continue
-            for field in ("min_order_amount","asset_increment","max_order_size"):
-                amount(meta.get(field),field,False)
+            signed_pair_limits(meta)
             count+=1
         report["pairs_checked"]=count
         if count==0:
             report["first_blocker"]="SIGNED_PAIR_PERMISSIONS_UNVERIFIED"
             return report
+    except BrokerEvidenceUnavailable as exc:
+        report["pair_failure_category"]=exc.code
+        report["first_blocker"]="SIGNED_PAIR_INCREMENT_OR_MINIMUM_UNVERIFIED"
+        return report
     except Exception:
+        report["pair_failure_category"]="SIGNED_PAIR_SOURCE_READ_UNAVAILABLE"
         report["first_blocker"]="SIGNED_PAIR_INCREMENT_OR_MINIMUM_UNVERIFIED"
         return report
     quote_count=0

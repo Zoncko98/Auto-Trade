@@ -5,7 +5,7 @@ Existing Robinhood client performs signed GETs. No keys or broker writes are
 created here. Unknown provider states or incomplete fills NEVER imply a fill.
 """
 from __future__ import annotations
-from decimal import Decimal,InvalidOperation
+from decimal import Decimal,InvalidOperation,ROUND_CEILING
 from uuid import uuid5, NAMESPACE_URL
 from typing import Mapping
 from .contracts import BrokerExecution
@@ -33,6 +33,35 @@ def signed_holding_quantity(value):
             or (quantity!=0 and quantity.as_tuple().exponent < -24)):
         raise BrokerEvidenceUnavailable("SIGNED_HOLDING_QUANTITY_PRECISION_INVALID")
     return Decimal("0") if quantity==0 else quantity
+
+def signed_pair_limits(metadata):
+    """Fail-closed provider min/increment/max with canonical-safe rounding."""
+    if not isinstance(metadata,dict):
+        raise BrokerEvidenceUnavailable("SIGNED_PAIR_SCHEMA_INVALID")
+    data={}
+    for field in ("asset_increment","min_order_amount","max_order_size"):
+        try:
+            n=signed_holding_quantity(metadata.get(field))
+        except BrokerEvidenceUnavailable:
+            raise BrokerEvidenceUnavailable("SIGNED_PAIR_"+field.upper()+"_UNVERIFIED") from None
+        if n<=0:
+            raise BrokerEvidenceUnavailable("SIGNED_PAIR_"+field.upper()+"_UNVERIFIED")
+        data[field]=n
+    increment=data["asset_increment"]
+    quantum=Decimal("0.000000000001")
+    if increment<quantum:
+        quotient=quantum/increment
+        if quotient!=quotient.to_integral_value():
+            raise BrokerEvidenceUnavailable("SIGNED_PAIR_INCREMENT_INCOMPATIBLE_WITH_CANONICAL")
+        increment=quantum
+    # Do not reduce the exchange minimum: round UP to a cent.
+    cents=Decimal("0.01")
+    minimum=(data["min_order_amount"]/cents).to_integral_value(
+        rounding=ROUND_CEILING)*cents
+    if minimum>Decimal("100000000000000"):
+        raise BrokerEvidenceUnavailable("SIGNED_PAIR_MINIMUM_OUT_OF_RANGE")
+    return {"asset_increment":increment,"min_order_amount":minimum,
+            "max_order_size":data["max_order_size"]}
 
 def _money(value, field, positive=False):
     try:

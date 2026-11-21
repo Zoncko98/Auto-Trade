@@ -4,7 +4,7 @@ from unittest import TestCase, main
 from uuid import UUID
 from trader_v2.robinhood_signed_receipts import (
     client_id,normalize_order,RobinhoodReadOnlyReceiptAdapter,
-    BrokerEvidenceUnavailable,signed_holding_quantity,
+    BrokerEvidenceUnavailable,signed_holding_quantity,signed_pair_limits,
 )
 
 ACCOUNT="account123"
@@ -124,6 +124,24 @@ class SignedReceiptTests(TestCase):
         for raw in (None,False,0.1,"NaN","Infinity","-0.1","1E-30"):
             with self.subTest(raw=raw),self.assertRaises(BrokerEvidenceUnavailable):
                 signed_holding_quantity(raw)
+    def test_signed_high_precision_pair_increment_is_rounded_to_exact_multiple(self):
+        pair={"asset_increment":"0.000000000000000001",
+              "min_order_amount":"0.00000001","max_order_size":"100"}
+        limits=signed_pair_limits(pair)
+        self.assertEqual(limits["asset_increment"],D("0.000000000001"))
+        self.assertEqual(limits["min_order_amount"],D("0.01"))
+        self.assertEqual(limits["asset_increment"]%D(pair["asset_increment"]),0)
+
+    def test_signed_pair_invalid_missing_and_nondivisible_increment_block(self):
+        valid={"asset_increment":"0.00000001",
+               "min_order_amount":"1","max_order_size":"100"}
+        for field in ("asset_increment","min_order_amount","max_order_size"):
+            candidate={**valid,field:None}
+            with self.subTest(field=field),self.assertRaises(BrokerEvidenceUnavailable):
+                signed_pair_limits(candidate)
+        with self.assertRaisesRegex(BrokerEvidenceUnavailable,"INCOMPATIBLE"):
+            signed_pair_limits({**valid,"asset_increment":"0.0000000000003"})
+
     def test_history_unavailable_not_empty(self):
         broker=RobinhoodReadOnlyReceiptAdapter(BrokerReads(None),ACCOUNT)
         with self.assertRaises(BrokerEvidenceUnavailable):

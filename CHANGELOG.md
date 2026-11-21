@@ -1,3 +1,10 @@
+## v1.3.30 — Merge Robinhood signed execution-precision migration checks (2026-11-21)
+
+- Consolidated previously separate Robinhood V2 migration work into the main feature branch, preserving the original legacy-order execution reconciliation, live adapter and redacted cutover status.
+- Validates signed Robinhood trading-pair asset increments, minimum notional and maximum size with conservative canonical-safe rounding. Rejects unsupported sub-canonical increments instead of inventing quantity precision; keeps provider limits distinct from saved application risk budgets.
+- Added strict signed-holdings/position precision tests and signed provider increment behavior. Historical fills, broker order IDs, prices and fees continue to require exact evidence; no live V2 order submission is enabled.
+- Preserves the V1 Schwab, Webull and Robinhood order writers, broker token data, limits and persistent journals. Source regression: 846 Python tests (845 passed; 1 skipped) before GitHub CI. Real V2 live cutover still requires signed funding, session, position and one-writer handoff validation.
+
 ## v1.3.29 — Preflight disarmed accounts safely and cap signed Webull historical GETs (2026-11-21)
 
 - A previously selected Webull broker account can now be checked with authenticated, READ-ONLY broker GETs even when the existing V1 trading flag is disarmed. It remains explicitly NOT cutover ready and is never automatically armed. No selected account still blocks the check.

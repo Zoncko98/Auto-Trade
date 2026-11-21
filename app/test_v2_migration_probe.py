@@ -78,6 +78,21 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(report["first_blocker"],
             "V1_WRITER_HANDOFF_AND_BROKER_SESSION_REQUIRED")
 
+    def test_high_precision_signed_pair_limits_pass_without_minting_authority(self):
+        self.client.pairs[0]["asset_increment"]="0.000000000000000001"
+        self.client.pairs[0]["min_order_amount"]="0.00000001"
+        report=self.report()
+        self.assertEqual(report["pairs_checked"],1)
+        self.assertFalse(report["cutover_ready"])
+        self.assertFalse(report["broker_session_verified"])
+
+    def test_signed_pair_missing_maximum_is_reported_with_safe_reason_code(self):
+        self.client.pairs[0]["max_order_size"]=None
+        report=self.report()
+        self.assertEqual(report["first_blocker"],"SIGNED_PAIR_INCREMENT_OR_MINIMUM_UNVERIFIED")
+        self.assertEqual(report["pair_failure_category"],
+                         "SIGNED_PAIR_MAX_ORDER_SIZE_UNVERIFIED")
+
     def test_signed_positions_missing_fails_closed(self):
         self.client.holdings=None
         result=self.report()

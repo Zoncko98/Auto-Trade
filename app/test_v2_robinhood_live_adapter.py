@@ -73,6 +73,13 @@ class RobinhoodV2AdapterTest(TestCase):
                                 D("1.123456789012345678")*D("10"))
         self.assertLessEqual(account.equity,D("111.235"))
 
+    def test_signed_18_place_pair_increment_clamped_conservatively(self):
+        self.client.pairs[0]["asset_increment"]="0.000000000000000001"
+        rules=self.adapter._pair()
+        self.assertEqual(rules["asset_increment"],D("0.000000000001"))
+        account=self.adapter.account("account123")
+        self.assertEqual(account.capability.quantity_increment,D("0.000000000001"))
+
     def test_missing_quote_timestamp_never_grants_execution(self):
         self.client.quote_rows["BTC-USD"]["results"][0].pop("quote_timestamp")
         with self.assertRaises(BrokerEvidenceUnavailable):

@@ -15,7 +15,8 @@ from .contracts import BrokerExecution
 from .live_pipeline import LiveMigrationRejected
 from .robinhood_signed_receipts import (
     RobinhoodReadOnlyReceiptAdapter,client_id,
-    normalize_order,BrokerEvidenceUnavailable,signed_holding_quantity
+    normalize_order,BrokerEvidenceUnavailable,signed_holding_quantity,
+    signed_pair_limits
 )
 from .market_sources import robinhood_market_quote,MarketSourceError
 
@@ -67,13 +68,7 @@ class RobinhoodLiveAdapter:
         selected=[p for p in pairs if isinstance(p,dict) and p.get("symbol")==self.symbol]
         if len(selected)!=1 or selected[0].get("is_api_tradable") is not True:
             raise BrokerEvidenceUnavailable("SIGNED_PAIR_NOT_TRADABLE")
-        metadata=selected[0]
-        result={}
-        for key in ("asset_increment","min_order_amount","max_order_size"):
-            try:result[key]=amount(metadata.get(key),key,False)
-            except (TypeError,ValueError):
-                raise BrokerEvidenceUnavailable("SIGNED_PAIR_SIZE_UNVERIFIED") from None
-        return result
+        return signed_pair_limits(selected[0])
 
     def quote(self,now=None):
         now=utc(now or self.clock())

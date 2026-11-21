@@ -1,3 +1,7 @@
+## v1.3.30 — Robinhood signed pair limits and one consolidated migration branch
+
+The Robinhood Crypto V2 read-only preflight and adapter now enforce the signed broker's actual increment/minimum/maximum order constraints, rejecting unsupported precision before any possible live order. Robinhood and Webull migration gates remain visible in the existing Trading Operations UI. This is not an activation of live V2 trades.
+
 ## v1.3.29 — Run Webull migration checks before enabling live trading
 
 The Webull migration-readiness check can now inspect a previously selected account even while trading is paused. This avoids having to arm real orders merely to diagnose the cutover. Signed history checks are bounded to respect Webull API quotas. An uncertain or incomplete result never grants live trading authority.

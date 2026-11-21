@@ -93,6 +93,8 @@ document.addEventListener("DOMContentLoaded",()=>{
             " · Holdings failure: "+String(robinhoodProbe.holdings_failure_category):"")+
           ((robinhoodProbe||{}).historical_fill_failure_category?
             " · Historical fill mismatch: "+String(robinhoodProbe.historical_fill_failure_category):"")+
+          ((robinhoodProbe||{}).pair_failure_category?
+            " · Trading-pair rules: "+String(robinhoodProbe.pair_failure_category):"")+
           ((robinhoodProbe||{}).historical_fills_checked!=null?
             " · Signed historical fills checked: "+Number(robinhoodProbe.historical_fills_checked):"")+
           ((robinhoodProbe||{}).report_fresh===false?
