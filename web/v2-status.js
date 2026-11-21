@@ -281,6 +281,15 @@ document.addEventListener("DOMContentLoaded",()=>{
           if(review.reason)text+=" — "+String(review.reason);
           text+=" · AI has no order authority";
         }
+        const fee=report.fee_shadow||{};
+        if(fee.state && fee.state!=="NOT_INVOKED" &&
+           fee.changed_execution===false && fee.live_order_authorized===false){
+          text+=" · Fee/reward shadow "+String(fee.state);
+          if(fee.hypothetical_net_at_prior_high_pct!==undefined)
+            text+=" · Hypothetical net at prior resistance "+
+               String(fee.hypothetical_net_at_prior_high_pct)+"%";
+          text+=" · Advisory only (no trade veto, not a forecast)";
+        }
         if(report.last_quote_at)text+=" · Quote "+String(report.last_quote_at);
         if(report.heartbeat_age_sec!==undefined &&
            report.heartbeat_age_sec!==null)

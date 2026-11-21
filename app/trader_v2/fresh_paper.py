@@ -177,6 +177,8 @@ def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None,shadow=shadow_review
             signal=None
             outcome=None
             ai_evidence={"state":"NOT_INVOKED","changed_order_authority":False}
+            fee_evidence={"state":"NOT_INVOKED","changed_execution":False,
+                          "live_order_authorized":False}
             if len(bars)>=_CONTROLLER.long+1:
                 last=bars[-(_CONTROLLER.long+1):]
                 # Missing source minutes cannot be filled from fabricated prices.
@@ -193,6 +195,16 @@ def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None,shadow=shadow_review
                         state="NO_SIGNAL"
                         reason="NO_QUALIFIED_SMA_CROSS"
                     else:
+                        # Advisory fee test uses only past genuine bars and
+                        # current public quote. NEVER alter PaperPipeline and
+                        # never let telemetry fail the original order decision.
+                        try:
+                            from .crypto_fee_shadow import assess as fee_shadow_assess
+                            fee_evidence=fee_shadow_assess(candidate,quote,bars,now=now)
+                        except (ImportError,ValueError,TypeError,ArithmeticError,OverflowError):
+                            fee_evidence={"state":"EVIDENCE_UNAVAILABLE",
+                                "reason":"FEE_SHADOW_TELEMETRY_UNAVAILABLE",
+                                "changed_execution":False,"live_order_authorized":False}
                         # AI shadow has no effect on the no-AI baseline.
                         # Record verified PASS/VETO/UNAVAILABLE for comparison.
                         ai_evidence=shadow(candidate,quote,now=now)
@@ -221,6 +233,7 @@ def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None,shadow=shadow_review
                 "scan_state":state,"reason":reason,
                 "signal":signal,"intent_key":outcome,
                 "ai_shadow":ai_evidence,
+                "fee_shadow":fee_evidence,
                 "virtual_cash":str(wallet.cash),
                 "virtual_equity":str(wallet.equity),
                 "virtual_positions":{s:str(v) for s,v in wallet.positions.items()},

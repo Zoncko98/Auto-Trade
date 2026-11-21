@@ -12,10 +12,10 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.15","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.16","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
-            "stage":"PHASE_6_RECONCILED_SIMULATED_ECONOMICS_WITHOUT_LIVE_EXECUTION",
+            "stage":"PHASE_6_FEE_ADJUSTED_CRYPTO_SHADOW_WITHOUT_LIVE_EXECUTION",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
             "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","AI_RUNTIME_CONFIGURATION_AND_VALIDATION",
@@ -29,6 +29,7 @@ def summary(state_dir)->dict:
                                    "paper_scan_metrics":"PERSISTED_24H_AND_7D",
                                    "crypto_paper_activity":"READ_ONLY_3H_24H_GENUINE_SIM_LEDGER",
                                    "crypto_paper_economics":"CUMULATIVE_SIM_CASH_INVENTORY_AND_FEES_RECONCILED",
+                                   "crypto_fee_reward_shadow":"ADVISORY_PAST_CANDLE_RESISTANCE_SIM_COSTS",
                                    "cutover_preflight":"READ_ONLY_V1_RISK_AND_JOURNAL",
                                    "schwab_stock_quote_bridge":"REUSES_V1_SCANNER_NO_EXTRA_SDK_CALLS",
                                    "schwab_stock_shadow":"SUPERVISED_READ_ONLY_WITH_GENUINE_5M_HISTORY",

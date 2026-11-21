@@ -172,6 +172,24 @@ test("V2 actual simulated P/L is reconciled after fees with no live claims",()=>
   assert.doesNotMatch(econ,/place_order\(|submit_order\(|from schwab\.|from robinhood/);
 });
 
+test("V2 fee-aware crypto shadow cannot veto a simulated or live order",()=>{
+  const policy=read("app/trader_v2/crypto_fee_shadow.py");
+  const worker=read("app/trader_v2/fresh_paper.py");
+  const html=read("web/index.html");
+  const ui=read("web/v2-status.js");
+  assert.match(policy,/ADVISORY_COUNTERFACTUAL_ONLY/);
+  assert.match(policy,/SHADOW_REJECT_REWARD_AFTER_FEES/);
+  assert.match(policy,/EXIT_NOT_GATED/);
+  assert.match(policy,/"changed_execution": False/);
+  assert.match(policy,/"live_order_authorized": False/);
+  assert.match(worker,/fee_evidence=fee_shadow_assess\(candidate,quote,bars,now=now\)/);
+  assert.match(worker,/fee_shadow":fee_evidence/);
+  assert.match(worker,/PaperPipeline\(broker,journal\)\.evaluate/);
+  assert.match(ui,/Fee\/reward shadow/);
+  assert.match(html,/cannot veto actual paper orders/);
+  assert.doesNotMatch(policy,/place_order\(|submit_order\(|from robinhood\.|from schwab\./);
+});
+
 test("V2 paper rolling 3h/24h activity separates signals, blockers and simulated fills",()=>{
   const source=read("app/trader_v2/paper_activity.py");
   const fresh=read("app/trader_v2/fresh_paper.py");
