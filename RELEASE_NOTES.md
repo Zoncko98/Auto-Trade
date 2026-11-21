@@ -1,3 +1,9 @@
+## v1.3.24 — Live migration coordination and authenticated broker proof
+
+V2 now has an explicit live-pipeline boundary and an account-locked, idempotent order process for future controlled broker cutovers. Robinhood Crypto has a signed official-API adapter with conservative price, inventory, fee and order-identity validation. The TrueNAS runtime also runs a *read-only* Robinhood migration probe every 15 minutes and surfaces its first verified blocker in Trading Operations.
+
+**No V2 live trading has been armed.** Broker-specific writer handoff, verified market/session conditions and real broker fill acceptance still need to pass before V1 is paused. Existing V1 Schwab, Webull and Robinhood trading processes and account-specific policies remain unchanged. The pre-existing V2 paper simulation continues separately. V2 core 2.0.0-alpha.20.
+
 ## v1.3.23 — Broker journal observation and one shared account-section layout
 
 The four **existing** account dashboards now present the same six-section navigation in the same order. Nothing moves to a new dashboard; links continue using the existing broker-specific views and risk controls.

@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const health=document.getElementById("v2-adapter-health");
   const cutover=document.getElementById("v2-cutover-status");
   if(!target)return;
-  function showCutover(report){
+  function showCutover(report,robinhoodProbe){
     if(!cutover)return;
     cutover.replaceChildren();
     const intro=document.createElement("strong");
@@ -44,6 +44,12 @@ document.addEventListener("DOMContentLoaded",()=>{
             (local.incomplete_fill_details==null?"":" · Incomplete local fill evidence: "+Number(local.incomplete_fill_details))+
             " · Signed broker reconciliation: NOT VERIFIED"
           :"")+
+        (item.broker==="robinhood_crypto"?
+          " · Signed V2 broker audit: "+String((robinhoodProbe||{}).first_blocker||"NOT_RUN")+
+          " · Broker account: "+((robinhoodProbe||{}).account_verified===true?"signed":"unverified")+
+          " · Holdings: "+((robinhoodProbe||{}).holdings_verified===true?"signed":"unverified")+
+          " · Complete broker order history: "+((robinhoodProbe||{}).broker_history_verified===true?"verified":"unverified")+
+          " · Signed quote timestamps: "+Number((robinhoodProbe||{}).quote_timestamp_verified_symbols||0):"")+
         " · Market: "+String(item.source_state||"UNVERIFIED")+
         " · Session: "+String((item.market_session||{}).state||"NOT_VERIFIED")+
         " (broker hours not certified)" +
@@ -133,7 +139,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Unresolved: "+Number(data.unresolved||0)+
         " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
-      showCutover(data.cutover_preflight);
+      showCutover(data.cutover_preflight,data.robinhood_signed_migration_probe);
       void readStockShadowStatus();
       void readFreshPaperStatus();
       void readRecordedReplay();

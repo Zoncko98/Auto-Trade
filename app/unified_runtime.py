@@ -173,6 +173,7 @@ def main():
     paper_last_spawn=0.0
     v2_paper_last_spawn=0.0
     v2_stock_shadow_last_spawn=0.0
+    v2_robinhood_probe_last_spawn=0.0
     webull_last_spawn=0.0
     webull_feed_last_spawn=0.0
     while not _STOP:
@@ -201,6 +202,18 @@ def main():
                 if rh_ready and (rh is None or rh.poll() is not None):
                     spawn("robinhood",["/app/robinhood_worker.py"],runtime_env)
                 if not rh_ready:stop_process("robinhood")
+                # Independently signed, read-only V2 migration preflight.
+                # Never places an order or starts a V2 live order writer.
+                rh_probe=CHILDREN.get("v2-robinhood-probe")
+                if rh_ready:
+                    if (rh_probe is None or rh_probe.poll() is not None) and (
+                         v2_robinhood_probe_last_spawn==0 or
+                         time.monotonic()-v2_robinhood_probe_last_spawn>=900):
+                        v2_robinhood_probe_last_spawn=time.monotonic()
+                        spawn("v2-robinhood-probe",
+                             ["-m","trader_v2.migration_probe",
+                              "--state-dir",str(STATE)],runtime_env)
+                else:stop_process("v2-robinhood-probe")
                 wb_ready=(STATE/"config"/"webull_openapi.json").is_file()
                 wb=CHILDREN.get("webull")
                 if wb_ready and (wb is None or wb.poll() is not None):
@@ -329,11 +342,14 @@ def main():
                     live_recovery_attempts=[]
             except (OSError,ValueError,TypeError,KeyError) as exc:
                 print("Invalid stored app settings; optional workers stopped.",flush=True)
-                for name in ("v2-stock-shadow","v2-paper","paper","market","live"):stop_process(name)
+                for name in ("v2-stock-shadow","v2-paper","v2-robinhood-probe",
+                             "paper","market","live"):stop_process(name)
         else:
-            for name in ("v2-stock-shadow","v2-paper","paper","market","live"):stop_process(name)
+            for name in ("v2-stock-shadow","v2-paper","v2-robinhood-probe",
+                         "paper","market","live"):stop_process(name)
         time.sleep(4)
-    for name in ("webull-feed","webull","robinhood","live","market","v2-stock-shadow","v2-paper","paper","dashboard"):stop_process(name)
+    for name in ("webull-feed","webull","robinhood","v2-robinhood-probe",
+                 "live","market","v2-stock-shadow","v2-paper","paper","dashboard"):stop_process(name)
     return 0
 
 if __name__=="__main__":sys.exit(main())

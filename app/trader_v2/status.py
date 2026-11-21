@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import os,sqlite3
 from .models import OrderState,TERMINAL
-from .readonly_adapters import ReadOnlyBrokerRegistry
+from .readonly_adapters import ReadOnlyBrokerRegistry,private_json
 from .market_sources import cached_market_status
 from .readiness import explain
 from .cutover_preflight import preflight
@@ -12,7 +12,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.19","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.20","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
@@ -49,6 +49,14 @@ def summary(state_dir)->dict:
         status["broker_adapters"]=[]
         status["market_sources"]={}
         status["adapters_error"]="READ_ONLY_OBSERVATIONS_UNAVAILABLE"
+    # Signed Robinhood broker probe is cached read-only evidence. It never
+    # grants live cutover or changes the existing V1 write permission.
+    status["robinhood_signed_migration_probe"]=(
+        private_json(Path(state_dir)/"v2"/"broker_migration"/"robinhood_crypto.json",
+                     maximum=12000) or {
+            "mode":"AUTHENTICATED_SIGNED_READ_ONLY",
+            "first_blocker":"SIGNED_BROKER_PROBE_NOT_YET_RUN",
+            "v2_live_order_authority":False,"cutover_ready":False})
     # Observational gate explanations never grant live order authority;
     # no unauthenticated API can expose this authenticated status object.
     status["readiness_diagnostics"]=explain(

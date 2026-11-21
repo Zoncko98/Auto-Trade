@@ -74,7 +74,9 @@ def evaluate_risk(account:Account,candidate:Candidate,quote:MarketSnapshot,
     if effective<=0:return blocked("CASH_OR_EXPOSURE_EXHAUSTED")
     raw_quantity=effective/limit_price
     if account.capability.fractional:
-        quantity=raw_quantity.quantize(Decimal("0.00000001"),rounding=ROUND_DOWN)
+        increment=account.capability.quantity_increment
+        quantity=(raw_quantity/increment).to_integral_value(
+            rounding=ROUND_DOWN)*increment
     else:
         quantity=raw_quantity.to_integral_value(rounding=ROUND_DOWN)
     if quantity<=0 or quantity*limit_price<account.capability.min_notional:

@@ -261,7 +261,7 @@ test("V2 migration preflight shows four isolated brokers without arming orders",
   const status=read("app/trader_v2/status.py");
   const preflight=read("app/trader_v2/cutover_preflight.py");
   assert.match(html,/id="v2-cutover-status"/);
-  assert.match(js,/showCutover\(data\.cutover_preflight\)/);
+  assert.match(js,/showCutover\(data\.cutover_preflight,data\.robinhood_signed_migration_probe\)/);
   assert.match(js,/V2 live cutover: NOT READY/);
   assert.match(js,/automatic_cutover_allowed!==false/);
   assert.match(status,/status\["cutover_preflight"\]=preflight\(/);

@@ -119,6 +119,12 @@ class EventStore:
                 if row["fingerprint"]!=fingerprint or row["document"]!=raw:
                     raise IntentConflict("Conflicting idempotency key")
                 return dict(row)
+            competing=db.execute(
+                """SELECT key FROM intents WHERE account_id=?
+                   AND state NOT IN ('FILLED','CANCELED','REJECTED')
+                   LIMIT 1""",(intent.account_id,)).fetchone()
+            if competing is not None:
+                raise IntentConflict("Account has an unresolved order intent")
             now=self._now()
             db.execute("INSERT INTO intents VALUES(?,?,?,?,?,?,?)",
                        (intent.key,intent.account_id,fingerprint,raw,

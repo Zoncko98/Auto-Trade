@@ -1,0 +1,200 @@
+"""Robinhood Crypto V2 live adapter over existing signed official API client.
+
+The adapter itself cannot start a trading worker. The LivePipeline requires an
+independently verified and fresh single-writer handoff. No public Coinbase
+quote, paper mark or V1 local journal row can authorize a V2 broker write.
+"""
+from __future__ import annotations
+from datetime import datetime,timezone
+from decimal import Decimal
+from .models import (
+    Account,AssetClass,Capability,AuthState,MarketSnapshot,OrderIntent,
+    OrderSide,amount,utc
+)
+from .contracts import BrokerExecution
+from .live_pipeline import LiveMigrationRejected
+from .robinhood_signed_receipts import (
+    RobinhoodReadOnlyReceiptAdapter,client_id,
+    normalize_order,BrokerEvidenceUnavailable
+)
+from .market_sources import robinhood_market_quote,MarketSourceError
+
+class RobinhoodLiveAdapter:
+    provider_id="robinhood_crypto"
+
+    def __init__(self,signed_client,account_id,risk_policy,symbol,*,clock=None,
+                 verified_managed_positions=None):
+        from robinhood_crypto_gateway import PAIR,ACCOUNT
+        if not isinstance(account_id,str) or not ACCOUNT.fullmatch(account_id):
+            raise ValueError("Verified selected Robinhood account required")
+        if not isinstance(symbol,str) or not PAIR.fullmatch(symbol):
+            raise ValueError("Valid Robinhood USD pair required")
+        if not isinstance(risk_policy,dict) or (
+            risk_policy.get("enabled") is not True or
+            risk_policy.get("account")!=account_id):
+            raise ValueError("Explicit per-account Robinhood operator permission required")
+        self.client=signed_client
+        self.account_id=account_id
+        self.policy=risk_policy
+        self.symbol=symbol
+        self.clock=clock or (lambda:datetime.now(timezone.utc))
+        self.receipts=RobinhoodReadOnlyReceiptAdapter(signed_client,account_id)
+        # This is managed BOT inventory verified from historical signed fills
+        # and the canonical V2 fill journal, never all externally-held assets.
+        # Default empty means sells are blocked until inventory provenance
+        # can be verified. All broker holdings still count toward exposure.
+        self.managed_positions=dict(verified_managed_positions or {})
+
+    def _selected(self):
+        rows=self.client.list_accounts()
+        if not isinstance(rows,list):
+            raise BrokerEvidenceUnavailable("SIGNED_ACCOUNTS_UNAVAILABLE")
+        selected=[x for x in rows if isinstance(x,dict) and
+                  x.get("account_number")==self.account_id]
+        if len(selected)!=1:
+            raise BrokerEvidenceUnavailable("ACCOUNT_SELECTION_AMBIGUOUS")
+        account=selected[0]
+        if (account.get("status")!="active" or
+                account.get("is_api_tradable") is not True or
+                account.get("buying_power_currency")!="USD"):
+            raise BrokerEvidenceUnavailable("SIGNED_ACCOUNT_CANNOT_TRADE")
+        return account
+
+    def _pair(self):
+        pairs=self.client.trading_pairs()
+        if not isinstance(pairs,list):
+            raise BrokerEvidenceUnavailable("SIGNED_TRADING_PAIRS_UNAVAILABLE")
+        selected=[p for p in pairs if isinstance(p,dict) and p.get("symbol")==self.symbol]
+        if len(selected)!=1 or selected[0].get("is_api_tradable") is not True:
+            raise BrokerEvidenceUnavailable("SIGNED_PAIR_NOT_TRADABLE")
+        metadata=selected[0]
+        result={}
+        for key in ("asset_increment","min_order_amount","max_order_size"):
+            try:result[key]=amount(metadata.get(key),key,False)
+            except (TypeError,ValueError):
+                raise BrokerEvidenceUnavailable("SIGNED_PAIR_SIZE_UNVERIFIED") from None
+        return result
+
+    def quote(self,now=None):
+        now=utc(now or self.clock())
+        self._selected()
+        self._pair()
+        # Exact signed Robinhood marketdata quote with a provider timestamp
+        # and LAST trade. The API may omit either: if so this adapter blocks.
+        try:
+            observation=robinhood_market_quote(
+                self.client.quote(self.symbol),self.symbol,now=now)
+        except (MarketSourceError,ValueError,TypeError):
+            raise BrokerEvidenceUnavailable("SIGNED_EXECUTABLE_QUOTE_UNVERIFIED") from None
+        if observation.last is None or not observation.source_tradable:
+            raise BrokerEvidenceUnavailable("SIGNED_QUOTE_LAST_OR_TRADABILITY_UNVERIFIED")
+        return MarketSnapshot(self.symbol,AssetClass.CRYPTO,
+            "robinhood_signed",observation.observed_at,
+            observation.received_at,observation.bid,observation.ask,
+            observation.last,True)
+
+    def account(self,account_id):
+        if account_id!=self.account_id:
+            raise BrokerEvidenceUnavailable("SIGNED_ACCOUNT_MISMATCH")
+        selected=self._selected()
+        self._pair()
+        buying=amount(selected.get("buying_power"),"broker USD buying power")
+        holdings=self.client.positions(account_id)
+        if not isinstance(holdings,list):
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDINGS_UNAVAILABLE")
+        signed_positions={};market_exposure=Decimal("0")
+        for holding in holdings:
+            if not isinstance(holding,dict):
+                raise BrokerEvidenceUnavailable("SIGNED_HOLDING_INVALID")
+            asset=holding.get("asset_code")
+            if not isinstance(asset,str) or not asset or len(asset)>12:
+                raise BrokerEvidenceUnavailable("SIGNED_ASSET_ID_INVALID")
+            symbol=asset+"-USD"
+            if symbol in signed_positions:
+                raise BrokerEvidenceUnavailable("DUPLICATE_SIGNED_HOLDING")
+            try:qty=amount(holding.get("total_quantity"),"broker quantity")
+            except (ValueError,TypeError):
+                raise BrokerEvidenceUnavailable("SIGNED_POSITION_QUANTITY_INVALID") from None
+            if qty==0:continue
+            # Mark every external holding from a genuine signed broker price.
+            # Unknown quote time/crossed market leaves exposure unknown,
+            # rather than treating missing positions as $0.
+            from .market_sources import robinhood_market_quote,MarketSourceError
+            try:
+                quote=robinhood_market_quote(
+                    self.client.quote(symbol),symbol,now=utc(self.clock()))
+            except (MarketSourceError,ValueError,TypeError):
+                raise BrokerEvidenceUnavailable("SIGNED_POSITION_MARK_UNVERIFIED") from None
+            if quote.bid<=0:
+                raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BID_INVALID")
+            signed_positions[symbol]=qty
+            market_exposure+=qty*quote.bid
+        managed={}
+        for symbol,raw in self.managed_positions.items():
+            if not isinstance(symbol,str):
+                raise BrokerEvidenceUnavailable("MANAGED_POSITION_IDENTITY_UNVERIFIED")
+            try:qty=amount(raw,"verified bot position",False)
+            except (ValueError,TypeError):
+                raise BrokerEvidenceUnavailable("MANAGED_POSITION_QTY_UNVERIFIED") from None
+            if signed_positions.get(symbol,Decimal("0"))<qty:
+                raise BrokerEvidenceUnavailable("BROKER_HOLDINGS_BELOW_VERIFIED_BOT_INVENTORY")
+            managed[symbol]=qty
+        # This cash field represents VERIFIED broker USD *buying power* for
+        # spot crypto risk sizing; the UI must NOT label it settled cash.
+        equity=buying+market_exposure
+        pair=self._pair()
+        return Account(account_id,self.provider_id,
+            Capability(frozenset({AssetClass.CRYPTO}),
+                       fractional=True,min_notional=pair["min_order_amount"],
+                       quantity_increment=pair["asset_increment"]),
+            buying,equity,managed,AuthState.CONNECTED,True,market_exposure)
+
+    def find_order(self,key):
+        return self.receipts.find_order(key)
+
+    def submit(self,intent:OrderIntent)->BrokerExecution:
+        from robinhood_crypto_execution import (
+            RobinhoodWriteRejected,RobinhoodWriteUncertain
+        )
+        if (not isinstance(intent,OrderIntent) or intent.account_id!=self.account_id
+                or intent.symbol!=self.symbol or
+                intent.asset_class is not AssetClass.CRYPTO):
+            raise BrokerEvidenceUnavailable("LIVE_INTENT_IDENTITY_UNVERIFIED")
+        pair=self._pair()
+        if (intent.quantity%pair["asset_increment"]!=0 or
+                intent.quantity>pair["max_order_size"] or
+                intent.quantity*intent.limit_price<pair["min_order_amount"]):
+            raise BrokerEvidenceUnavailable("BROKER_MINIMUM_OR_INCREMENT_NOT_MET")
+        cap=amount(self.policy.get("max_order_usd"),"account max order",False)
+        if intent.quantity*intent.limit_price>cap or cap>Decimal("25"):
+            raise BrokerEvidenceUnavailable("PER_ACCOUNT_ORDER_CAP_EXCEEDED")
+        current=self.quote()
+        if intent.side is OrderSide.BUY:
+            if intent.limit_price<current.ask or (
+                    intent.limit_price/current.ask-1)>Decimal("0.005"):
+                raise BrokerEvidenceUnavailable("LIVE_BUY_LIMIT_OUTSIDE_CURRENT_BROKER_SPREAD")
+        else:
+            if intent.limit_price>current.bid or (
+                    1-intent.limit_price/current.bid)>Decimal("0.005"):
+                raise BrokerEvidenceUnavailable("LIVE_SELL_LIMIT_OUTSIDE_CURRENT_BROKER_SPREAD")
+        # LivePipeline must have persisted the original intent before reaching
+        # this signed POST, and will treat any uncertain result as locked.
+        uid=client_id(intent.key,intent.account_id)
+        try:
+            result=self.client.submit_order(intent.account_id,{
+                "type":"limit","side":intent.side.value.lower(),
+                "symbol":intent.symbol,"asset_quantity":str(intent.quantity),
+                "limit_price":str(intent.limit_price),"client_order_id":uid,
+                "risk_approved":True,"operator_approved":True,
+            })
+        except RobinhoodWriteRejected as error:
+            raise LiveMigrationRejected("Definitive broker rejection") from error
+        # Never fabricate a successful confirmation from a 200 response that
+        # lacks a broker UUID; reconciliation must look up the original key.
+        if not isinstance(result,dict) or not isinstance(result.get("id"),str):
+            raise BrokerEvidenceUnavailable("SIGNED_ORDER_ACK_UNVERIFIED")
+        ack={"client_order_id":uid,"account_number":self.account_id,
+             "id":result["id"],"state":"open","filled_asset_quantity":"0"}
+        # Any immediate fill in the POST response remains advisory; GET
+        # reconciliation validates the actual cumulative fill and fees.
+        return normalize_order(intent.key,intent.account_id,ack)
