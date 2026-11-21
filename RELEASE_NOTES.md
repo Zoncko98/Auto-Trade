@@ -1,3 +1,9 @@
+## v1.3.4 — Schwab reauthorization status persistence fix
+
+Validated the persistent REAUTH_REQUIRED marker on TrueNAS's existing 0755 live-state directory while requiring 0600 marker files and refusing writable parent directories. This fixes the production-detected failure to suppress repeat OAuth refresh attempts after a revoked Schwab grant. Prior v1.3.3 Schwab exit-priority and UI changes remain included.
+
+No broker credentials are changed and V2 has no live-order authority. See CHANGELOG.md for exact scope and regression evidence.
+
 ## v1.3.3 — Schwab exit-order priority and revocation-aware worker recovery
 
 Legacy Schwab automation now evaluates risk-reducing exits before its entry-side daily order ceiling, while enforcing an independent user-configurable daily exit-order allowance. Existing saved entry, cash, exposure and loss limits are preserved. The authenticated Schwab Risk & Start form shows both limits and the next-order preview.

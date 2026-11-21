@@ -40,7 +40,10 @@ def mark_reauth_required(live_dir, token_path):
         return False
     target=Path(live_dir)
     target.mkdir(mode=0o700,parents=True,exist_ok=True)
-    if target.stat().st_mode & 0o077:
+    # TrueNAS existing live-state directory is 0755; files remain 0600.
+    # Reject group/world-WRITABLE directories, not read/traverse access.
+    # Never change the permissions of shared existing application paths.
+    if target.stat().st_mode & 0o022:
         return False
     payload={"version":1,"state":"REAUTH_REQUIRED",
              "reason":"SCHWAB_REFRESH_TOKEN_REJECTED",

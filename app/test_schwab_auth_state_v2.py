@@ -45,6 +45,14 @@ class SchwabAuthStateTests(unittest.TestCase):
                                  self.token.stat().st_mtime_ns+10000000))
         self.assertFalse(reauth_required(self.root))
 
+    def test_existing_truenas_directory_755_keeps_marker_private(self):
+        self.live.chmod(0o755)
+        self.assertTrue(mark_reauth_required(self.live,self.token))
+        self.assertEqual((self.live/"auth_health.json").stat().st_mode&0o077,0)
+        self.assertTrue(reauth_required(self.root))
+        self.live.chmod(0o777)
+        self.assertFalse(mark_reauth_required(self.live,self.token))
+
     def test_only_successful_account_lookup_clears_marker(self):
         mark_reauth_required(self.live,self.token)
         self.assertTrue(reauth_required(self.root))

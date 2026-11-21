@@ -1,3 +1,10 @@
+## v1.3.4 — TrueNAS Schwab reauthorization marker compatibility (2026-11-21)
+
+- Corrected the Schwab OAuth reauthorization status file writer after production testing showed the existing TrueNAS live-state directory uses mode 0755. The status file itself remains owner-only 0600; group/world-writable directories are refused.
+- Added a regression fixture matching the actual TrueNAS directory permissions and preserved the no-secrets token fingerprint.
+- Production had demonstrated a rejected Schwab refresh token and empty new-order submissions. A bounded private REAUTH_REQUIRED marker was created after validating the observed OAuth error, immediately preventing further automatic refresh retries. No token content was read or altered.
+- Existing V1 brokers, order journals, user settings, V2 paper-only gate and deployment remain unchanged except for this compatibility correction. Broker reauthorization still requires authorized user interaction and valid OAuth consent.
+
 ## v1.3.3 — Schwab exit priority, OAuth reauthorization states and truthful UI (2026-11-21)
 
 - Fixed the critical legacy Schwab issue in which the combined daily-order cap returned before existing-position sell signals were evaluated. Held positions and verified exit signals are now evaluated first, while new entries still stop at the original combined-order ceiling.
