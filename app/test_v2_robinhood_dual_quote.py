@@ -74,6 +74,17 @@ class RobinhoodDualQuoteTests(TestCase):
             with self.subTest(start=start,end=end),self.assertRaises(DualQuoteUnavailable):
                 check(started=start,finished=end,now=now)
 
+    def test_signed_timestamp_present_and_recent_is_checked_not_ignored(self):
+        recent=NOW.isoformat()
+        result=check(signed(timestamp=recent))
+        self.assertEqual(result.signed_bid,D("989.5"))
+        with self.assertRaises(DualQuoteUnavailable) as found:
+            check(signed(timestamp=(NOW-timedelta(seconds=35)).isoformat()))
+        self.assertEqual(found.exception.code,
+                         "SIGNED_BROKER_TIMESTAMP_INVALID_OR_STALE")
+        with self.assertRaises(DualQuoteUnavailable):
+            check(signed(timestamp="not-a-timestamp"))
+
     def test_nonallowlisted_coin_does_not_inherit_trust(self):
         with self.assertRaises(DualQuoteUnavailable):
             attest_quote({"results":[{"symbol":"VIRTUAL-USD","bid":"1","ask":"1.01"}]},

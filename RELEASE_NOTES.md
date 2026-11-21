@@ -1,3 +1,9 @@
+## v1.3.34 — Robinhood quote verification uses actual live-source behavior
+
+The V2 preflight no longer fetches slow public trade data *after* obtaining a signed broker quote, which could cause otherwise valid cross-checks to expire. It separately validates broker bid/ask and any broker-reported quote timestamp, with the last trade sourced from a fresh independently timed Coinbase observation. The dashboard shows the exact safe quote validation blockers for supported symbols.
+
+This fixes a preflight reliability defect, not a V2 live-order activation. Broker funding, positions, market-session and single-writer cutover checks remain mandatory.
+
 ## v1.3.33 — Account-specific risk inheritance for V2 migration
 
 The Trading Operations migration check now distinguishes saved V1 risk settings that can be safely mapped to V2 from missing or unverified controls. Per-broker cash exposure, daily loss, maximum positions, user allocation and cooldown restrictions cannot silently widen on migration. Structural policy preview does not grant V2 live trading; signed broker account funding/session and ownership transfer remain separate acceptance gates.

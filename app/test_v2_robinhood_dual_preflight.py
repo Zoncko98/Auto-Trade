@@ -49,6 +49,43 @@ class SignedRobinhoodDualPreflightTests(TestCase):
                 self.assertEqual(result["first_blocker"],
                                  "BROKER_QUOTE_TIMESTAMP_OR_LAST_TRADE_UNVERIFIED")
 
+    def test_live_public_get_completes_before_signed_broker_quote(self):
+        order=[]
+        original=self.broker.quote
+        def spy_quote(symbol):
+            order.append("signed")
+            return original(symbol)
+        self.broker.quote=spy_quote
+        def public(symbol):
+            order.append("public")
+            return self.feed(symbol)
+        result=_probe(self.root,self.broker,self.policy,now=self.now,
+                      public_feed=public)
+        self.assertEqual(order[:2],["public","signed"])
+        self.assertEqual(result["independent_trade_crosscheck_symbols"],1)
+        self.assertEqual(result["quote_validation_failures"],{})
+        self.assertFalse(result["v2_live_order_authority"])
+
+    def test_signed_timestamp_stale_cannot_be_overridden_by_fresh_coinbase(self):
+        self.broker.quotes["BTC-USD"]["results"][0]["timestamp"]=(
+            datetime.now(timezone.utc)-timedelta(minutes=4)).isoformat()
+        result=_probe(self.root,self.broker,self.policy,now=self.now,
+                      public_feed=lambda symbol:self.feed(symbol))
+        self.assertEqual(result["independent_trade_crosscheck_symbols"],0)
+        self.assertEqual(result["quote_validation_failures"]["BTC-USD"],
+                         "SIGNED_BROKER_TIMESTAMP_INVALID_OR_STALE")
+        self.assertFalse(result["cutover_ready"])
+
+    def test_public_data_failure_is_explicit_and_never_grants_authority(self):
+        def missing(symbol):
+            raise TimeoutError("do not log token or private data")
+        result=_probe(self.root,self.broker,self.policy,now=self.now,
+                      public_feed=missing)
+        self.assertEqual(result["quote_validation_failures"]["BTC-USD"],
+                         "PUBLIC_TRADE_GET_UNAVAILABLE")
+        self.assertNotIn("do not log token",str(result))
+        self.assertFalse(result["cutover_ready"])
+
     def test_missing_external_trade_never_authorizes_v2(self):
         result=_probe(self.root,self.broker,self.policy,now=self.now)
         self.assertEqual(result["independent_trade_crosscheck_symbols"],0)

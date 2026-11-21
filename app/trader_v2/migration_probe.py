@@ -206,38 +206,70 @@ def _probe(state,client,policy,*,now=None,public_feed=None):
         report["first_blocker"]="SIGNED_PAIR_INCREMENT_OR_MINIMUM_UNVERIFIED"
         return report
     quote_count=0
+    signed_timestamps_verified=0
     independent_count=0
+    quote_failures={}
     for symbol in ("BTC-USD","ETH-USD"):
         if symbol not in verified:continue
-        try:
-            # A signed Robinhood V2 bid/ask GET has no native venue time
-            # or LAST. Validate a separate exchange-timed Coinbase trade,
-            # without labeling its timestamp as Robinhood's.
-            started=datetime.now(timezone.utc)
-            raw=client.quote(symbol)
-            completed=datetime.now(timezone.utc)
+        # Fetch the independent public trade FIRST. A slow Coinbase GET
+        # must not leave an otherwise valid signed Robinhood bid/ask stale
+        # before cross-source attestation. Missing data never authorizes.
+        public_trade=None
+        public_error=False
+        if public_feed is not None:
             try:
-                quote=robinhood_market_quote(raw,symbol,now=completed)
-                if quote.last is not None and quote.bid>0 and quote.ask>=quote.bid:
-                    quote_count+=1
-                    continue
-            except (MarketSourceError,ValueError,TypeError):
-                pass
-            if public_feed is not None:
-                try:
-                    market=public_feed(symbol.replace("-",""))
-                    proof=attest_quote(raw,market,symbol,
-                         request_started_at=started,
-                         request_completed_at=completed,
-                         examined_at=datetime.now(timezone.utc))
-                    if proof.public["independent_trade_timestamp_verified"]:
-                        independent_count+=1
-                except (DualQuoteUnavailable,ValueError,TypeError,OverflowError):
-                    pass
+                public_trade=public_feed(symbol.replace("-",""))
+            except Exception:
+                public_error=True
+        started=datetime.now(timezone.utc)
+        try:
+            raw=client.quote(symbol)
         except Exception:
-            pass
-    report["quote_timestamp_verified_symbols"]=quote_count
+            quote_failures[symbol]="SIGNED_BROKER_QUOTE_GET_UNAVAILABLE"
+            continue
+        completed=datetime.now(timezone.utc)
+        try:
+            quote=robinhood_market_quote(raw,symbol,now=completed)
+            signed_timestamps_verified+=1
+            if quote.last is not None and quote.bid>0 and quote.ask>=quote.bid:
+                quote_count+=1
+                continue
+        except MarketSourceError as exc:
+            # If the provider supplied a timestamp that is malformed or
+            # stale, do not bypass it using an independent public trade.
+            if exc.code in ("EXCHANGE_QUOTE_STALE_OR_FUTURE",
+                            "QUOTE_TIMESTAMP_INVALID"):
+                rows=raw.get("results",[]) if isinstance(raw,dict) else []
+                if isinstance(rows,list) and any(
+                    isinstance(x,dict) and x.get("symbol")==symbol and
+                    any(k in x for k in ("timestamp","quote_timestamp","updated_at"))
+                    for x in rows):
+                    quote_failures[symbol]="SIGNED_BROKER_TIMESTAMP_INVALID_OR_STALE"
+                    continue
+            quote_failures[symbol]="SIGNED_BROKER_NATIVE_QUOTE_UNVERIFIED"
+        except (ValueError,TypeError):
+            quote_failures[symbol]="SIGNED_BROKER_NATIVE_QUOTE_UNVERIFIED"
+        if public_trade is None:
+            quote_failures[symbol]=("PUBLIC_TRADE_GET_UNAVAILABLE" if public_error
+                                   else "INDEPENDENT_TRADE_NOT_CONFIGURED")
+            continue
+        try:
+            proof=attest_quote(raw,public_trade,symbol,
+                 request_started_at=started,
+                 request_completed_at=completed,
+                 examined_at=datetime.now(timezone.utc))
+            if proof.public["independent_trade_timestamp_verified"]:
+                independent_count+=1
+                quote_failures.pop(symbol,None)
+        except DualQuoteUnavailable as exc:
+            quote_failures[symbol]=exc.code
+        except (ValueError,TypeError,OverflowError):
+            quote_failures[symbol]="BROKER_PUBLIC_CROSSCHECK_INVALID"
+    report["quote_timestamp_verified_symbols"]=signed_timestamps_verified
+    report["signed_last_trade_verified_symbols"]=quote_count
     report["independent_trade_crosscheck_symbols"]=independent_count
+    # Structured allowlisted failure codes, never credentials, prices or IDs.
+    report["quote_validation_failures"]=quote_failures
     if quote_count==0 and independent_count==0:
         report["first_blocker"]="BROKER_QUOTE_TIMESTAMP_OR_LAST_TRADE_UNVERIFIED"
         return report

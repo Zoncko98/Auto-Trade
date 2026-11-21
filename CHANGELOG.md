@@ -1,3 +1,12 @@
+## v1.3.34 — Live Robinhood signed and Coinbase quote sequencing correction (2026-11-21)
+
+- Inspected the actual signed Robinhood V2 BTC-USD quote in production using GET-only access. The response contains one matching symbol with bid, ask and a broker-reported timestamp, and a separate fresh Coinbase public ticker passed dual-source cross-check (the signed GET took ~1.2 seconds). No live orders were sent during diagnosis.
+- Corrected the V2 read-only migration probe to request the independent Coinbase trade BEFORE the signed Robinhood bid/ask, eliminating avoidable post-quote staleness when a public GET is slow. The same source order is applied to the Robinhood V2 adapter. Provider bid/ask remain the only source for broker order price checks.
+- If the signed broker response contains a malformed, stale or future timestamp, the migration probe and dual-source validator reject it rather than replacing it with a public timestamp. Valid signed timestamps and independently timed LAST cross-checks are tracked separately.
+- Persist redacted, bounded per-symbol quote failure codes for BTC and ETH and display them in existing Trading Operations diagnostics; no account identifiers, raw prices, secrets, or provider errors are exposed.
+- Expanded offline tests verify public-first request sequencing, signed timestamp freshness and non-bypass, missing public feeds, strict cross-market price agreement, and no V2 order authority.
+- V2 live writer handoff remains disabled pending signed funding/session/holdings acceptance, broker-specific strategy/risk parity, V1 writer retirement and integrated execution lifecycle. V1 workers and original order journals are unchanged.
+
 ## v1.3.33 — Conservative account-specific V1-to-V2 risk mapping (2026-11-21)
 
 - Added a pure, private-source V1 risk policy translator for Schwab, Webull and Robinhood that maps saved USD maximum order, daily loss, open positions, per-asset percentages, strategy capital, allocation cash reserve and entry/exit counts into a strictly conservative V2 RiskPolicy preview only after receiving an explicitly verified broker Account.

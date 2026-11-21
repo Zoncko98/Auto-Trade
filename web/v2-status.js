@@ -90,6 +90,11 @@ document.addEventListener("DOMContentLoaded",()=>{
           " · Complete broker order history: "+((robinhoodProbe||{}).broker_history_verified===true?"verified":"unverified")+
           " · Signed quote timestamps: "+Number((robinhoodProbe||{}).quote_timestamp_verified_symbols||0)+
           " · Independent venue-timed trade crosschecks: "+Number((robinhoodProbe||{}).independent_trade_crosscheck_symbols||0)+
+          (Object.keys((robinhoodProbe||{}).quote_validation_failures||{}).length
+             ? " · Quote blockers: "+["BTC-USD","ETH-USD"].filter(
+                   symbol=>(robinhoodProbe.quote_validation_failures||{})[symbol]).map(
+                   symbol=>symbol+" "+String(robinhoodProbe.quote_validation_failures[symbol])).join(", ")
+             : "")+
           " · Robinhood V2 bid/ask may omit venue time and last; Coinbase trade time remains separately sourced"+
           ((robinhoodProbe||{}).holdings_failure_category?
             " · Holdings failure: "+String(robinhoodProbe.holdings_failure_category):"")+

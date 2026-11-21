@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from .models import MarketSnapshot, AssetClass, amount, utc
+from .market_sources import _sourced_time, MarketSourceError
 
 _ALLOWED = {"BTC-USD": "BTCUSD", "ETH-USD": "ETHUSD"}
 
@@ -61,6 +62,14 @@ def attest_quote(signed, public_trade: MarketSnapshot, symbol: str,
           and row.get("symbol")==symbol]
     if len(rows)!=1:
         raise DualQuoteUnavailable("SIGNED_BROKER_SYMBOL_NOT_UNIQUE")
+    row=rows[0]
+    signed_timestamp=next((row[k] for k in
+        ("quote_timestamp","timestamp","updated_at") if k in row),None)
+    if signed_timestamp is not None:
+        try:
+            _sourced_time(signed_timestamp,now,ttl=20)
+        except (MarketSourceError,ValueError,TypeError):
+            raise DualQuoteUnavailable("SIGNED_BROKER_TIMESTAMP_INVALID_OR_STALE") from None
     try:
         bid=amount(rows[0].get("bid"),"signed bid",False)
         ask=amount(rows[0].get("ask"),"signed ask",False)

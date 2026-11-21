@@ -75,8 +75,14 @@ class RobinhoodLiveAdapter:
         return signed_pair_limits(selected[0])
 
     def _validated_quote(self,symbol,now):
-        # The signed Robinhood v2 best_bid_ask response is three fields
-        # (symbol, bid, ask). Never invent an exchange timestamp or last.
+        # Independently timed last first, then signed broker bid/ask:
+        # the last read is never substituted for executable broker prices.
+        external=None
+        if self.public_trade_feed is not None:
+            try:
+                external=self.public_trade_feed(symbol.replace("-",""))
+            except Exception:
+                raise BrokerEvidenceUnavailable("INDEPENDENT_VENUE_TRADE_UNAVAILABLE") from None
         started=datetime.now(timezone.utc)
         try: raw=self.client.quote(symbol)
         except Exception:
@@ -90,10 +96,9 @@ class RobinhoodLiveAdapter:
                     reading.bid,reading.ask,reading.last,True)
         except (MarketSourceError,ValueError,TypeError):
             pass
-        if self.public_trade_feed is None:
+        if external is None:
             raise BrokerEvidenceUnavailable("INDEPENDENT_VENUE_TRADE_REQUIRED")
         try:
-            external=self.public_trade_feed(symbol.replace("-",""))
             proof=attest_quote(raw,external,symbol,
                  request_started_at=started,request_completed_at=completed,
                  examined_at=datetime.now(timezone.utc))

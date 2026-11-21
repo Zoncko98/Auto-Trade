@@ -1,0 +1,20 @@
+"use strict";
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const path=require("node:path");
+const root=path.resolve(__dirname,"..");
+const src=(p)=>fs.readFileSync(path.join(root,p),"utf8");
+test("Robinhood quote cutover failures are visible without exposing broker payloads",()=>{
+ const frontend=src("web/v2-status.js");
+ const preflight=src("app/trader_v2/migration_probe.py");
+ assert.match(frontend,/Quote blockers:/);
+ assert.match(frontend,/quote_validation_failures/);
+ assert.match(preflight,/quote_validation_failures/);
+ assert.match(preflight,/PUBLIC_TRADE_GET_UNAVAILABLE/);
+ assert.match(preflight,/SIGNED_BROKER_TIMESTAMP_INVALID_OR_STALE/);
+ assert.match(preflight,/public_trade=public_feed/);
+ assert.match(preflight,/raw=client\.quote\(symbol\)/);
+ assert.ok(preflight.indexOf("public_trade=public_feed(") < preflight.indexOf("raw=client.quote(symbol)"));
+ assert.match(frontend,/V2 live cutover: NOT READY/);
+});
