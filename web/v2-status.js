@@ -3,7 +3,44 @@
 document.addEventListener("DOMContentLoaded",()=>{
   const target=document.getElementById("v2-foundation-status");
   const health=document.getElementById("v2-adapter-health");
+  const cutover=document.getElementById("v2-cutover-status");
   if(!target)return;
+  function showCutover(report){
+    if(!cutover)return;
+    cutover.replaceChildren();
+    const intro=document.createElement("strong");
+    intro.textContent="V2 live-account migration preflight · read-only · no automatic cutover";
+    cutover.append(intro);
+    if(!report||report.live_order_authority!==false||
+       report.automatic_cutover_allowed!==false||!Array.isArray(report.accounts)){
+      const failure=document.createElement("p");
+      failure.textContent="Cutover evidence unavailable. V2 live orders remain disabled.";
+      cutover.append(failure);return;
+    }
+    const titles={schwab:"Schwab",webull:"Webull",
+      robinhood_crypto:"Robinhood Crypto",paper:"Paper"};
+    for(const item of report.accounts){
+      if(!item||!Object.hasOwn(titles,item.broker))continue;
+      const section=document.createElement("p");
+      const risk=item.risk||{},journal=item.journal||{};
+      const limits=risk.limits||{};
+      const values=Object.entries(limits).slice(0,7).map(([k,v])=>
+        k.replaceAll("_"," ")+"="+String(v)).join(" · ");
+      const state=item.broker==="paper"?"Simulation only":
+        String(item.authentication||"NOT_VERIFIED")+
+        " · V1 worker "+(item.v1_writer_active?"active":"unverified/offline")+
+        " · account "+(item.account_verified?"verified":"not verified");
+      section.textContent=titles[item.broker]+" · "+state+
+        " · V2 live cutover: NOT READY · First blocker: "+
+        String(item.first_blocker||"NOT_VERIFIED")+
+        " · Orders: "+String(journal.state||"UNVERIFIED")+
+        (journal.unresolved==null?"":" · Local unresolved: "+Number(journal.unresolved))+
+        " · Market: "+String(item.source_state||"UNVERIFIED")+
+        " · V1 risk: "+String(risk.state||"UNVERIFIED")+
+        (values?" · Saved limits: "+values:"");
+      cutover.append(section);
+    }
+  }
   function showAdapters(rows,market,diagnostics){
     if(!health)return;
     health.replaceChildren();
@@ -77,11 +114,13 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Unresolved: "+Number(data.unresolved||0)+
         " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
+      showCutover(data.cutover_preflight);
       void readFreshPaperStatus();
       void readRecordedReplay();
     }catch(_error){
       target.textContent="V2 status unavailable. V1 broker operation is unchanged.";
       if(health)health.textContent="Read-only broker adapter evidence unavailable.";
+      if(cutover)cutover.textContent="V2 cutover preflight unavailable; no live-order authority.";
     }
   }
 

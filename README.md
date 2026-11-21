@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **V2 development source (November 21, 2026):** this branch declares **v1.3.12**, consolidating Schwab Connect/Reconnect, verified account selection and developer setup into the existing Broker Connections workspace, with restart-safe OAuth sessions and private versioned token backups on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **V2 development source (November 21, 2026):** this branch declares **v1.3.13**, adding a four-account V2 live-migration preflight with read-only V1 risk, broker verification, journal and writer-ownership evidence, without enabling a V2 live executor on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

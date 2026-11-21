@@ -119,6 +119,22 @@ test("Paper scan scorecard is read-only evidence, not live performance",()=>{
   assert.match(status,/Peak-to-trough paper drawdown/);
 });
 
+test("V2 migration preflight shows four isolated brokers without arming orders",()=>{
+  const html=read("web/index.html");
+  const js=read("web/v2-status.js");
+  const status=read("app/trader_v2/status.py");
+  const preflight=read("app/trader_v2/cutover_preflight.py");
+  assert.match(html,/id="v2-cutover-status"/);
+  assert.match(js,/showCutover\(data\.cutover_preflight\)/);
+  assert.match(js,/V2 live cutover: NOT READY/);
+  assert.match(js,/automatic_cutover_allowed!==false/);
+  assert.match(status,/status\["cutover_preflight"\]=preflight\(/);
+  assert.match(preflight,/READ_ONLY_V2_LIVE_CUTOVER_PREFLIGHT/);
+  assert.match(preflight,/"automatic_cutover_allowed":False/);
+  assert.match(preflight,/V1_ORDER_WRITER_MUST_BE_PAUSED_FOR_CUTOVER/);
+  assert.doesNotMatch(preflight,/submit_order\(|place_order\(|TradeClient\(/);
+});
+
 test("Fresh market V2 paper worker has no live broker controls",()=>{
   const html=read("web/index.html");
   const js=read("web/v2-status.js");

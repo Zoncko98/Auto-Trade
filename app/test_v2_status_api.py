@@ -26,6 +26,11 @@ class V2StatusApiTests(unittest.TestCase):
             self.assertFalse(body["feature_enabled"])
             self.assertFalse(body["live_order_authority"])
             self.assertEqual(body["execution_mode"],"PAPER_ONLY")
+            self.assertFalse(body["cutover_preflight"]["live_order_authority"])
+            self.assertFalse(body["cutover_preflight"]["automatic_cutover_allowed"])
+            self.assertEqual(len(body["cutover_preflight"]["accounts"]),4)
+            self.assertTrue(all(not a["ready_for_v2_live"]
+                for a in body["cutover_preflight"]["accounts"]))
             self.assertFalse((Path(folder)/"v2").exists())
     def test_enabled_flag_only_exposes_status_not_live_broker_authority(self):
         with tempfile.TemporaryDirectory() as folder,patch.object(

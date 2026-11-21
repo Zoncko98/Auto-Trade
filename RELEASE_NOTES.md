@@ -1,3 +1,9 @@
+## v1.3.13 — V2 broker migration preflight
+
+V2 now displays authenticated, read-only cutover readiness for Schwab, Webull, Robinhood Crypto and Paper in the existing Trading Operations panel. A connected broker is not V2-live-ready: order journal reconciliation, market-executable quotes, correctly mapped account-specific limits, working adapters, and explicit V1-to-V2 writer handoff must all be independently verified. Saved V1 limits are shown as source evidence, not newly granted V2 order permission. No live V2 orders were placed.
+
+Production preflight: Schwab connected/worker online, local V1 journal 19 terminal orders and no unresolved local entries, Webull/Robinhood V1 adapters connected; current V1 workers still own each live account. The obsolete separate trading-live container targeting the same Schwab account was stopped safely, without deleting its credentials or history. V2 stock market-source freshness and full broker order reconciliation remain outstanding. V2 core 2.0.0-alpha.9 is read-only for live broker migration.
+
 ## v1.3.12 — Schwab setup moved into Broker Connections
 
 The navigation sidebar always shows Broker Connections just below Account Overview. Schwab now has an inline setup card with one Connect / Reconnect Schwab action, official sign-in link, account verification and optional real-money enablement, like the other connected brokers. Developer credentials and exact registered callback are advanced settings, and the callback paste form is shown only when the Schwab developer callback still uses the loopback address.

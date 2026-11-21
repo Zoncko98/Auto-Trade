@@ -6,15 +6,16 @@ from .models import OrderState,TERMINAL
 from .readonly_adapters import ReadOnlyBrokerRegistry
 from .market_sources import cached_market_status
 from .readiness import explain
+from .cutover_preflight import preflight
 
 def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.8","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.9","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
-            "stage":"PHASE_3_PAPER_SCAN_ECONOMICS_NO_LIVE_AUTHORITY",
+            "stage":"PHASE_4_READ_ONLY_LIVE_CUTOVER_PREFLIGHT",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
             "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","AI_RUNTIME_CONFIGURATION_AND_VALIDATION",
@@ -26,6 +27,7 @@ def summary(state_dir)->dict:
                                    "fresh_crypto_paper":"SUPERVISED_WHEN_PAPER_ENABLED",
                                    "ai_shadow":"ADVISORY_NO_ORDER_AUTHORITY",
                                    "paper_scan_metrics":"PERSISTED_24H_AND_7D",
+                                   "cutover_preflight":"READ_ONLY_V1_RISK_AND_JOURNAL",
                                    "why_no_trade":"READ_ONLY_NO_LIVE_ORDER_AUTHORITY"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.
@@ -40,6 +42,8 @@ def summary(state_dir)->dict:
     # no unauthenticated API can expose this authenticated status object.
     status["readiness_diagnostics"]=explain(
         status["broker_adapters"],status["market_sources"])
+    status["cutover_preflight"]=preflight(
+        state_dir,status["broker_adapters"],status["market_sources"])
     if not enabled():return status
     path=Path(state_dir)/"v2"/"events.sqlite3"
     if not path.is_file():return status
