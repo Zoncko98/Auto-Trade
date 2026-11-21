@@ -6,34 +6,94 @@ The redirect URL is pasted into the protected setup page to exchange the code.
 from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
-import json, os, tempfile, time
+import json, os, tempfile, time, fcntl, stat
+from functools import wraps
 from urllib.parse import urlparse,parse_qs
 from unified_config import settings,credentials,atomic_save,SetupError
 PENDING="schwab_oauth_pending.json"
 
-def begin(state, reconnect=False):
+def _serialized_oauth(fn):
+    @wraps(fn)
+    def guarded(state,*args,**kwargs):
+        # A callback may arrive concurrently with a new authenticated page
+        # session. Serialize the OAuth transition across dashboard threads.
+        location=Path(state)/".schwab_oauth.lock"
+        fd=os.open(location,os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW,0o600)
+        try:
+            st=os.fstat(fd)
+            if not stat.S_ISREG(st.st_mode) or st.st_mode&0o077:
+                raise SetupError("Schwab OAuth lock permissions invalid")
+            fcntl.flock(fd,fcntl.LOCK_EX)
+            return fn(state,*args,**kwargs)
+        finally:
+            fcntl.flock(fd,fcntl.LOCK_UN)
+            os.close(fd)
+    return guarded
+
+def _link_result(pending):
+    url=urlparse(pending["authorization_url"])
+    if url.scheme!="https" or url.hostname!="api.schwabapi.com":
+        raise SetupError("Invalid Schwab authorization link; restart connection")
+    automatic=urlparse(pending["callback"]).hostname!="127.0.0.1"
+    return {"authorization_url":pending["authorization_url"],
+            "callback_url":pending["callback"],
+            "automatic_callback":automatic,
+            "resumed":pending.get("resumed") is True,
+            "instructions":("Schwab will return to the registered Auto Trader callback."
+             if automatic else
+             "After Schwab sign-in, copy the FULL redirected browser address including code and state. The 127.0.0.1 connection error is expected; paste the address into the Finish connection field. Never share the URL.")}
+
+@_serialized_oauth
+def begin(state, reconnect=None, restart=False):
     from schwab.auth import get_auth_context
     config=settings(state); secret=credentials(state)
     if not config["schwab_app_key"] or not secret.get("schwab_app_secret"):
         raise SetupError("Save Schwab developer app credentials before connecting")
     token=Path(state)/"schwab_token.json"
-    if not reconnect and token.is_file() and token.stat().st_size>0:
-        raise SetupError("Schwab is already connected. Click Reconnect Schwab, then use its sign-in link. Do not generate a separate authorization link.")
-    if reconnect and not (token.is_file() and token.stat().st_size>0):
-        raise SetupError("No existing Schwab authorization to reconnect")
+    existing=token.is_file() and token.stat().st_size>0
+    if reconnect is None:
+        # Single Connect / Reconnect action. Saved/expired token is never
+        # treated as proof of a usable connection, but is preserved until a
+        # newly verified authorization can be swapped in.
+        reconnect=existing
+    elif not reconnect and existing:
+        raise SetupError("Schwab authorization already saved; use Connect / Reconnect Schwab")
+    elif reconnect and not existing:
+        raise SetupError("No existing Schwab authorization; use Connect / Reconnect Schwab")
     callback=config["schwab_callback_url"]
+    pending_path=Path(state)/PENDING
+    try:
+        st=pending_path.lstat()
+        if not stat.S_ISREG(st.st_mode) or st.st_mode&0o077 or st.st_size>8192:
+            raise SetupError("Unsafe pending Schwab authorization")
+        saved=json.loads(pending_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        saved={}
+    except (ValueError,TypeError,UnicodeError):
+        saved={}
+    # Returning to Broker Connections or starting a new dashboard session
+    # should reuse the currently valid OAuth transaction, not silently
+    # invalidate the user's already-open Schwab sign-in link.
+    try:
+        pending_age=time.time()-float(saved.get("created",0)) if isinstance(saved,dict) else -1
+    except (ValueError,TypeError,OverflowError):
+        pending_age=-1
+    if (not restart and isinstance(saved,dict) and saved.get("callback")==callback
+        and saved.get("reconnect") is bool(reconnect)
+        and isinstance(saved.get("state"),str)
+        and 20<=len(saved["state"])<=512
+        and isinstance(saved.get("authorization_url"),str)
+        and 0<=pending_age<480):
+        try:
+            return _link_result({**saved,"resumed":True})
+        except SetupError:
+            pass
     context=get_auth_context(config["schwab_app_key"],callback)
-    atomic_save(Path(state)/PENDING,{
-        "callback":callback,"state":context.state,
+    record={"callback":callback,"state":context.state,
         "authorization_url":context.authorization_url,"created":time.time(),
-        "reconnect":bool(reconnect)
-    })
-    automatic=urlparse(callback).hostname!="127.0.0.1"
-    return {"authorization_url":context.authorization_url,"callback_url":callback,
-            "automatic_callback":automatic,
-            "instructions":("Schwab will return automatically to the Auto Trader HTTPS page."
-             if automatic else
-             "The browser may show cannot connect at 127.0.0.1:8182 because no local listener is running. This is expected. Copy the FULL callback URL from the address bar (including code and state), return to Auto Trader, and paste it into the form. Never share that URL.")}
+        "reconnect":bool(reconnect)}
+    atomic_save(pending_path,record)
+    return _link_result(record)
 
 def _url_matches_registered_callback(registered,received):
     """A browser may add '/' to an empty root path; never relax host, port or scheme."""
@@ -53,6 +113,7 @@ def _callback_origin(url):
         return "invalid URL"
     return url.scheme+"://"+url.netloc+(url.path or "")
 
+@_serialized_oauth
 def finish(state,returned_url):
     from schwab.auth import AuthContext,client_from_received_url
     data=Path(state)/PENDING
@@ -114,12 +175,17 @@ def finish(state,returned_url):
             if old_hash and not any(isinstance(a,dict) and a.get("hashValue")==old_hash for a in accounts):
                 raise SetupError("Previously selected Schwab account is not authorized by replacement token")
         if existing:
-            backup=Path(state)/"schwab_token_pre_reconnect.json"
-            if backup.exists():
-                raise SetupError("Previous Schwab token backup already exists; resolve before retrying")
-            import shutil
-            shutil.copy2(token,backup)
-            os.chmod(backup,0o600)
+            # Keep EVERY previous rollback copy private. A backup from an
+            # earlier successful reconnect cannot block a future reauth.
+            previous=token.read_bytes()
+            if not 0<len(previous)<=1_048_576:
+                raise SetupError("Existing Schwab token cannot be safely backed up")
+            backup=Path(state)/("schwab_token_pre_reconnect_"+str(time.time_ns())+".json")
+            fd=os.open(backup,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+            with os.fdopen(fd,"wb") as stream:
+                stream.write(previous)
+                stream.flush()
+                os.fsync(stream.fileno())
         os.replace(candidate,token)
     except Exception:
         candidate.unlink(missing_ok=True)

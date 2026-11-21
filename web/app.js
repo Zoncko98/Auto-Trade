@@ -504,12 +504,18 @@ async function refreshRobinhoodTile(){
 }
 async function loadWorkspaceAvailability() {
   try {
-    const result=await request("/api/brokers");
+    const [capabilities,live]=await Promise.allSettled([
+      request("/api/brokers"),request("/api/live")]);
+    const result=capabilities.status==="fulfilled"?capabilities.value:{};
     const schwab=Array.isArray(result.brokers)?
       result.brokers.find(item=>item.id==="schwab"):null;
+    const worker=live.status==="fulfilled"?live.value:{};
     const label=$("workspace-schwab-status");
-    if(label)label.textContent=schwab?.integration_status==="authorization_saved"?
-      "AUTH SAVED":"NEEDS CONNECTION";
+    if(label)label.textContent=worker.auth_state==="REAUTH_REQUIRED"||
+        worker.worker_supervisor?.state==="REAUTH_REQUIRED"?
+      "RECONNECT REQUIRED":worker.auth_state==="WORKER_VERIFIED"&&worker.worker_online?
+      "WORKER VERIFIED":schwab?.integration_status==="authorization_saved"?
+      "AUTH SAVED · UNVERIFIED":"NEEDS CONNECTION";
   } catch (_) {
     const label=$("workspace-schwab-status");
     if(label)label.textContent="STATUS UNAVAILABLE";

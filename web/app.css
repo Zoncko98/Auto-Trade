@@ -90,3 +90,43 @@
 .broker-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .broker-actions a{color:#a3c6ff;text-decoration:underline}
 .broker-note{font-size:11px;color:var(--amber);line-height:1.5}
+
+
+/* Schwab uses the same Broker Connections card, not a separate setup page. */
+.broker-card .schwab-inline{
+  border-top:1px solid var(--border);
+  margin-top:16px;
+  padding-top:12px;
+  min-width:0;
+}
+.schwab-inline h3{font-size:15px;margin:0 0 4px}
+.schwab-inline details{
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+  min-width:0;
+}
+.schwab-inline details>summary{
+  cursor:pointer;
+  font-weight:700;
+  color:var(--text);
+}
+.schwab-inline details>summary:focus-visible{
+  outline:2px solid #93c5fd;
+  outline-offset:3px;
+}
+.schwab-inline form.broker-actions{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:7px;
+}
+.schwab-inline form input,
+.schwab-inline select{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.schwab-inline form .btn{justify-self:start}
+.schwab-inline .broker-actions{align-items:center}
+.schwab-inline .broker-note{overflow-wrap:anywhere}

@@ -94,7 +94,9 @@ class WorkspaceTileTests(unittest.TestCase):
 
     def test_read_only_connected_status_does_not_authorize_trading(self):
         self.assertIn('request("/api/brokers")',self.js)
-        self.assertIn('"AUTH SAVED":"NEEDS CONNECTION"',self.js)
+        self.assertIn('"RECONNECT REQUIRED"',self.js)
+        self.assertIn('"AUTH SAVED · UNVERIFIED":"NEEDS CONNECTION"',self.js)
+        self.assertIn('worker.auth_state==="REAUTH_REQUIRED"',self.js)
         self.assertIn('Schwab workspace remains navigable',self.js)
         self.assertNotIn("submit_order(",self.js)
     def test_mobile_and_keyboard_accessibility(self):

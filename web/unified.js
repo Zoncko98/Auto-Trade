@@ -344,7 +344,7 @@
     if(button.dataset.unifiedAction==="risk"){showView(ACCOUNTS[key].risk);return;}
     if(button.dataset.unifiedAction==="reconnect"&&key==="live"){
       // Only an explicitly labeled reconnect action navigates to OAuth.
-      window.location.assign("/broker-schwab.html#schwab-onboarding");
+      showView("brokers");
       return;
     }
     working=true;button.disabled=true;

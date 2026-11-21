@@ -64,7 +64,7 @@ test("successful recovery restores explicit Start trading action without auto-ar
   assert.match(x.hint.textContent,/Start when the account is authorized/);
 });
 
-test("Schwab Start never silently navigates, but explicit Reconnect opens Schwab OAuth page",()=>{
+test("Schwab Start never silently navigates, but explicit Reconnect opens Broker Connections",()=>{
   const js=read("web/unified.js");
   const start=js.slice(js.indexOf('async function start(key)'),
                        js.indexOf('if(key==="robinhood")',js.indexOf('async function start(key)')));
@@ -73,8 +73,8 @@ test("Schwab Start never silently navigates, but explicit Reconnect opens Schwab
   assert.match(start,/if\(!current\.worker_online\|\|!current\.armed\)/);
   assert.match(start,/window\.confirm\("Start autonomous Schwab trading with REAL MONEY/);
   assert.match(js,/button\.dataset\.unifiedAction==="reconnect"&&key==="live"/);
-  assert.match(js,/window\.location\.assign\("\/broker-schwab\.html#schwab-onboarding"\)/);
-  assert.match(read("web/broker-schwab.html"),/id="schwab-onboarding"/);
+  assert.match(js,/if\(button\.dataset\.unifiedAction==="reconnect"&&key==="live"\)/);
+  assert.match(js,/showView\("brokers"\)/);
   assert.match(read("web/local.js"),/setSchwabStatus\(data\)/);
   assert.match(read("app/live_dashboard.py"),/authorization_blocked=reauth_required\(state_dir\)/);
   assert.match(read("app/dashboard_server.py"),/OAuth reauthorization required/);

@@ -1,3 +1,11 @@
+## v1.3.12 — Schwab setup moved into Broker Connections
+
+The navigation sidebar always shows Broker Connections just below Account Overview. Schwab now has an inline setup card with one Connect / Reconnect Schwab action, official sign-in link, account verification and optional real-money enablement, like the other connected brokers. Developer credentials and exact registered callback are advanced settings, and the callback paste form is shown only when the Schwab developer callback still uses the loopback address.
+
+Saved and revoked tokens no longer force the operator to select the correct type of authorization or clean up old private backups manually. The current OAuth session is reused across page reloads, with an explicit new sign-in option when necessary. Tokens remain protected until replacement has passed broker account validation. No live order permissions or safeguards were automatically modified.
+
+The live Schwab worker may remain offline until official user-driven OAuth sign-in is completed. V2 alpha.8 remains paper-only.
+
 ## v1.3.11 — Schwab Start Trading and OAuth reconnect clarity
 
 The Schwab workspace now distinguishes Start trading from Reconnect Schwab rather than sending Start to generic Broker Connections. The live API confirms a revoked authorization and the real-money permission endpoint refuses to start until Schwab's OAuth consent and worker verification succeed. The dedicated reconnect action opens the registered Schwab flow.

@@ -39,7 +39,9 @@ class PasswordPolicyAndNavigation(unittest.TestCase):
         self.assertIn('id="toggle-live"',broker)
         self.assertNotIn('id="setup-provider"',broker)
         self.assertIn('href="/integrations.html">⚙ Configure AI models',profile)
-        self.assertIn('href="/broker-schwab.html#schwab-settings"',frontend)
+        self.assertIn('function schwabInlineCard(card)',frontend)
+        self.assertIn('"/api/schwab/connect"',frontend)
+        self.assertIn('schwab-inline-status',frontend)
         self.assertIn('"/broker-schwab.html":',server)
         self.assertIn('if path in ("/integrations.html","/broker-schwab.html")',server)
     def test_changes_do_not_require_20_characters(self):
