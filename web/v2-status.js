@@ -4,7 +4,46 @@ document.addEventListener("DOMContentLoaded",()=>{
   const target=document.getElementById("v2-foundation-status");
   const health=document.getElementById("v2-adapter-health");
   const cutover=document.getElementById("v2-cutover-status");
+  const webullProbe=document.getElementById("v2-webull-preflight-run");
+  const webullReport=document.getElementById("v2-webull-preflight-report");
+  async function refreshWebullProbe(){
+    if(!webullReport)return;
+    try{
+      const resp=await fetch("/api/v2/webull-preflight",{
+        credentials:"same-origin",cache:"no-store"});
+      if(!resp.ok)throw Error("Preflight status unavailable");
+      const doc=await resp.json();
+      webullReport.textContent="Signed Webull V2 preflight: "+
+        String(doc.state||"NOT_VERIFIED")+
+        " · First blocker: "+String(doc.first_blocker||"NOT_VERIFIED")+
+        " · Broker open orders: "+(doc.broker_open_order_count==null?
+          "not verified":Number(doc.broker_open_order_count))+
+        " · Local unresolved: "+(doc.local_unresolved_count==null?
+          "not verified":Number(doc.local_unresolved_count))+
+        " · V2 live authority: OFF";
+    }catch(_err){webullReport.textContent="Webull signed migration status unavailable; V2 live authority remains OFF";}
+  }
+  webullProbe?.addEventListener("click",async()=>{
+    webullProbe.disabled=true;
+    if(webullReport)webullReport.textContent="Running authenticated Webull read-only preflight…";
+    try{
+      const session=await fetch("/api/session",{credentials:"same-origin",cache:"no-store"});
+      if(!session.ok)throw Error("Sign in required");
+      const data=await session.json();
+      if(typeof data.csrf!=="string"||!data.csrf)throw Error("Missing CSRF token");
+      const result=await fetch("/api/v2/webull-preflight",{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json","X-CSRF-Token":data.csrf},
+        body:"{}"});
+      if(!result.ok)throw Error("Signed Webull GET preflight unavailable");
+      await refreshWebullProbe();
+    }catch(_err){
+      if(webullReport)webullReport.textContent=
+        "Webull migration check could not finish; no V2 orders were enabled.";
+    }finally{webullProbe.disabled=false;}
+  });
   if(!target)return;
+  void refreshWebullProbe();
   function showCutover(report,robinhoodProbe){
     if(!cutover)return;
     cutover.replaceChildren();

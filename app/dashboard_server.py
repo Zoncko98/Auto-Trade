@@ -378,6 +378,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(200,v2_summary(STATE_DIR))
                 except (OSError,ValueError,TypeError):
                     return self._json(503,{"error":"V2 foundation status unavailable"})
+            if UNIFIED_APP and path == "/api/v2/webull-preflight":
+                # Authenticated, cached, redacted signed-GET migration status.
+                from trader_v2.webull_probe_runner import result_status
+                return self._json(200,result_status(STATE_DIR))
             if UNIFIED_APP and path == "/api/v2/stock-shadow":
                 from trader_v2.stock_shadow import status as stock_shadow_status
                 return self._json(200, stock_shadow_status(STATE_DIR))
@@ -675,6 +679,17 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if UNIFIED_APP and path == "/api/v2/webull-preflight":
+            # Authenticated + same-origin + CSRF already required above.
+            # Only signed Webull GET account/balance/positions/open-order/detail;
+            # never places, cancels, arms, or grants V2 live order permission.
+            from trader_v2.webull_probe_runner import run_once
+            try:
+                return self._json(200,run_once(STATE_DIR))
+            except (OSError,ValueError,PermissionError):
+                return self._json(503,{"error":"Webull read-only migration preflight unavailable"})
+            except Exception:
+                return self._json(503,{"error":"Webull signed read-only preflight failed"})
         if UNIFIED_APP and path == "/api/v2/replay/run":
             # Every POST has already passed same-origin, session AND CSRF.
             # This endpoint has NO live broker mode, even if V2 is armed.

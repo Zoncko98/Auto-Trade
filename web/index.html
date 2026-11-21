@@ -163,6 +163,9 @@
           <p class="muted">Shared data models, durable event journal and simulated execution. No V2 live-broker order authority.</p>
           <p id="v2-foundation-status" role="status">Open Trading operations to load the authenticated V2 feature status.</p>
           <div id="v2-adapter-health" class="ops-records" aria-live="polite">No verified V2 broker observations loaded.</div>
+          <div class="panel-note">Webull signed migration checks use read-only account, holdings and order endpoints. They do not enable live V2 orders.</div>
+          <button id="v2-webull-preflight-run" class="btn secondary" type="button">Check Webull migration readiness</button>
+          <p id="v2-webull-preflight-report" role="status" class="panel-note">Not yet checked this session.</p>
           <div id="v2-cutover-status" class="ops-records" role="status" aria-live="polite" style="margin-top:12px">
             <strong>V2 live-account migration preflight (read-only)</strong>
             <p class="muted">Verifies independent broker health, V1 risk settings, observed account-specific budget headroom and order journals. Any preliminary budget uses saved V1 rules and current verified account data; it is NOT V2 broker-order approval, excludes per-order settlement/fees, and cannot create orders or cut over automatically.</p>

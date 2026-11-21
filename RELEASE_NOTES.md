@@ -1,3 +1,9 @@
+## v1.3.28 — Signed Webull order evidence before any live migration
+
+The existing Trading Operations screen now offers **Check Webull migration readiness**, a signed read-only Webull account preflight. This validates independently signed broker account, open orders, balances, positions response and exact historical fill evidence without placing orders. Missing source data, unresolved V1 intents, unsettled cash, incomplete holdings or active V1 writer keep live migration blocked.
+
+The Webull V2 receipt adapter translates broker accepted, partial, terminal fills and cancellations into the shared V2 order schema but refuses to submit any orders. V2 core 2.0.0-alpha.24 remains paper/shadow only. Existing live trading workers and financial history are preserved.
+
 ## v1.3.27 — Verify legacy Robinhood fills against signed broker executions
 
 V2 now checks the old Robinhood fill journal against signed broker executions using the original V1 weighted-average execution parser. Tiny fractional quantities and broker-reported execution arrays are treated accurately without guessing costs. Any unverifiable or different fill, price or fee keeps live migration blocked and displays a privacy-preserving reason in Trading Operations.
