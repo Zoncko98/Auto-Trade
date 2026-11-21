@@ -1,3 +1,7 @@
+## v1.3.5 — Unified-image regression portability fix
+
+Portability update for a source/UI regression that located web/index.html incorrectly inside the built Docker image. No application runtime logic or broker permissions change from v1.3.4. The release retains the verified Schwab OAuth REAUTH_REQUIRED state and separated entry/exit caps.
+
 ## v1.3.4 — Schwab reauthorization status persistence fix
 
 Validated the persistent REAUTH_REQUIRED marker on TrueNAS's existing 0755 live-state directory while requiring 0600 marker files and refusing writable parent directories. This fixes the production-detected failure to suppress repeat OAuth refresh attempts after a revoked Schwab grant. Prior v1.3.3 Schwab exit-priority and UI changes remain included.

@@ -116,9 +116,10 @@ class ExitOrderPriorityTests(unittest.TestCase):
             validate_risk({**RISK_DEFAULTS,"max_exit_orders_per_day":31})
 
     def test_existing_frontend_shows_and_controls_separate_limits(self):
-        root=Path(__file__).resolve().parents[1]
-        html=(root/"web"/"index.html").read_text(encoding="utf-8")
-        js=(root/"web"/"local.js").read_text(encoding="utf-8")
+        base=Path(__file__).resolve().parent
+        web=(base/"web") if (base/"web"/"index.html").is_file() else (base.parent/"web")
+        html=(web/"index.html").read_text(encoding="utf-8")
+        js=(web/"local.js").read_text(encoding="utf-8")
         self.assertIn('id="live-max_exit_orders_per_day"',html)
         self.assertIn('id="live-risk-exits-preview"',html)
         self.assertIn('"max_exit_orders_per_day"',js)

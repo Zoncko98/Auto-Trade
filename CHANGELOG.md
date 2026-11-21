@@ -1,3 +1,8 @@
+## v1.3.5 — Portable post-deployment UI regression path (2026-11-21)
+
+- Corrected a Schwab Risk & Start test fixture to locate existing web assets both from a repository checkout and the flattened unified Docker image. The production 1.3.4 post-deployment test had failed only because its assertion looked in /web instead of /app/web.
+- Trading algorithms, order submission, risk settings, accounts, credentials, live permissions, and V2 feature gates are unchanged. Repeat automated CI, in-image tests and operational health verification against the new immutable image.
+
 ## v1.3.4 — TrueNAS Schwab reauthorization marker compatibility (2026-11-21)
 
 - Corrected the Schwab OAuth reauthorization status file writer after production testing showed the existing TrueNAS live-state directory uses mode 0755. The status file itself remains owner-only 0600; group/world-writable directories are refused.
