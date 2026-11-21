@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **V2 development source (November 21, 2026):** this branch declares **v1.3.17**, speeding up bounded V2 stock and crypto advisory Ollama assessments with structured JSON schema, reasoning-disabled responses and visible decision latency while maintaining strict identity validation and zero AI broker-order authority on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **V2 development source (November 21, 2026):** this branch declares **v1.3.18**, adding verified rolling 3h and 24h crypto paper scan-to-fill diagnostics and exact risk-blocker evidence in Trading Operations while preserving zero V2 broker order authority on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

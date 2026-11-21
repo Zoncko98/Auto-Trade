@@ -155,6 +155,25 @@ test("Schwab V2 stock price bridge reuses V1 quotes without broker submission",(
   assert.match(html,/Schwab stock quotes are reused from its existing authenticated V1 scanner/);
 });
 
+test("V2 paper rolling 3h/24h activity separates signals, blockers and simulated fills",()=>{
+  const source=read("app/trader_v2/paper_activity.py");
+  const fresh=read("app/trader_v2/fresh_paper.py");
+  const ui=read("web/v2-status.js");
+  const html=read("web/index.html");
+  assert.match(source,/SIMULATED_LEDGER_VERIFIED/);
+  assert.match(source,/FILL_LEDGER_UNVERIFIED/);
+  assert.match(source,/ENTRY_BLOCKED/);
+  assert.match(source,/EXIT_BLOCKED/);
+  assert.match(source,/"live_orders_authorized": False/);
+  assert.match(fresh,/"activity_3h":read_activity\(base,hours=3,now=now\)/);
+  assert.match(fresh,/"activity_24h":read_activity\(base,hours=24,now=now\)/);
+  assert.match(html,/id="v2-paper-activity-report"/);
+  assert.match(ui,/showPaperActivity\(data\)/);
+  assert.match(ui,/Why no trade:/);
+  assert.match(ui,/Simulated fills unavailable/);
+  assert.doesNotMatch(source,/place_order\(|submit_order\(|from schwab\.|from robinhood/);
+});
+
 test("Fast V2 Ollama shadow shows bounded latency and no broker execution path",()=>{
   const transport=read("app/trader_v2/ollama_transport.py");
   const shared=read("app/trader_v2/ai_service.py");

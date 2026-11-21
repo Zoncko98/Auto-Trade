@@ -28,6 +28,7 @@ from .public_crypto import PRODUCTS,PublicFeedError,fetch_ticker
 from .ai_shadow import shadow_review
 from .recorded_replay import _atomic_json, _private_json
 from .scan_observability import capture_scan,read_scorecards
+from .paper_activity import read_activity
 
 STATE_VERSION="live-crypto-paper-1"
 INTERVAL_SECONDS=30
@@ -266,7 +267,9 @@ def status(state_dir):
             "market_executable_for_user_broker":False,
             "sources":["COINBASE_PUBLIC_TICKER_ONLY"],
             "ai_mode":"OFF_BASELINE","reports":reports,
-            "scorecards":read_scorecards(base)}
+            "scorecards":read_scorecards(base),
+            "activity_3h":read_activity(base,hours=3,now=now),
+            "activity_24h":read_activity(base,hours=24,now=now)}
 
 
 def _signal_stop(_sig,_frame):

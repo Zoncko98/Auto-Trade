@@ -182,6 +182,43 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 
   const freshNode=document.getElementById("v2-paper-fresh-report");
+  const activityNode=document.getElementById("v2-paper-activity-report");
+  function showPaperActivity(data){
+    if(!activityNode)return;
+    activityNode.replaceChildren();
+    const note=document.createElement("p");
+    note.className="muted";
+    note.textContent="Real recorded scan-minutes and verified *simulated* fills; 3h window does not claim net trading profits. No V2 broker order authority.";
+    activityNode.append(note);
+    for(const [key,title] of [["activity_3h","Last 3 hours"],["activity_24h","Last 24 hours"]]){
+      const windowData=data&&data[key]&&typeof data[key]==="object"?data[key]:{};
+      for(const symbol of ["BTCUSD","ETHUSD"]){
+        const card=windowData[symbol];
+        if(!card || card.live_orders_authorized!==false)continue;
+        const reasons=card.rejection_reasons&&typeof card.rejection_reasons==="object"?
+          Object.entries(card.rejection_reasons).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,4):[];
+        const line=document.createElement("p");
+        line.textContent=title+" · "+symbol+" · "+
+          Number(card.scan_minutes||0)+" observed scan-minutes · "+
+          Number(card.signal_minutes||0)+" signal-minutes · "+
+          Number(card.entry_blocked_minutes||0)+" entry-blocked · "+
+          Number(card.exit_blocked_minutes||0)+" exit-blocked · "+
+          (card.fills_state==="SIMULATED_LEDGER_VERIFIED"?
+            Number(card.simulated_fills)+" verified simulated fills ("+
+            Number(card.simulated_buys)+" buys / "+Number(card.simulated_sells)+
+            " sells, assumed fees $"+String(card.simulated_fee_usd)+")":
+            "Simulated fills unavailable — "+String(card.fills_state||"unverified"))+
+          (reasons.length?" · Why no trade: "+reasons.map(([reason,count])=>
+             String(reason)+" "+Number(count)).join(", "):"")+
+          " · AI PASS/VETO/UNAVAILABLE "+
+          Number((card.ai_shadow||{}).PASS||0)+"/"+
+          Number((card.ai_shadow||{}).VETO||0)+"/"+
+          Number((card.ai_shadow||{}).UNAVAILABLE||0)+
+          " · Market data errors "+Number(card.data_error_minutes||0);
+        activityNode.append(line);
+      }
+    }
+  }
   async function readFreshPaperStatus(){
     if(!freshNode)return;
     try{
@@ -190,6 +227,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         headers:{"Accept":"application/json"}});
       if(!response.ok)throw Error("Fresh-paper worker status unavailable");
       const data=await response.json();
+      showPaperActivity(data);
       freshNode.replaceChildren();
       const list=Array.isArray(data.reports)?data.reports:[];
       for(const report of list){
@@ -252,6 +290,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         freshNode.textContent="No verified V2 paper worker observations yet.";
     }catch(_error){
       freshNode.textContent="Fresh-paper worker status unavailable. No live orders are affected.";
+      if(activityNode)activityNode.textContent="Rolling paper activity unavailable; scan records and simulated fill counts could not be verified.";
     }
   }
 

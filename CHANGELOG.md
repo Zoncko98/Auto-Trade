@@ -1,3 +1,13 @@
+## v1.3.18 — V2 three-hour/24-hour paper scan-to-fill diagnostics (2026-11-21)
+
+- Inspected the real TrueNAS V2 crypto paper scan and simulator ledgers for the previous three hours. Both BTC and ETH scans remained active, AI returned PASS/VETO/UNAVAILABLE evidence, and zero new simulated fills occurred because the existing three-entry daily cap and absence of held inventory blocked new orders. No broker orders were placed by V2.
+- Added an authenticated, read-only rolling 3h and 24h diagnostic aggregating persisted scan-minutes, candidate signal-minutes, exact entry/exit block reasons and AI shadow outcomes, with separately verified actual simulator BUY/SELL fill counts and accumulated assumed fees. Never mistake a signal for a fill; missing, malformed or unsafe ledger files report unavailable rather than falsely asserting zero.
+- Validated the aggregator against actual production PaperPipeline events, which use state BLOCKED plus candidate side BUY/SELL. Fixed the initial implementation to match this real schema, preserved older canonical status support, and added tests for the regression.
+- Updated the existing Trading Operations V2 crypto paper section with rolling 3-hour and 24-hour summaries, including the top why-no-trade risk reasons and counts. This does not add an independent workspace, modify V1 live broker workers or enable V2 order authority.
+- Fixed a clock-dependent test that used a dated November 20 candle tape with an ambient 24-hour window; it now reads its fixed tape against its own recorded timestamp, without weakening any production time checks.
+- Added tests for timing windows, risk rejection aggregation, source permissions and symlink handling, simulator fill verification, duplicate scan minutes, stale/malformed evidence and zero live-order authority. Source Python suite passed 681 tests (one skipped), before CI and image deployment.
+- Remains blocked for live cutover by broker order adapters, reconciled holdings/lots and settled cash, market-session verification, and a staged one-writer-per-broker handoff. Simulated P/L does not establish economic viability.
+
 ## v1.3.17 — Fast structured Ollama advisory decisions for V2 stock and crypto shadow (2026-11-21)
 
 - Updated the V2-only Ollama /api/chat transport to send a strict object-schema for {symbol,state,reason}, disable generation of internal reasoning tokens, cap predicted response tokens at 90 and context at 2,048, and keep deterministic zero-temperature selection. This reduces needless inference while retaining the shared typed response/identity checks and existing six-second timeout.

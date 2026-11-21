@@ -1,3 +1,11 @@
+## v1.3.18 — Confirmed paper activity and why-no-trade evidence
+
+The existing authenticated Trading Operations V2 paper section now shows independent rolling three-hour and 24-hour scan and simulator activity. It distinguishes genuine BTC/ETH candidate signal-minutes from verified simulated fills and displays the actual broker-independent risk blockers: ENTRY_DAILY_COUNT_LIMIT and NO_LONG_HOLDING, without altering the safeguards.
+
+The last three-hour production inspection showed ongoing crypto scans with genuine AI assessments but no new simulator fills. All 12 previously persisted simulated fills occurred before that interval. V2 cannot submit any live broker order. This release makes these differences visible rather than conflating scanner activity with execution.
+
+V2 core 2.0.0-alpha.14 remains read-only for live brokers. This is not evidence of broker acceptance/fills or profitable performance.
+
 ## v1.3.17 — Faster local AI shadow evaluation with validated JSON
 
 V2's existing stock and crypto shadow pipelines use the configured local Ollama model with a constrained three-field JSON decision, reasoning-token generation disabled, a bounded token/context budget and the existing six-second timeout. Output still passes the shared AI service's symbol, state, timestamp, schema and expiry checks, and AI has no authority to modify the deterministic risk or order pipeline.

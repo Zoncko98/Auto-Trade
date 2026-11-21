@@ -11,6 +11,7 @@ from unittest.mock import patch
 from trader_v2.models import AssetClass,MarketSnapshot
 from trader_v2.public_crypto import PRODUCTS,normalize_ticker,fetch_ticker,PublicFeedError
 from trader_v2.fresh_paper import run_once,status,_record_and_closed_bars
+from trader_v2.scan_observability import read_scorecards
 
 class FakeResponse:
     status=200
@@ -97,7 +98,11 @@ class FreshPaperTests(unittest.TestCase):
         self.assertFalse((self.root/"schwab_token.json").exists())
         self.assertFalse((self.root/"robinhood").exists())
         self.assertEqual(status(self.root)["live_orders_authorized"],False)
-        scorecard=status(self.root)["scorecards"]["BTCUSD"]
+        # The tape is fixed to November 2026. Read at its recorded timestamp
+        # instead of ambient wall time: rolling 24h windows must stay testable.
+        scorecard=read_scorecards(paper_dir,
+            now=self.start+timedelta(minutes=len(self.prices),seconds=10),
+            hours=24)["BTCUSD"]
         self.assertGreater(scorecard["sample_minutes"],0)
         self.assertGreater(scorecard["signal_minutes"],0)
         self.assertGreater(scorecard["fill_minutes"],0)

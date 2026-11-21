@@ -182,6 +182,11 @@
             <strong>V2 crypto paper scan · live public market observations</strong>
             <p class="muted">Collects real timestamped Coinbase public ticker observations every 30 seconds when your existing Paper Trading setting is on. Closed 1-minute bars take time to accumulate. Orders and balances are simulated in isolated V2 paper wallets; Coinbase prices are NOT executable quotes for Robinhood or Webull. The no-AI order baseline stays authoritative; configured Ollama models may provide bounded shadow PASS/VETO/UNAVAILABLE evidence without controlling orders. The 24-hour scorecard counts real scan minutes and shows only synthetic virtual-account P/L and drawdown; no observed fill implies no trading performance evidence. Live trading permissions are unchanged.</p>
             <div id="v2-paper-fresh-report" role="status">Awaiting V2 paper worker observations…</div>
+            <div id="v2-paper-activity-report" class="ops-records" role="status" aria-live="polite" style="margin-top:10px">
+              <strong>Last 3h / 24h verified activity</strong>
+              <p class="muted">Read-only V2 scan and simulator ledger counts. Qualified signal-minutes are not orders or fills. Missing/unverified order journal evidence is not displayed as zero. Entry and exit blockers remain enforced.</p>
+              Awaiting rolling simulated activity…
+            </div>
           </div>
           <div class="ops-records" id="v2-paper-replay-card" style="margin-top:12px">
             <strong>Historical paper replay · V2 shared pipeline</strong>
