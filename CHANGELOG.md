@@ -1,3 +1,13 @@
+## v1.3.8 — Independent continuously supervised V2 public crypto paper worker (2026-11-21)
+
+- Added a production-contained Coinbase Exchange public ticker adapter for BTC-USD and ETH-USD, validating genuine exchange timestamps, bid/ask, last trade, spread and quote freshness. Explicit fixed HTTPS endpoint allowlist; no broker OAuth, tokens or order placement.
+- Separate V2 paper worker samples the public ticker every 30 seconds, persisting the last real observed trade per UTC minute. Only completed, contiguous one-minute observations can produce V2 CryptoController candidates; no historical candle guessing, forward-fill, or fabricated trading signals.
+- The shared deterministic V2 paper pipeline independently validates account, simulated cash/exposure, spread, signal freshness and entry/exit limits, persists unique order intents in its SQLite WAL journal, and submits only to SimulatedBroker. Independent BTC and ETH virtual cash accounts start at $1,000 each, never reset on worker restart; fees/slippage are simulated and clearly labeled.
+- The existing unified runtime supervises V2 fresh-paper alongside V1 without sharing brokers. It runs only when the operator's existing Paper Trading setting is enabled, stops when disabled, and backs off after a crash; no V2 live-order authority is possible.
+- New authenticated read-only GET /api/v2/paper-fresh and Operations detail show warm-up/closed candles, heartbeat freshness, source-specific errors, real scan signals, simulated holdings/equity, and durable order counts. AI mode remains OFF for this no-AI baseline; live broker order status is untouched.
+- Integration tests cover malformed/stale/crossed/public market data, delayed fetch clock, unique accounts and journals, completed-bar warm-up, simulated signal/fill and restart idempotency, API authentication, UI and supervisor gating. TrueNAS real public-feed probe returns genuine observations and WARMING_UP without live orders.
+- Still outstanding: wired shared AI reviewer, stock-independent public feed, real candle/replay performance validation, V2 broker execution adapters, all-four account page parity and staged live cutover. Live broker quote and actual broker fill validation have NOT been established by Coinbase paper scans.
+
 ## v1.3.7 — Authenticated, broker-independent recorded V2 paper replay (2026-11-21)
 
 - Added an operator-triggered historical replay inside the existing Trading Operations V2 detail, with a list of explicitly supported recorded instruments, available closed candle counts, last replay report and actual simulated order/fill numbers.

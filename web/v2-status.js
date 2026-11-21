@@ -1,5 +1,5 @@
 "use strict";
-// Read-only V2 foundation status. Intentionally contains no trading controls.
+// Read-only broker status plus authenticated paper-only simulation controls.
 document.addEventListener("DOMContentLoaded",()=>{
   const target=document.getElementById("v2-foundation-status");
   const health=document.getElementById("v2-adapter-health");
@@ -67,7 +67,8 @@ document.addEventListener("DOMContentLoaded",()=>{
       }
       if(!response.ok)throw Error("V2 status unavailable");
       const data=await response.json();
-      const flag=data.feature_enabled?"Enabled for paper/replay":"Disabled by default";
+      const flag=data.feature_enabled?"Core flag enabled for paper/replay":
+        "Core flag disabled; fresh V2 crypto paper follows the Paper Trading setting";
       const store=data.store||"Unavailable";
       target.textContent="V2 "+String(data.version||"experimental")+
         " · "+flag+" · Live broker authority: OFF"+
@@ -76,10 +77,52 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Unresolved: "+Number(data.unresolved||0)+
         " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
+      void readFreshPaperStatus();
       void readRecordedReplay();
     }catch(_error){
       target.textContent="V2 status unavailable. V1 broker operation is unchanged.";
       if(health)health.textContent="Read-only broker adapter evidence unavailable.";
+    }
+  }
+
+  const freshNode=document.getElementById("v2-paper-fresh-report");
+  async function readFreshPaperStatus(){
+    if(!freshNode)return;
+    try{
+      const response=await fetch("/api/v2/paper-fresh",{
+        credentials:"same-origin",cache:"no-store",
+        headers:{"Accept":"application/json"}});
+      if(!response.ok)throw Error("Fresh-paper worker status unavailable");
+      const data=await response.json();
+      freshNode.replaceChildren();
+      const list=Array.isArray(data.reports)?data.reports:[];
+      for(const report of list){
+        if(!report || !["BTCUSD","ETHUSD"].includes(report.symbol))continue;
+        const item=document.createElement("p");
+        const state=String(report.scan_state||"NOT_SCANNED");
+        const bars=Number(report.closed_bars||0);
+        const target=Number(report.ready_closed_bars||9);
+        let text=report.symbol+" · "+state+
+           " · "+bars+"/"+target+" real closed candles";
+        if(report.reason)text+=" · "+String(report.reason);
+        if(report.last_quote_at)text+=" · Quote "+String(report.last_quote_at);
+        if(report.heartbeat_age_sec!==undefined &&
+           report.heartbeat_age_sec!==null)
+           text+=" · Heartbeat "+Number(report.heartbeat_age_sec)+"s";
+        if(report.virtual_equity!==undefined){
+          text+=" · Simulated equity $"+String(report.virtual_equity)+
+             " · Cash $"+String(report.virtual_cash);
+          const journal=report.journal||{};
+          text+=" · Persisted simulated intents "+Number(journal.intents||0)+
+             " · Unresolved "+Number(journal.unresolved||0);
+        }
+        item.textContent=text;
+        freshNode.append(item);
+      }
+      if(freshNode.childElementCount===0)
+        freshNode.textContent="No verified V2 paper worker observations yet.";
+    }catch(_error){
+      freshNode.textContent="Fresh-paper worker status unavailable. No live orders are affected.";
     }
   }
 

@@ -378,6 +378,9 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(200,v2_summary(STATE_DIR))
                 except (OSError,ValueError,TypeError):
                     return self._json(503,{"error":"V2 foundation status unavailable"})
+            if UNIFIED_APP and path == "/api/v2/paper-fresh":
+                from trader_v2.fresh_paper import status as fresh_paper_status
+                return self._json(200, fresh_paper_status(STATE_DIR))
             if UNIFIED_APP and path == "/api/v2/replay":
                 # Authenticated only. Never reads OAuth or calls a broker.
                 from trader_v2.recorded_replay import replay_status

@@ -88,3 +88,24 @@ test("Recorded replay API is authenticated and CSRF gated",()=>{
   assert.match(replay,/SimulatedBroker/);
   assert.doesNotMatch(replay,/\b(place_order|submit_order|TradeClient|WebullBroker)\b/);
 });
+
+
+test("Fresh market V2 paper worker has no live broker controls",()=>{
+  const html=read("web/index.html");
+  const js=read("web/v2-status.js");
+  const server=read("app/dashboard_server.py");
+  const runtime=read("app/unified_runtime.py");
+  const worker=read("app/trader_v2/fresh_paper.py");
+  const source=read("app/trader_v2/public_crypto.py");
+  assert.match(html,/id="v2-paper-fresh-card"/);
+  assert.match(html,/id="v2-paper-fresh-report"/);
+  assert.match(js,/\/api\/v2\/paper-fresh/);
+  assert.match(js,/WARMING_UP|scan_state/);
+  assert.doesNotMatch(js,/innerHTML|submit_order|place_order/);
+  assert.match(server,/path == "\/api\/v2\/paper-fresh"/);
+  assert.match(runtime,/enabled\["v2_paper"\]=bool\(cfg\["paper_enabled"\]\)/);
+  assert.match(worker,/SimulatedBroker/);
+  assert.match(worker,/Coinbase|COINBASE_PUBLIC_TICKER_ONLY/i);
+  assert.doesNotMatch(worker,/\b(TradeClient|WebullBroker|RobinhoodCryptoAdapter)\b/);
+  assert.match(source,/https:\/\/api\.exchange\.coinbase\.com\/products\//);
+});

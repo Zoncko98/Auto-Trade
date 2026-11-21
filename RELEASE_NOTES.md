@@ -1,3 +1,9 @@
+## v1.3.8 — Fresh BTC/ETH public-feed V2 paper worker; no broker orders
+
+V2 now independently acquires timestamped Coinbase Exchange public ticker data, builds real completed minute bars, and continuously supervises simulated BTC and ETH paper strategy scans when the existing Paper Trading setting is on. The workflow is an actual shared V2 CryptoController -> deterministic risk -> durable intent/EventStore -> SimulatedBroker path, with separate virtual balances, fees and order status in existing Trading Operations.
+
+This is a broker-free, no-AI baseline. Real Robinhood/Webull executable bid/ask and live fills are NOT inferred from Coinbase; public data may be stale and the worker remains WARMING_UP until a complete sequence of real closed bars exists. Schwab's revoked OAuth credential and V2 live writer cutover remain separate blockers. V2 core is 2.0.0-alpha.6.
+
 ## v1.3.7 — On-demand historical paper replay through the actual V2 simulated pipeline
 
 The authenticated V2 Trading Operations panel now supports selecting previously recorded closed paper-market candles and running an explicit historical synthetic replay with its own permanent event journal and report. This needs no live broker authentication and can never write a live brokerage order. The report distinguishes strategy signals, blocked decisions, simulated fills, assumed transaction costs and net simulated P/L.

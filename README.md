@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **V2 development source (November 21, 2026):** this branch declares **v1.3.7**, adding an authenticated, on-demand V2 historical paper replay using persisted synthetic order journals, independently of all brokerage OAuth and V1 live order execution on top of the V2 Phase 1–2 foundation. V2 remains disabled for general execution by default; the authenticated recorded-data replay can be triggered manually and has no live-order authority and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **V2 development source (November 21, 2026):** this branch declares **v1.3.8**, adding a continuously supervised, Coinbase-public-ticker-based V2 crypto paper worker using genuine closed-minute observations and a separate persistent simulated broker, without any live broker authority on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

@@ -163,6 +163,11 @@
           <div id="v2-adapter-health" class="ops-records" aria-live="polite">No verified V2 broker observations loaded.</div>
           <p class="muted">Read-only snapshots never authorize orders. Missing or stale account values remain unavailable.</p>
           <button id="v2-status-refresh" class="btn secondary tiny" type="button">Refresh V2 status</button>
+          <div class="ops-records" id="v2-paper-fresh-card" style="margin-top:12px">
+            <strong>V2 crypto paper scan · live public market observations</strong>
+            <p class="muted">Collects real timestamped Coinbase public ticker observations every 30 seconds when your existing Paper Trading setting is on. Closed 1-minute bars take time to accumulate. Orders and balances are simulated in isolated V2 paper wallets; Coinbase prices are NOT executable quotes for Robinhood or Webull. AI is OFF for this baseline, and live trading permissions are unchanged.</p>
+            <div id="v2-paper-fresh-report" role="status">Awaiting V2 paper worker observations…</div>
+          </div>
           <div class="ops-records" id="v2-paper-replay-card" style="margin-top:12px">
             <strong>Historical paper replay · V2 shared pipeline</strong>
             <p class="muted">Run the stock or crypto V2 controller against previously recorded, closed paper-market candles. Bid/ask, fills, slippage and fees are synthetic. This does not contact a broker, invoke AI or submit live orders. Recorded history may be stale and cannot establish profitability.</p>

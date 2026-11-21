@@ -171,6 +171,7 @@ def main():
     live_last_spawn_at=0.0
     live_recovery_attempts=[]
     paper_last_spawn=0.0
+    v2_paper_last_spawn=0.0
     webull_last_spawn=0.0
     webull_feed_last_spawn=0.0
     while not _STOP:
@@ -184,6 +185,9 @@ def main():
                 cfg=settings(STATE);sec=credentials(STATE)
                 broker_ready=(STATE/"schwab_token.json").is_file() and (STATE/"config"/"schwab.env").is_file()
                 enabled["paper"]=cfg["paper_enabled"]
+                # V2 paper only: requires the existing operator's Paper setting.
+                # Never inherits any real account's armed/live authorization.
+                enabled["v2_paper"]=bool(cfg["paper_enabled"])
                 enabled["market"]=cfg["market_enabled"] and broker_ready
                 # Live only after an explicit operator approval and account-hash setup.
                 enabled["live"]=bool(cfg.get("live_enabled",False) and
@@ -211,6 +215,19 @@ def main():
                             spawn("webull-feed",["/app/webull_streaming.py"],runtime_env)
                 else:
                     stop_process("webull-feed")
+                v2_child=CHILDREN.get("v2-paper")
+                if enabled["v2_paper"]:
+                    if (v2_child is None or v2_child.poll() is not None) and (
+                         v2_paper_last_spawn==0 or
+                         time.monotonic()-v2_paper_last_spawn>=120):
+                        if v2_child is not None:
+                            print("V2 public crypto paper worker restarting after backoff.",
+                                  flush=True)
+                        v2_paper_last_spawn=time.monotonic()
+                        spawn("v2-paper",["-m","trader_v2.fresh_paper",
+                            "--state-dir",str(STATE)],runtime_env)
+                else:
+                    stop_process("v2-paper")
                 for name,command in (
                    ("paper",["/app/live_worker.py","--account","paper","--run"]),
                    ("market",["/app/broker_market_data.py"])):
@@ -299,11 +316,11 @@ def main():
                     live_recovery_attempts=[]
             except (OSError,ValueError,TypeError,KeyError) as exc:
                 print("Invalid stored app settings; optional workers stopped.",flush=True)
-                for name in ("paper","market","live"):stop_process(name)
+                for name in ("v2-paper","paper","market","live"):stop_process(name)
         else:
-            for name in ("paper","market","live"):stop_process(name)
+            for name in ("v2-paper","paper","market","live"):stop_process(name)
         time.sleep(4)
-    for name in ("webull-feed","webull","robinhood","live","market","paper","dashboard"):stop_process(name)
+    for name in ("webull-feed","webull","robinhood","live","market","v2-paper","paper","dashboard"):stop_process(name)
     return 0
 
 if __name__=="__main__":sys.exit(main())
