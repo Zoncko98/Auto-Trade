@@ -312,12 +312,20 @@
           <strong id="robinhood-workspace-status">Checking Robinhood execution state…</strong>
           <p id="robinhood-execution-state">Retrieving account-specific broker and risk permissions…</p>
         </div></div>
+      <nav class="account-unified-tabs" aria-label="Account sections">
+        <button class="btn secondary" type="button" data-view="robinhood">Overview</button>
+        <button class="btn secondary" type="button" data-view="robinhood-decisions">Strategy &amp; AI</button>
+        <button class="btn secondary" type="button" data-view="robinhood-risk">Risk &amp; Start</button>
+        <button class="btn secondary" type="button" data-view="robinhood-orders">Orders</button>
+        <button class="btn secondary" type="button" data-view="robinhood" data-focus-target="robinhood-portfolio-focus">Portfolio</button>
+        <button class="btn secondary" type="button" data-view="robinhood" data-focus-target="robinhood-diagnostics-focus">Diagnostics</button>
+      </nav>
         <section class="panel list-panel" aria-label="Fee-adjusted strategy evaluation">
           <div class="panel-heading"><div><h2>Entry strategy · shadow evaluation</h2>
             <p>Tracks technical opportunities and observed price excursions after estimated fees. Proposed dip-reversal rules do not change live Robinhood order execution.</p></div></div>
           <p class="panel-note" id="rh-fee-summary-overview">Loading fee-adjusted diagnostic evidence…</p>
         </section>
-        <section class="panel rh-portfolio-performance" aria-label="Robinhood open holdings performance">
+        <section id="robinhood-portfolio-focus" class="panel rh-portfolio-performance" aria-label="Robinhood open holdings performance">
           <div class="panel-heading"><div>
             <h2>Portfolio performance · Robinhood Crypto</h2>
             <p>Real holdings and indicative prices; unrealized profit/loss requires reconciled purchase history.</p>
@@ -346,7 +354,7 @@
           <div class="stat-card"><div class="stat-top">BOT ORDER RECONCILIATION <span class="stat-icon">⇄</span></div><strong id="robinhood-orders-stat">—</strong><small id="rh-bot-order-note">Unresolved bot intents; broker history reported separately</small></div>
         </div>
         <div class="content-grid">
-          <section class="panel">
+          <section id="robinhood-diagnostics-focus" class="panel">
             <div class="panel-heading"><div><h2>Execution status</h2><p>Real Robinhood API worker, separate from paper simulation</p></div>
               <span class="time-label" id="robinhood-execution-pill">NOT ARMED</span></div>
             <div class="readiness-item"><span>Latest AI decision</span><strong id="robinhood-ai-decisions">Awaiting evaluation</strong></div>
@@ -542,7 +550,15 @@
           <button class="btn secondary" data-view="webull-risk" type="button">Risk &amp; execution controls</button></div></div></div>
       <div class="notice neutral"><span class="notice-icon">ⓘ</span><div><strong id="webull-connectivity">Checking Webull account access…</strong>
         <p id="webull-execution">Broker order permission requires separate validation.</p></div></div>
-      <section class="panel rh-portfolio-performance">
+      <nav class="account-unified-tabs" aria-label="Account sections">
+        <button class="btn secondary" type="button" data-view="webull">Overview</button>
+        <button class="btn secondary" type="button" data-view="webull-decisions">Strategy &amp; AI</button>
+        <button class="btn secondary" type="button" data-view="webull-risk">Risk &amp; Start</button>
+        <button class="btn secondary" type="button" data-view="webull-orders">Orders</button>
+        <button class="btn secondary" type="button" data-view="webull" data-focus-target="webull-portfolio-focus">Portfolio</button>
+        <button class="btn secondary" type="button" data-view="webull" data-focus-target="webull-diagnostics-focus">Diagnostics</button>
+      </nav>
+      <section id="webull-portfolio-focus" class="panel rh-portfolio-performance">
         <div class="panel-heading"><div><h2>Portfolio performance · Webull</h2>
           <p>Broker-reported holdings and unrealized gains where the account supplies verified values.</p></div>
           <span class="time-label" id="webull-performance-coverage">Awaiting account</span></div>
@@ -562,7 +578,7 @@
         <div class="stat-card"><div class="stat-top">BOT ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="webull-orders-count">—</strong><small id="webull-bot-order-note">Webull-specific worker intents, not broker history</small></div>
       </div>
       <div class="content-grid">
-        <section class="panel"><div class="panel-heading"><div><h2>Execution status</h2><p>Independent Webull worker and broker-specific restrictions</p></div>
+        <section id="webull-diagnostics-focus" class="panel"><div class="panel-heading"><div><h2>Execution status</h2><p>Independent Webull worker and broker-specific restrictions</p></div>
           <button class="btn secondary" data-view="webull-orders" type="button">Orders &amp; reconciliation</button></div>
           <p id="webull-worker-updated" class="panel-note">Waiting for worker heartbeat…</p>
           <div id="webull-engine-fields" class="broker-capabilities">Worker status unavailable.</div>
@@ -781,7 +797,15 @@
           <div><strong id="live-warning-title">Checking the live worker</strong>
           <p id="live-warning-text">Brokerage trades remain disabled until the worker is explicitly activated.</p></div>
         </div>
-        <section class="panel rh-portfolio-performance" aria-label="Schwab portfolio performance">
+      <nav class="account-unified-tabs" aria-label="Account sections">
+        <button class="btn secondary" type="button" data-view="live">Overview</button>
+        <button class="btn secondary" type="button" data-view="decisions">Strategy &amp; AI</button>
+        <button class="btn secondary" type="button" data-view="live-risk">Risk &amp; Start</button>
+        <button class="btn secondary" type="button" data-view="live-orders">Orders</button>
+        <button class="btn secondary" type="button" data-view="live" data-focus-target="live-portfolio-focus">Portfolio</button>
+        <button class="btn secondary" type="button" data-view="live" data-focus-target="live-diagnostics-focus">Diagnostics</button>
+      </nav>
+        <section id="live-portfolio-focus" class="panel rh-portfolio-performance" aria-label="Schwab portfolio performance">
 <div class="panel-heading"><div><h2>Portfolio performance · Charles Schwab</h2><p>Broker-reported holdings and cost basis. Cash excluded.</p></div><span id="schwab-perf-status" class="time-label">Awaiting snapshot</span></div>
 <div class="rh-portfolio-metrics">
 <div><span>Holdings value</span><strong id="schwab-perf-value">—</strong><small>Broker market value, excludes cash</small></div>
@@ -797,7 +821,7 @@
           <div class="stat-card"><div class="stat-top">BOT ORDER RECORDS <span class="stat-icon">⇄</span></div><strong id="live-order-total">—</strong><small>Worker journal; broker acceptance and fills have distinct states</small></div>
         </div>
         <div class="content-grid">
-          <section class="panel">
+          <section id="live-diagnostics-focus" class="panel">
             <div class="panel-heading"><div><h2>Execution status</h2><p>Real Schwab worker; distinct from the paper simulator</p></div><span id="live-execution-pill" class="time-label">NOT ARMED</span></div>
             <div class="readiness-item"><span>Order submission permission</span><strong id="live-order-permission">Paused</strong></div>
             <div class="readiness-item"><span>Last worker heartbeat</span><strong id="live-heartbeat">Unavailable</strong></div>
@@ -915,7 +939,15 @@
           </div>
         </div>
         <div id="data-warning" class="notice"><span class="notice-icon">ⓘ</span><div><strong>No live market feed connected</strong><p>The monitor can run, but trades require timestamped market prices. AI approvals also require a configured model.</p></div></div>
-          <section class="panel rh-portfolio-performance chart-panel paper-performance">
+      <nav class="account-unified-tabs" aria-label="Account sections">
+        <button class="btn secondary" type="button" data-view="overview">Overview</button>
+        <button class="btn secondary" type="button" data-view="reviews">Strategy &amp; AI</button>
+        <button class="btn secondary" type="button" data-view="settings">Risk &amp; Start</button>
+        <button class="btn secondary" type="button" data-view="trades">Orders</button>
+        <button class="btn secondary" type="button" data-view="overview" data-focus-target="paper-portfolio-focus">Portfolio</button>
+        <button class="btn secondary" type="button" data-view="overview" data-focus-target="paper-diagnostics-focus">Diagnostics</button>
+      </nav>
+          <section id="paper-portfolio-focus" class="panel rh-portfolio-performance chart-panel paper-performance">
             <div class="panel-heading"><div><h2>Portfolio performance · Paper Trading</h2><p>Simulated equity history, not live brokerage performance</p></div><span class="time-label">HISTORY</span></div>
             <div class="rh-portfolio-metrics">
               <div><span>Holdings value</span><strong id="paper-performance-value">—</strong><small>Simulated positions only · excludes cash</small></div>
@@ -937,7 +969,7 @@
           <div class="stat-card"><div class="stat-top"><span>PAPER BOT TRADE RECORDS</span><span class="stat-icon">⇄</span></div><strong id="stat-trades">0</strong><small id="stat-reviews">0 AI evaluations recorded</small></div>
         </div>
         <div class="content-grid">
-          <section class="panel paper-execution-panel">
+          <section id="paper-diagnostics-focus" class="panel paper-execution-panel">
             <div class="panel-heading"><div><h2>Execution status</h2><p>Paper simulator only · never live orders</p></div><span class="time-label" id="paper-execution-label">Checking worker</span></div>
             <div class="readiness-item"><span>Strategy mode</span><strong id="paper-strategy-mode">Checking…</strong></div>
             <div class="readiness-item"><span>Worker heartbeat</span><strong id="paper-worker-status">Checking…</strong></div>

@@ -1257,7 +1257,11 @@ function bindEvents(){
     csrf=null;showLogin();
   });
   $("refresh-btn").addEventListener("click",()=>refreshCurrentScreen());
-  document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>showView(button.dataset.view)));
+  document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>{
+    showView(button.dataset.view);
+    const anchor=button.dataset.focusTarget;
+    if(anchor)document.getElementById(anchor)?.scrollIntoView?.({block:"start"});
+  }));
   document.querySelectorAll("[data-mode]").forEach(button=>button.addEventListener("click",()=>setMode(button.dataset.mode)));
   $("settings-form").addEventListener("submit",saveSettings);
   $("paper-service-toggle").addEventListener("click",togglePaperService);

@@ -587,3 +587,19 @@
   .topbar{width:100%}
   .workspace-tile-grid{grid-template-columns:1fr}
 }
+
+
+/* Consistent account-level navigation across the four existing dashboards. */
+.account-unified-tabs {
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  margin:16px 0 22px; padding:10px 12px;
+  border:1px solid var(--border-color, rgba(140,153,170,.25));
+  border-radius:12px;
+}
+.account-unified-tabs .btn {
+  min-height:38px; white-space:normal; flex:0 1 auto;
+}
+@media (max-width:600px) {
+  .account-unified-tabs { gap:6px; padding:8px; }
+  .account-unified-tabs .btn { flex:1 1 calc(50% - 6px); }
+}

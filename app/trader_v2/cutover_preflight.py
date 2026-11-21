@@ -10,6 +10,8 @@ from decimal import Decimal,InvalidOperation
 from pathlib import Path
 from .readonly_adapters import private_json
 from .risk_envelopes import envelope
+from .legacy_journal_audit import observe_legacy_journal
+from .session_observation import session_observation
 
 BROKERS=("schwab","webull","robinhood_crypto","paper")
 _TERMINAL=frozenset(("FILLED","CANCELED","REJECTED","EXPIRED","REPLACED"))
@@ -85,19 +87,22 @@ def _schwab_journal(root):
 def _other_journal(root,broker):
     # An observed broker status alone cannot establish complete authoritative
     # order reconciliation for V2 cutover. V1 journal schemas still differ.
+    local=observe_legacy_journal(root,broker)
     if broker=="webull":
         worker=private_json(root/"webull/worker_status.json",maximum=1_500_000)
         block=worker.get("reconciliation") if isinstance(worker,dict) else None
         present=isinstance(block,(dict,list))
         return {"state":"V1_RECONCILIATION_OBSERVED_V2_UNVERIFIED" if present else
                 "BROKER_RECONCILIATION_UNVERIFIED",
-                "records":None,"unresolved":None,
+                "records":None,"unresolved":local["local_unresolved_count"],
+                "local_evidence":local,
                 "broker_reconciliation_verified":False}
     worker=private_json(root/"robinhood/worker_status.json",maximum=1_500_000)
     history=worker.get("broker_order_history_status") if isinstance(worker,dict) else None
     return {"state":"BROKER_HISTORY_OBSERVED_V2_UNVERIFIED" if history=="VERIFIED" else
             "BROKER_HISTORY_UNVERIFIED",
-            "records":None,"unresolved":None,
+            "records":None,"unresolved":local["local_unresolved_count"],
+            "local_evidence":local,
             "broker_reconciliation_verified":False}
 
 def preflight(state_dir,account_rows,market_sources):
@@ -126,6 +131,7 @@ def preflight(state_dir,account_rows,market_sources):
                 "source_state":market_state,"v1_writer_active":False})
             continue
         risk=_limits(root,broker)
+        session=session_observation(broker)
         budget=envelope(root,broker,account)
         journal=(_schwab_journal(root) if broker=="schwab"
                  else _other_journal(root,broker))
@@ -136,6 +142,12 @@ def preflight(state_dir,account_rows,market_sources):
             blocker="VERIFIED_ACCOUNT_OR_WORKER_REQUIRED"
         elif journal["state"] in ("HALTED_OR_OVERSIZED","LOCAL_INTENTS_UNRESOLVED"):
             blocker="RECONCILIATION_REQUIRED"
+        elif broker!="schwab" and journal.get("local_evidence",{}).get(
+                "state")=="LOCAL_INTENTS_UNRESOLVED":
+            blocker="RECONCILIATION_REQUIRED"
+        elif broker!="schwab" and journal.get("local_evidence",{}).get(
+                "state") not in ("LOCAL_TERMINAL_RECORDS_ONLY","LOCAL_JOURNAL_EMPTY"):
+            blocker="LOCAL_JOURNAL_VERIFICATION_REQUIRED"
         elif journal["state"] in ("JOURNAL_UNVERIFIED","BROKER_RECONCILIATION_UNVERIFIED",
                                 "BROKER_HISTORY_UNVERIFIED"):
             blocker="ORDER_JOURNAL_VERIFICATION_REQUIRED"
@@ -156,6 +168,7 @@ def preflight(state_dir,account_rows,market_sources):
             "v1_permission_configured":account.get("permission_armed") is True,
             "source_state":market_state,
             "executable_quote_verified":False,
+            "market_session":session,
             "risk":risk,"risk_envelope":budget,"journal":journal,
             "requirements_remaining":[
                 "SOURCE_AND_SESSION_EXECUTABILITY",

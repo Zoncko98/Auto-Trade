@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       if(!item||!Object.hasOwn(titles,item.broker))continue;
       const section=document.createElement("p");
       const risk=item.risk||{},journal=item.journal||{};
+      const local=journal.local_evidence||{};
       const envelope=item.risk_envelope||{};
       const limits=risk.limits||{};
       const values=Object.entries(limits).slice(0,7).map(([k,v])=>
@@ -36,7 +37,16 @@ document.addEventListener("DOMContentLoaded",()=>{
         String(item.first_blocker||"NOT_VERIFIED")+
         " · Orders: "+String(journal.state||"UNVERIFIED")+
         (journal.unresolved==null?"":" · Local unresolved: "+Number(journal.unresolved))+
+        (item.broker==="webull"||item.broker==="robinhood_crypto"
+          ?" · V1 local journal audit: "+String(local.state||"UNAVAILABLE")+
+            (local.local_record_count==null?"":" · V1 records: "+Number(local.local_record_count))+
+            (local.local_filled_count==null?"":" · Local filled records: "+Number(local.local_filled_count))+
+            (local.incomplete_fill_details==null?"":" · Incomplete local fill evidence: "+Number(local.incomplete_fill_details))+
+            " · Signed broker reconciliation: NOT VERIFIED"
+          :"")+
         " · Market: "+String(item.source_state||"UNVERIFIED")+
+        " · Session: "+String((item.market_session||{}).state||"NOT_VERIFIED")+
+        " (broker hours not certified)" +
         " · V1 risk: "+String(risk.state||"UNVERIFIED")+
         (values?" · Saved limits: "+values:"")+
         " · Effective V1 risk budget preview: "+String(envelope.state||"NOT_VERIFIED")+

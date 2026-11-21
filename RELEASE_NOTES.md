@@ -1,3 +1,11 @@
+## v1.3.23 — Broker journal observation and one shared account-section layout
+
+The four **existing** account dashboards now present the same six-section navigation in the same order. Nothing moves to a new dashboard; links continue using the existing broker-specific views and risk controls.
+
+Trading Operations also reads V1 Webull and Robinhood order journals without modifying them. It distinguishes locally stored fills from broker-confirmed executions, flags unresolved/partially terminal intents and missing fill details, and blocks an unsafe V2 cutover. A conservative time-window observation reports when US equities are certainly outside regular hours without ever claiming an authenticated exchange session or broker execution permission.
+
+All three live brokers remain under their existing V1 order writers; V2 remains paper-only/read-only for broker execution. Canonical signed holdings, settled cash, exact market hours, per-broker live adapters and controlled one-writer cutover remain mandatory. New source checks include 735 Python tests (1 skipped) and 22 Node UI files, with no production live-order submissions. V2 core 2.0.0-alpha.19.
+
 ## v1.3.22 — Receipt validation before any V2 order is declared filled
 
 The V2 paper executor now checks a broker receipt against the original saved order: broker ID, fill quantity and cumulative progress, BUY/SELL limit price, fees and terminal state must all agree. If any response conflicts, the existing intent is held for reconciliation and is never retried as a fresh order. Partial-fill economics survive cancellation and rejection for later accounting.

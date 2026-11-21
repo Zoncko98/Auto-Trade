@@ -12,10 +12,10 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.18","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.19","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
-            "stage":"PHASE_6_PERSISTED_CRYPTO_FEE_SHADOW_AND_SCAN_RECONCILIATION",
+            "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
             "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","AI_RUNTIME_CONFIGURATION_AND_VALIDATION",
@@ -36,7 +36,10 @@ def summary(state_dir)->dict:
                                    "schwab_stock_shadow":"SUPERVISED_READ_ONLY_WITH_GENUINE_5M_HISTORY",
                                    "broker_risk_envelopes":"V1_EFFECTIVE_BUDGET_UPPER_BOUNDS_ONLY",
                                    "ollama_fast_json_shadow":"STRUCTURED_OUTPUT_NO_REASONING",
-                                   "why_no_trade":"READ_ONLY_NO_LIVE_ORDER_AUTHORITY"}}
+                                   "why_no_trade":"READ_ONLY_NO_LIVE_ORDER_AUTHORITY",
+                                   "v1_order_journal_audit":"WEBULL_ROBINHOOD_LOCAL_RECORDS_NEVER_BROKER_AUTHORITY",
+                                   "session_window":"EQUITY_TIME_WINDOW_WEEKENDS_CALENDAR_UNVERIFIED",
+                                   "four_broker_navigation":"SIX_SHARED_SECTIONS_IN_EXISTING_WORKSPACES"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.
         status["broker_adapters"]=[
