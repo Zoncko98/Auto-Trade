@@ -24,5 +24,10 @@ test("V2 authenticated status is read-only and rejects unauthenticated users",()
  const js=read("web/v2-status.js");
  assert.match(js,/credentials:"same-origin"/);
  assert.match(js,/Live broker authority: OFF/);
- assert.doesNotMatch(js,/method:"POST"|submit_order|place_order/);
+ // An operator-triggered recorded paper replay is a CSRF-protected POST.
+ // Live broker order actions remain forbidden in V2 status/replay UI.
+ assert.match(js,/\/api\/v2\/replay\/run/);
+ assert.match(js,/X-CSRF-Token/);
+ assert.match(js,/simulated_only!==true/);
+ assert.doesNotMatch(js,/submit_order|place_order|\/api\/v2\/live/);
 });
