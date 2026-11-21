@@ -119,6 +119,15 @@ test("Paper scan scorecard is read-only evidence, not live performance",()=>{
   assert.match(status,/Peak-to-trough paper drawdown/);
 });
 
+test("Schwab V2 stock price bridge reuses V1 quotes without broker submission",()=>{
+  const worker=read("app/live_worker.py");
+  const html=read("web/index.html");
+  assert.match(worker,/normalized_quotes\(quotes,requested=tuple\(UNIVERSE\),now=now\)/);
+  assert.match(worker,/write_snapshot\(STATE_DIR,doc\)/);
+  assert.match(worker,/except \(MarketDataUnavailable,ImportError,OSError,ValueError,TypeError\)/);
+  assert.match(html,/Schwab stock quotes are reused from its existing authenticated V1 scanner/);
+});
+
 test("V2 migration preflight shows four isolated brokers without arming orders",()=>{
   const html=read("web/index.html");
   const js=read("web/v2-status.js");

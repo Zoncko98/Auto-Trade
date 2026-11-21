@@ -1,3 +1,9 @@
+## v1.3.14 — One Schwab quote fetch, two isolated consumers
+
+The existing Schwab V1 stock scanner now saves a sanitized owner-only copy of the actual quote batch it already requested so the V2 MarketDataProvider can validate quote source, symbol, exchange time and bid/ask without a second OAuth connection. V2 market observations remain NON_EXECUTABLE and do not control real brokerage orders.
+
+The V2 preflight remains visible for all brokers in Trading Operations. No V2 live broker adapter or automatic V1-to-V2 handoff is enabled. On November 21 (Saturday) market-closed verification may continue to report NO_FRESH_QUOTE until an authenticated V1 stock scan collects genuinely fresh exchange-timestamped observations. V2 core 2.0.0-alpha.10 is still paper/read-only for live brokers.
+
 ## v1.3.13 — V2 broker migration preflight
 
 V2 now displays authenticated, read-only cutover readiness for Schwab, Webull, Robinhood Crypto and Paper in the existing Trading Operations panel. A connected broker is not V2-live-ready: order journal reconciliation, market-executable quotes, correctly mapped account-specific limits, working adapters, and explicit V1-to-V2 writer handoff must all be independently verified. Saved V1 limits are shown as source evidence, not newly granted V2 order permission. No live V2 orders were placed.

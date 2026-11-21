@@ -1,3 +1,11 @@
+## v1.3.14 — Reuse existing Schwab scanner quotes for V2 stock observations (2026-11-21)
+
+- Attached a read-only, sanitized stock-quote telemetry write to the already-authorized V1 Schwab scanner's existing get_quotes response. The response is normalized to source-specific stock observations and written atomically with owner-only permissions for V2 MarketDataProvider and the existing cached market status API; no new OAuth session, broker API request, trade action, order adapter, or broker risk behavior is added.
+- The write occurs only after the V1 scanner actually receives a quote batch. V2 retains genuine Schwab exchange quote timestamps and rejects stale, crossed, missing bid/ask, wrong-symbol or unverified stock-market data. A current file collection timestamp alone cannot imply current prices, verified trading hours or broker-executable quotes.
+- Telemetry write/normalization failures are caught as noncritical; the V1 stock candidate selector continues to evaluate the original unchanged quotes. Account restrictions, settlement, stops, exit priority, duplicate-order prevention and the active real-order writer remain exclusively under the existing V1 Schwab worker.
+- Added integration tests for the same quote API response being used once, stock-source normalization, nonexecutable V2 quote contracts, private cache permissions, stale original timestamps and graceful non-trading telemetry failures.
+- The preceding V2 cutover preflight remains authenticated, read-only and non-authorizing. With US equity markets closed at the time of this deployment, a genuine *fresh production stock quote* and a V2 stock signal/fill are NOT claimed; next milestone is continuous independent stock paper observation with verified market hours and market-closed behaviour before any per-account broker cutover.
+
 ## v1.3.13 — Read-only V2 staged live-account migration preflight (2026-11-21)
 
 - Added a canonical four-account cutover readiness report under existing authenticated GET /api/v2/status. Each broker displays verified authentication/worker state, user-selected V1 permission, market-source freshness, actual private V1 risk-policy fields with their file source, and honest V1 order/reconciliation coverage. V2 does not automatically inherit any live account authorization or limit.

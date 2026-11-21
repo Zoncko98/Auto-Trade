@@ -168,7 +168,7 @@
             <p class="muted">Verifies independent broker health, V1 risk limits and order journal evidence. No V2 live-order authority, no automatic account cutover, and no test orders.</p>
             Awaiting authenticated V2 account preflight…
           </div>
-          <p class="muted">Read-only snapshots never authorize orders. Missing or stale account values remain unavailable.</p>
+          <p class="muted">Read-only snapshots never authorize orders. Missing or stale account values remain unavailable. Schwab stock quotes are reused from its existing authenticated V1 scanner when available; exchange timestamps, market hours, executable quotes, and account-specific V2 order rules still require independent verification.</p>
           <button id="v2-status-refresh" class="btn secondary tiny" type="button">Refresh V2 status</button>
           <div class="ops-records" id="v2-paper-fresh-card" style="margin-top:12px">
             <strong>V2 crypto paper scan · live public market observations</strong>

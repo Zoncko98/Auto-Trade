@@ -358,6 +358,20 @@ def recent_candles(client, symbol):
 def scan_entries(client, now, excluded=()):
     """Rank live market opportunities, excluding symbols already held."""
     quotes=result(client.get_quotes(list(UNIVERSE)), "automated quote batch")
+    # Reuse the exact READ-ONLY quote response V1 already fetched for its own
+    # stock scanner. No extra OAuth client, quote request, broker order or
+    # change to candidate/risk handling. V2 normalizers validate the ORIGINAL
+    # exchange quoteTime, so a fresh file with stale quotes remains untrusted.
+    try:
+        from broker_market_data import (normalized_quotes,write_snapshot,
+                                        MarketDataUnavailable)
+        doc=normalized_quotes(quotes,requested=tuple(UNIVERSE),now=now)
+        if doc.get("symbols"):
+            write_snapshot(STATE_DIR,doc)
+    except (MarketDataUnavailable,ImportError,OSError,ValueError,TypeError):
+        # Noncritical diagnostics must never prevent existing V1 exit,
+        # entry-risk evaluation or its normal broker-order reconciliation.
+        pass
     selected,ranked=select_entry(quotes,lambda sym:recent_candles(client,sym),
                                  now,excluded=excluded)
     print(f"Market scanner: {len(ranked)} liquid and affordable candidates, scanning up to {len(ranked)} trend histories.")
