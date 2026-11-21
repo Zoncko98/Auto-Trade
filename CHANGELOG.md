@@ -1,3 +1,10 @@
+## v1.3.29 — Preflight disarmed accounts safely and cap signed Webull historical GETs (2026-11-21)
+
+- A previously selected Webull broker account can now be checked with authenticated, READ-ONLY broker GETs even when the existing V1 trading flag is disarmed. It remains explicitly NOT cutover ready and is never automatically armed. No selected account still blocks the check.
+- Limit each interactive Webull preflight to eight signed historical fill-detail GETs; journals requiring pagination are explicitly blocked instead of saturating the shared SDK rate limit or freezing the dashboard. Existing V1 order histories are left untouched.
+- Expose the old operator armed state in the cached authenticated V2 status without account identifiers, token values or broker balances. Additional tests verify disarmed observations and zero excessive broker calls.
+- Preserves all V1 workers, broker writer locks and financial history. V2 live brokerage order authority remains OFF until independent signed position/settlement/session evidence and exclusive V1-to-V2 writer handoff are proven.
+
 ## v1.3.28 — Webull V2 signed receipt adapter and authenticated read-only cutover preflight (2026-11-21)
 
 - Added a stable, account-scoped Webull v3 32-hex client order ID normalizer and exact signed order-detail reader, translating broker accepted, partially filled, filled, canceled and rejected states into canonical V2 receipt records. Unknown status, mismatched ID, missing signed price/fee, invalid timestamps and partial fills remain unreconciled; there is **no V2 Webull broker POST authority**.

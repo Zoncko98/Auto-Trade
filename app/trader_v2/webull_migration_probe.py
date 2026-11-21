@@ -68,13 +68,19 @@ def probe_webull(root, broker, policy, *, now=None):
         "first_blocker":"OPERATOR_POLICY_UNVERIFIED",
         "live_v2_orders_submitted":0,
     }
-    if not isinstance(policy,dict) or policy.get("enabled") is not True:
-        out["first_blocker"]="WEBULL_OPERATOR_NOT_ARMED"
+    if not isinstance(policy,dict):
+        out["first_blocker"]="WEBULL_OPERATOR_POLICY_UNVERIFIED"
         return out
+    armed=policy.get("enabled") is True
+    out["v1_operator_armed"]=armed
+    # Running a signed GET-only preflight does not authorize trading. Permit
+    # a configured but DISARMED account to be inspected before its cutover.
     choices = []
     for active, field in (("trade_stocks","stock_account"),("trade_crypto","crypto_account")):
-        if policy.get(active) is True and isinstance(policy.get(field),str) and policy[field]:
-            choices.append(policy[field])
+        account_ref=policy.get(field)
+        if isinstance(account_ref,str) and account_ref and (
+                policy.get(active) is True or not armed):
+            choices.append(account_ref)
     accounts = set(choices)
     if len(accounts)!=1:
         out["first_blocker"]="SELECT_ONE_WEBULL_ACCOUNT_FOR_MIGRATION"
@@ -135,6 +141,11 @@ def probe_webull(root, broker, policy, *, now=None):
         if unresolved:
             out["first_blocker"]="WEBULL_LOCAL_UNRESOLVED_ORDERS"
             return out
+        # A single interactive preflight must never exhaust Webull's shared
+        # per-app signed order-detail quota or hold the dashboard open for
+        # hundreds of seconds. Mature journals require bounded pagination.
+        if sum(row["status"]=="FILLED" for row in rows)>8:
+            raise WebullReceiptUnverified("WEBULL_HISTORICAL_SIGNED_BATCH_REQUIRED")
         # This is signed detail verification of existing V1 fills, not a
         # conversion of historical V1 orders into new V2 order intents.
         matched=0
@@ -165,5 +176,7 @@ def probe_webull(root, broker, policy, *, now=None):
         return out
     # V2 still requires precise position inventory, settled funding,
     # broker executable quote/session and the durable V1/V2 writer handoff.
-    out["first_blocker"]="WEBULL_POSITIONS_SETTLEMENT_AND_SINGLE_WRITER_HANDOFF_REQUIRED"
+    out["first_blocker"]=(
+        "WEBULL_OPERATOR_NOT_ARMED" if not armed
+        else "WEBULL_POSITIONS_SETTLEMENT_AND_SINGLE_WRITER_HANDOFF_REQUIRED")
     return out

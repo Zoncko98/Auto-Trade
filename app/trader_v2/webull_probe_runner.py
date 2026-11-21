@@ -24,7 +24,8 @@ def result_status(state, *, now=None):
             "broker_open_orders_verified","broker_open_order_count",
             "local_order_count","local_unresolved_count",
             "signed_historical_fill_count","signed_historical_fills_verified",
-            "v1_writer_handoff_verified","live_v2_orders_submitted")},
+            "v1_writer_handoff_verified","v1_operator_armed",
+            "live_v2_orders_submitted")},
         "state":"FRESH_READ_ONLY_PREFLIGHT",
         "cutover_ready":False,"live_order_authority":False,
     }

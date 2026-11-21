@@ -65,9 +65,34 @@ class WebullPreflightTests(TestCase):
     def test_no_policy_no_signed_apis(self):
         b=SignedWebull()
         report=probe_webull(self.root,b,{"enabled":False})
-        self.assertEqual(report["first_blocker"],"WEBULL_OPERATOR_NOT_ARMED")
+        self.assertEqual(report["first_blocker"],"SELECT_ONE_WEBULL_ACCOUNT_FOR_MIGRATION")
         self.assertFalse(report["cutover_ready"])
         self.assertEqual(b.reads,[])
+    def test_disarmed_selected_account_still_runs_read_only_audit(self):
+        self.journal([])
+        b=SignedWebull()
+        policy={**self.policy,"enabled":False}
+        report=probe_webull(self.root,b,policy)
+        self.assertTrue(report["broker_account_verified"])
+        self.assertTrue(report["signed_historical_fills_verified"])
+        self.assertEqual(report["first_blocker"],"WEBULL_OPERATOR_NOT_ARMED")
+        self.assertFalse(report["v1_operator_armed"])
+        self.assertFalse(report["live_order_authority"])
+        self.assertIn("open_orders",b.reads)
+
+    def test_broker_history_over_quota_budget_is_not_queried(self):
+        self.journal([
+          ("abc"+str(i).zfill(29), self.account, "FILLED","2","2","10","0.01",
+           "broker-a","BUY","EQUITY","2026-11-21T14:30:00+00:00")
+          for i in range(9)
+        ])
+        b=SignedWebull()
+        report=probe_webull(self.root,b,self.policy)
+        self.assertEqual(report["first_blocker"],
+                         "WEBULL_HISTORICAL_SIGNED_BATCH_REQUIRED")
+        self.assertNotIn("order_detail",b.reads)
+        self.assertFalse(report["cutover_ready"])
+
     def test_refuses_ambiguous_two_account_selection(self):
         b=SignedWebull()
         policy={**self.policy,"trade_crypto":True,"crypto_account":"different"}

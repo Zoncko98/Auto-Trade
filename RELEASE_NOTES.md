@@ -1,3 +1,7 @@
+## v1.3.29 — Run Webull migration checks before enabling live trading
+
+The Webull migration-readiness check can now inspect a previously selected account even while trading is paused. This avoids having to arm real orders merely to diagnose the cutover. Signed history checks are bounded to respect Webull API quotas. An uncertain or incomplete result never grants live trading authority.
+
 ## v1.3.28 — Signed Webull order evidence before any live migration
 
 The existing Trading Operations screen now offers **Check Webull migration readiness**, a signed read-only Webull account preflight. This validates independently signed broker account, open orders, balances, positions response and exact historical fill evidence without placing orders. Missing source data, unresolved V1 intents, unsettled cash, incomplete holdings or active V1 writer keep live migration blocked.
