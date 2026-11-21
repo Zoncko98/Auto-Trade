@@ -39,6 +39,10 @@ class RobinhoodCompositeLiveBoundaryTests(TestCase):
         self.assertEqual(quote.last,D("10.005"))
         self.assertTrue(self.public_calls)
         self.assertEqual(self.public_calls[-1],"BTCUSD")
+        # Real signed holdings valuation needs a provider timestamp even
+        # when entry quote crosscheck accepts the timestamp-free v2 schema.
+        self.client.quote_rows["BTC-USD"]["results"][0]["timestamp"]=(
+            datetime.now(timezone.utc).isoformat())
         account=adapter.account("account123")
         self.assertEqual(account.market_exposure,D("10.01"))
         self.assertEqual(self.client.posts,[])
@@ -56,6 +60,31 @@ class RobinhoodCompositeLiveBoundaryTests(TestCase):
           "asset_code":"VIRTUAL","total_quantity":"0.123"})
         self.client.quote_rows["VIRTUAL-USD"]={
           "results":[{"symbol":"VIRTUAL-USD","bid":"1","ask":"1.01"}]}
+        with self.assertRaises(BrokerEvidenceUnavailable):
+            self.adapter().account("account123")
+        self.assertEqual(self.client.posts,[])
+
+    def test_non_coinbase_holding_still_counts_with_fresh_signed_broker_ask(self):
+        self.client.holdings.append({
+          "asset_code":"VIRTUAL","total_quantity":"0.123"})
+        self.client.quote_rows["VIRTUAL-USD"]={"results":[{
+            "symbol":"VIRTUAL-USD","bid":"1","ask":"1.01",
+            "timestamp":datetime.now(timezone.utc).isoformat()}]}
+        self.client.quote_rows["BTC-USD"]["results"][0]["timestamp"]=(
+            datetime.now(timezone.utc).isoformat())
+        account=self.adapter().account("account123")
+        self.assertGreater(account.market_exposure,D("10.01"))
+        self.assertLess(account.market_exposure,D("10.3"))
+        self.assertNotIn("VIRTUALUSD",self.public_calls)
+        self.assertEqual(self.client.posts,[])
+
+    def test_stale_signed_non_coinbase_holding_still_blocks(self):
+        self.client.holdings.append({
+          "asset_code":"VIRTUAL","total_quantity":"0.123"})
+        self.client.quote_rows["VIRTUAL-USD"]={"results":[{
+            "symbol":"VIRTUAL-USD","bid":"1","ask":"1.01",
+            "timestamp":(datetime.now(timezone.utc)-
+                         timedelta(seconds=45)).isoformat()}]}
         with self.assertRaises(BrokerEvidenceUnavailable):
             self.adapter().account("account123")
         self.assertEqual(self.client.posts,[])

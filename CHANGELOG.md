@@ -1,3 +1,10 @@
+## v1.3.35 — Robinhood V2 signed broker valuation of all held inventory (2026-11-21)
+
+- Removed an unnecessary independent Coinbase last-trade requirement when pricing EXISTING signed Robinhood holdings for gross risk exposure. The signed Robinhood broker's actual bid/ask and reported timestamp must be validated for every nonzero holding, including assets not tracked by the BTC/ETH Coinbase signal feed.
+- The holdings mark is read-only and cannot become an executable trading quote or a signal. A missing, stale, crossed or excessively wide broker quote still fails the entire account exposure check closed; no holding is silently treated as $0. All holdings count toward capital exposure; managed sellable inventory remains separately derived from verified BOT lots.
+- Strict broker quote timestamps are needed for conservative inventory valuation; signed API responses lacking them are explicitly rejected for risk sizing. Entries and exits still require the separate signed broker + time-stamped independent trade crosscheck and exclusive V1/V2 account-writer handoff.
+- New no-network tests cover valid signed marks of a non-Coinbase-held asset, stale alt-asset price blocking, and no broker order writes. Previous v1.3.34 Robinhood quote-staleness and duplicate-writer tests remain intact. V1 live execution, broker credentials, risk limits and financial journals are unchanged.
+
 ## v1.3.34 — Live Robinhood signed and Coinbase quote sequencing correction (2026-11-21)
 
 - Inspected the actual signed Robinhood V2 BTC-USD quote in production using GET-only access. The response contains one matching symbol with bid, ask and a broker-reported timestamp, and a separate fresh Coinbase public ticker passed dual-source cross-check (the signed GET took ~1.2 seconds). No live orders were sent during diagnosis.

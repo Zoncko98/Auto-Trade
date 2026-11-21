@@ -117,6 +117,34 @@ class RobinhoodLiveAdapter:
         self._pair()
         return self._validated_quote(self.symbol,now)
 
+    def _signed_holding_ask(self,symbol):
+        """Conservative exposure-only mark for every held asset.
+
+        A fresh signed broker quote with both bid and ask is sufficient to
+        measure gross holdings exposure; an external LAST is only required
+        for entry/exit signal and order price crosschecks. This method never
+        provides executable permission or bypasses unsupported holdings.
+        """
+        begin=datetime.now(timezone.utc)
+        try:
+            payload=self.client.quote(symbol)
+        except Exception:
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_QUOTE_UNAVAILABLE") from None
+        end=datetime.now(timezone.utc)
+        if not 0<=(end-begin).total_seconds()<=3:
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_QUOTE_TIMEOUT")
+        try:
+            quote=robinhood_market_quote(payload,symbol,now=end)
+        except (MarketSourceError,ValueError,TypeError):
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_TIME_OR_PRICE_UNVERIFIED") from None
+        age=(end-quote.observed_at).total_seconds()
+        if not -2<=age<=20 or not quote.source_tradable:
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_MARK_STALE_OR_UNTRADABLE")
+        if quote.bid<=0 or quote.ask<quote.bid or (
+                quote.ask-quote.bid)/quote.ask>Decimal("0.015"):
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_MARK_SPREAD_UNVERIFIED")
+        return quote.ask
+
     def account(self,account_id):
         if account_id!=self.account_id:
             raise BrokerEvidenceUnavailable("SIGNED_ACCOUNT_MISMATCH")
@@ -140,19 +168,14 @@ class RobinhoodLiveAdapter:
             except (ValueError,TypeError):
                 raise BrokerEvidenceUnavailable("SIGNED_POSITION_QUANTITY_INVALID") from None
             if qty==0:continue
-            # Mark every external holding from a genuine signed broker price.
-            # Unknown quote time/crossed market leaves exposure unknown,
-            # rather than treating missing positions as $0.
+            # All held assets count, including non-Coinbase-supported coins:
+            # fresh signed bid/ask suffices for gross exposure only.
             try:
-                quote=self._validated_quote(symbol,utc(self.clock()))
+                ask=self._signed_holding_ask(symbol)
             except (BrokerEvidenceUnavailable,ValueError,TypeError):
                 raise BrokerEvidenceUnavailable("SIGNED_POSITION_MARK_UNVERIFIED") from None
-            if quote.bid<=0:
-                raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BID_INVALID")
             signed_positions[symbol]=qty
-            # Use executable-side ASK conservatively for gross exposure.
-            # Never understate risk based on a cheaper unverified last.
-            market_exposure+=qty*quote.ask
+            market_exposure+=qty*ask
         managed={}
         for symbol,raw in self.managed_positions.items():
             if not isinstance(symbol,str):

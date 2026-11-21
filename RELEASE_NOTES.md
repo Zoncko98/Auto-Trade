@@ -1,3 +1,9 @@
+## v1.3.35 — Price every Robinhood holding without requiring an unsupported Coinbase pair
+
+The V2 Robinhood account adapter can now value an externally held cryptocurrency using its fresh signed Robinhood bid/ask and timestamp, even when the V2 Coinbase signal feed does not support that asset. Missing or stale broker quotes still block account assessment. This is for accurate gross exposure only, not order permission or new-trade pricing.
+
+Live V2 ownership remains unchanged. Before a live cutover, the account's funding, market session, V1 strategy and exit/risk parity and one-writer handoff still require verification.
+
 ## v1.3.34 — Robinhood quote verification uses actual live-source behavior
 
 The V2 preflight no longer fetches slow public trade data *after* obtaining a signed broker quote, which could cause otherwise valid cross-checks to expire. It separately validates broker bid/ask and any broker-reported quote timestamp, with the last trade sourced from a fresh independently timed Coinbase observation. The dashboard shows the exact safe quote validation blockers for supported symbols.
