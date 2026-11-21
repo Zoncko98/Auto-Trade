@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.request import urlopen
 from urllib.error import URLError
 from live_extension import (read_decisions, read_live_risk, rows_from_live)
+from schwab_auth_health import reauth_required
 
 MODEL_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,95}$")
 MAX_MODEL_SIZE = int(os.getenv("OLLAMA_MAX_MODEL_BYTES","7000000000"))
@@ -155,7 +156,11 @@ def live_state(state_dir):
     online=age is not None and age<=120
     # Offline and unverified statuses must not appear as 'live' just because
     # a stale heartbeat reported an armed worker.
-    armed=online and heartbeat.get("armed") is True
+    authorization_blocked=reauth_required(state_dir)
+    supervisor_waiting=supervisor.get("state") in (
+        "REAUTH_REQUIRED","MANUAL_REVIEW_REQUIRED","RECONCILIATION_REQUIRED")
+    armed=(online and heartbeat.get("armed") is True and
+           not authorization_blocked and not supervisor_waiting)
     account={}
     for key in ("at","cash","equity","exposure","positions","position_performance"):
         if key in snapshot:
@@ -164,6 +169,10 @@ def live_state(state_dir):
         account["positions"]={}
     return {
         "worker_online":online,
+        "auth_state":"REAUTH_REQUIRED" if authorization_blocked else (
+            "AWAITING_WORKER_VERIFICATION" if supervisor_waiting else (
+            "WORKER_VERIFIED" if armed else "NOT_VERIFIED")),
+        "auth_reason":"SCHWAB_REFRESH_TOKEN_REJECTED" if authorization_blocked else None,
         "heartbeat_age_sec":age,
         "last_scan_health":{
             "state":str(scan_health.get("state","UNKNOWN"))[:30],

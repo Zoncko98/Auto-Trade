@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **V2 development source (November 21, 2026):** this branch declares **v1.3.10**, adding durable, read-only V2 crypto paper scan and economic scorecards, plus explicit model inference timeout reporting, without changing any live broker permissions on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **V2 development source (November 21, 2026):** this branch declares **v1.3.11**, correcting Schwab Start trading to display an explicit OAuth reconnection action when authorization has been revoked, with a fail-closed server gate and no silent Broker Connections redirect on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

@@ -1,3 +1,9 @@
+## v1.3.11 — Schwab Start Trading and OAuth reconnect clarity
+
+The Schwab workspace now distinguishes Start trading from Reconnect Schwab rather than sending Start to generic Broker Connections. The live API confirms a revoked authorization and the real-money permission endpoint refuses to start until Schwab's OAuth consent and worker verification succeed. The dedicated reconnect action opens the registered Schwab flow.
+
+Production preflight on Nov 21 confirmed REAUTH_REQUIRED, worker offline, order permission paused, and no order journal halt. This release does not bypass broker authentication, change trading risk parameters, or place broker orders. V2 alpha.8 remains independent and paper-only.
+
 ## v1.3.10 — V2 measurable paper scan outcomes
 
 The existing Trading Operations V2 panel adds independent BTC/ETH paper scan coverage and economic scorecards. Each shows actual observed/no-signal minutes, actual simulated fills if any, model shadow PASS/VETO/UNAVAILABLE counts, virtual-account marked P/L and paper drawdown. No fills means no measured trading profitability; the virtual account remains distinct from each live broker.

@@ -17,12 +17,14 @@ function formatBrokerDate(v) {
 
 function renderLiveView(data) {
   lastLive=data;
+  window.AutoTraderUnified?.setSchwabStatus(data);
   const armed=data.worker_online && data.armed;
   const paused=data.order_permission !== "running";
   const active=armed && !paused && !data.journal_halted;
   const heartbeat=data.heartbeat_age_sec;
   const workerState=data.worker_supervisor?.state||"UNKNOWN";
-  $("live-worker-mode").textContent=!data.worker_online?
+  $("live-worker-mode").textContent=data.auth_state==="REAUTH_REQUIRED"?
+    "Reauthorization required":!data.worker_online?
     (workerState==="RECOVERING"||workerState==="RETRY_BACKOFF"?"Recovering":
      workerState==="RECONCILIATION_REQUIRED"?"Reconciliation required":
      workerState==="MANUAL_REVIEW_REQUIRED"?"Manual review required":"Offline"):
@@ -79,7 +81,10 @@ function renderLiveView(data) {
     ?data.order_count+" real brokerage order records; the broker may not have filled every accepted order."
     :"No real orders recorded. SPYD is still awaiting the authorized initial sell.";
   let title,text;
-  if (data.journal_halted){
+  if (data.auth_state==="REAUTH_REQUIRED"){
+    title="Schwab OAuth reauthorization required";
+    text="Schwab rejected the saved OAuth refresh authorization. Trading is paused. Select Reconnect Schwab for a new official sign-in; do not restart or enable orders until account verification succeeds.";
+  } else if (data.journal_halted){
     title="Trading halted for reconciliation";
     text=present(data.halt_reason)+". Do not restart the worker until the broker order is reconciled.";
   } else if(!armed){

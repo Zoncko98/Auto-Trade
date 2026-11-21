@@ -12,7 +12,7 @@
   };
   const byId=id=>document.getElementById(id);
   const accountFor=view=>Object.keys(ACCOUNTS).find(key=>Object.values(ACCOUNTS[key]).includes(view))||null;
-  let activeAccount=null,working=false;
+  let activeAccount=null,working=false,schwabAuthRequired=false;
 
   function navButton(label,view,icon){
     const button=document.createElement("button");
@@ -108,7 +108,9 @@
     originalNotes.forEach(node=>hiddenActions.append(node));
     const row=document.createElement("div");
     row.className="unified-actions";
-    row.append(actionButton(key==="paper"?"Start simulation":"Start trading","start","primary"),
+    const begin=actionButton(key==="paper"?"Start simulation":"Start trading","start","primary");
+    begin.dataset.account=key;
+    row.append(begin,
       actionButton("Pause","pause","danger-outline"),
       actionButton("Risk settings","risk","secondary"));
     const feedback=document.createElement("p");
@@ -202,10 +204,39 @@
       rows.forEach(row=>{if(!keep.has(row))advanced.append(row);});
     }
   }
+  function setSchwabStatus(data){
+    // This state comes from /api/live after server-side token-fingerprint
+    // verification, not merely from saved credentials or a stale heartbeat.
+    schwabAuthRequired=data?.auth_state==="REAUTH_REQUIRED"||
+      data?.worker_supervisor?.state==="REAUTH_REQUIRED";
+    for(const button of document.querySelectorAll(
+      '#view-live [data-unified-action], #view-live-risk [data-unified-action]')){
+      if(button.dataset.account!=="live" ||
+         !["start","reconnect"].includes(button.dataset.unifiedAction))continue;
+      button.dataset.unifiedAction=schwabAuthRequired?"reconnect":"start";
+      button.textContent=schwabAuthRequired?"Reconnect Schwab":"Start trading";
+      button.title=schwabAuthRequired
+        ?"Schwab rejected the saved refresh token. Open Schwab OAuth reconnection."
+        :"Start is available only after Schwab worker and account checks pass.";
+    }
+    const hint=byId("view-live-risk")?.querySelector(".unified-risk-guide p");
+    if(hint)hint.textContent=schwabAuthRequired?
+      "Schwab authorization expired. Select Reconnect Schwab to complete a fresh sign-in at Schwab. After successful account verification, return to Risk & start.":
+      "2. Start when the account is authorized. No separate test-trade requirement.";
+    if(schwabAuthRequired){
+      feedback("live","Schwab OAuth authorization expired or was revoked. Orders are paused. Use Reconnect Schwab to complete a fresh Schwab sign-in, then return here.",true);
+    }else renderMode("live");
+  }
   function renderMode(key){
     const feedback=byId("unified-feedback-"+key);
     const status=byId(ACCOUNTS[key].mode);
     if(!feedback||!status||working)return;
+    if(key==="live"&&schwabAuthRequired){
+      feedback.textContent="Schwab OAuth reauthorization required. Trading is paused. Select Reconnect Schwab to sign in.";
+      feedback.classList.add("is-error");
+      return;
+    }
+    feedback.classList.remove("is-error");
     const value=status.textContent.trim();
     const simulated=key==="paper";
     feedback.textContent=(simulated?"Simulation":"Order permission")+": "+value+
@@ -228,12 +259,18 @@
     if(key==="paper"){byId("start-btn")?.click();return;}
     if(key==="live"){
       const current=await request("/api/live");
-      if(!current.worker_online||!current.armed){
-        feedback(key,"The Schwab worker is not active. Open broker connections to finish account activation.",true);
-        showView("brokers");return;
+      setSchwabStatus(current);
+      if(current.auth_state==="REAUTH_REQUIRED"||
+         current.worker_supervisor?.state==="REAUTH_REQUIRED"){
+        feedback(key,"Schwab OAuth reauthorization is required. The Start trading action is unavailable until a fresh Schwab sign-in is verified. Use Reconnect Schwab.",true);
+        return;
       }
       if(current.journal_halted){
         feedback(key,"Trading is halted for reconciliation; resolve the broker order before resuming.",true);
+        return;
+      }
+      if(!current.worker_online||!current.armed){
+        feedback(key,"Schwab trading cannot start: worker offline or not armed. Check Trading Operations and account authorization; no setting was changed.",true);
         return;
       }
       if(current.order_permission==="running"){feedback(key,"Schwab trading permission is already active.");return;}
@@ -305,6 +342,11 @@
     const key=button.dataset.account||activeAccount;
     if(!key||!ACCOUNTS[key]||working)return;
     if(button.dataset.unifiedAction==="risk"){showView(ACCOUNTS[key].risk);return;}
+    if(button.dataset.unifiedAction==="reconnect"&&key==="live"){
+      // Only an explicitly labeled reconnect action navigates to OAuth.
+      window.location.assign("/broker-schwab.html#schwab-onboarding");
+      return;
+    }
     working=true;button.disabled=true;
     feedback(key,"Checking "+ACCOUNTS[key].name+" trading permissions…");
     try{
@@ -344,7 +386,7 @@
       if(action)onAction(action);
     });
   }
-  window.AutoTraderUnified={onViewChange,boot};
+  window.AutoTraderUnified={onViewChange,boot,setSchwabStatus};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});
   else boot();
 })();

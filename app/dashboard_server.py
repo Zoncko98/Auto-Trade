@@ -884,6 +884,8 @@ class Handler(BaseHTTPRequestHandler):
                 if set(data)!={"mode"}:
                     raise ValueError("Expected an order permission mode")
                 live=live_state(STATE_DIR)
+                if data["mode"]=="running" and live.get("auth_state")=="REAUTH_REQUIRED":
+                    raise ValueError("Schwab OAuth reauthorization required; reconnect Schwab before starting orders")
                 if data["mode"]=="running" and (not live["worker_online"] or
                                                  not live["armed"] or live["journal_halted"]):
                     raise ValueError("Schwab worker unavailable or halted; cannot resume orders")

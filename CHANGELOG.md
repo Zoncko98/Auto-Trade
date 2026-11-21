@@ -1,3 +1,13 @@
+## v1.3.11 — Schwab Start Trading correctly identifies revoked OAuth (2026-11-21)
+
+- Fixed the Schwab dashboard and Risk & Start actions that were labeled Start trading while the worker was offline for REAUTH_REQUIRED and silently redirected to generic Broker Connections. The action now clearly says Reconnect Schwab when the backend verifies the rejected refresh-token marker, and navigates only when the user explicitly chooses reconnection to the dedicated Schwab OAuth screen.
+- The backend GET /api/live returns a nonsecret auth_state (REAUTH_REQUIRED, AWAITING_WORKER_VERIFICATION, WORKER_VERIFIED, NOT_VERIFIED) and a fixed auth_reason code. The expiry marker is compared with the current token fingerprint without reading or exposing token contents.
+- POST /api/live/mode refuses real-money Start while a revoked OAuth marker remains, independently of a recent previously-armed heartbeat. It also does not treat a newly replaced token as worker-verified while the supervisor still reports reauthorization or reconciliation required. Pausing remains accessible while offline.
+- If the Schwab worker is offline for a reason other than rejected OAuth, Start shows the actual worker/readiness block in place without redirecting or changing account risk/permission settings.
+- Both existing Schwab workspace and Risk & Start panels display the same action label and descriptive status; after a successful broker reconnection and worker verification, the buttons return to Start trading. Confirmation for enabling real-money trading is unchanged.
+- Added synthetic revoked-token server tests, protected state comparison, CSRF and origin cases, pause and recovery behavior; added DOM-executed Node tests of both button states and their intended navigation.
+- Schwab must still complete the official user-driven OAuth consent and verified account lookup; we cannot silently replace a rejected token or enable real orders on the user's behalf. The other brokers, paper engine, V2 safeguards, AI and order journals are unchanged.
+
 ## v1.3.10 — Durable V2 crypto paper scan economics and model timeout diagnostics (2026-11-21)
 
 - Added a private, standalone, bounded 30-day SQLite V2 paper scan observation ledger for BTCUSD and ETHUSD, keyed by symbol and UTC minute. Repeated 30-second polls do not duplicate signal/fill minutes; a stronger confirmed simulated-fill outcome is not replaced by a subsequent no-signal poll.
