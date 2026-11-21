@@ -174,6 +174,7 @@ def main():
     v2_paper_last_spawn=0.0
     v2_stock_shadow_last_spawn=0.0
     v2_robinhood_probe_last_spawn=0.0
+    v2_webull_probe_last_spawn=0.0
     webull_last_spawn=0.0
     webull_feed_last_spawn=0.0
     while not _STOP:
@@ -221,6 +222,20 @@ def main():
                         webull_last_spawn=time.monotonic()
                         spawn("webull",["/app/webull_worker.py"],runtime_env)
                 if not wb_ready:stop_process("webull")
+                # Auto-discover signed Webull migration blockers with only
+                # authenticated GET endpoints and shared SDK throttling.
+                # Never arms Webull, creates an order, or modifies V1 policy.
+                wb_probe=CHILDREN.get("v2-webull-probe")
+                if wb_ready:
+                    if (wb_probe is None or wb_probe.poll() is not None) and (
+                         v2_webull_probe_last_spawn==0 or
+                         time.monotonic()-v2_webull_probe_last_spawn>=900):
+                        v2_webull_probe_last_spawn=time.monotonic()
+                        spawn("v2-webull-probe",
+                              ["-m","trader_v2.webull_probe_runner",
+                               "--state-dir",str(STATE)],runtime_env)
+                else:
+                    stop_process("v2-webull-probe")
                 feed=CHILDREN.get("webull-feed")
                 if wb_ready:
                     if feed is None or feed.poll() is not None:
@@ -343,13 +358,14 @@ def main():
             except (OSError,ValueError,TypeError,KeyError) as exc:
                 print("Invalid stored app settings; optional workers stopped.",flush=True)
                 for name in ("v2-stock-shadow","v2-paper","v2-robinhood-probe",
-                             "paper","market","live"):stop_process(name)
+                             "v2-webull-probe","paper","market","live"):stop_process(name)
         else:
             for name in ("v2-stock-shadow","v2-paper","v2-robinhood-probe",
-                         "paper","market","live"):stop_process(name)
+                         "v2-webull-probe","paper","market","live"):stop_process(name)
         time.sleep(4)
     for name in ("webull-feed","webull","robinhood","v2-robinhood-probe",
-                 "live","market","v2-stock-shadow","v2-paper","paper","dashboard"):stop_process(name)
+                 "v2-webull-probe","live","market","v2-stock-shadow","v2-paper",
+                 "paper","dashboard"):stop_process(name)
     return 0
 
 if __name__=="__main__":sys.exit(main())

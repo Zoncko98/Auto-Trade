@@ -4,14 +4,23 @@ from pathlib import Path
 from datetime import datetime, timezone
 from .webull_migration_probe import probe_webull
 from .recorded_replay import _atomic_json
-from .readonly_adapters import private_json, time_seen
+from .readonly_adapters import private_json
+import argparse,os
 
 
 def result_status(state, *, now=None):
     now=now or datetime.now(timezone.utc)
     path=Path(state)/"v2/broker_migration/webull.json"
     doc=private_json(path,maximum=16000)
-    stamp=time_seen(doc.get("checked_at"),now) if doc else None
+    # A diagnostic can be displayed longer than an executable quote:
+    # 20-minute TTL is observational ONLY; cutover_ready stays False.
+    try:
+        stamp=datetime.fromisoformat(str(doc.get("checked_at","")).replace("Z","+00:00"))
+        if stamp.tzinfo is None:raise ValueError("No timezone")
+        age=(now.astimezone(timezone.utc)-stamp.astimezone(timezone.utc)).total_seconds()
+        if not -5<=age<=1200:raise ValueError("Stale broker observation")
+    except (ValueError,TypeError,AttributeError):
+        stamp=None
     if not stamp:
         return {"state":"NOT_YET_VERIFIED_OR_STALE",
                 "broker":"webull","live_order_authority":False,
@@ -59,3 +68,16 @@ def run_once(state, signed_broker=None, *, now=None):
         pass
     _atomic_json(target/"webull.json",result)
     return result
+
+
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--state-dir",default=os.getenv("STATE_DIR","/state"))
+    args=parser.parse_args()
+    report=run_once(args.state_dir)
+    print("V2 Webull signed read-only migration:",
+          report.get("first_blocker","SIGNED_WEBULL_PREFLIGHT_UNAVAILABLE"),
+          flush=True)
+
+if __name__=="__main__":
+    main()

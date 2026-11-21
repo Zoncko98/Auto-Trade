@@ -1,3 +1,10 @@
+## v1.3.32 — Supervised Webull read-only migration checks in the existing app (2026-11-21)
+
+- Started a bounded, signed read-only Webull migration-preflight child under the EXISTING unified runtime whenever the original Webull connection is configured. It runs account/position/balance/open-order and bounded historical-fill GET checks, with 15-minute restart pacing and a 20-minute read-only evidence TTL.
+- The existing authenticated Trading Operations Webull readiness control now has automatic status evidence even without user interaction. Signed GET checks never place/cancel orders, never arm Webull, never create a separate application or overwrite the original V1 SQLite journal.
+- Added worker lifecycle handling for disable/error/shutdown paths, bounded private cached status, source and session blocker reporting. No V2 live writer is started; V1 broker order ownership remains unchanged.
+- Added automated source and private status tests proving the supervisor has a GET-only preflight and stale evidence cannot authorize any order.
+
 ## v1.3.31 — Robinhood V2 real-market schema, cross-venue quote checks and durable writer transfer primitive (2026-11-21)
 
 - Corrected a structural mismatch against Robinhood Crypto's official V2 best-bid/ask schema: the signed broker endpoint provides bid and ask but no native venue timestamp or last trade. The read-only preflight now checks exact signed symbol/bid/ask, a bounded real HTTP request interval, separately observed/timestamped Coinbase BTC/ETH last trades and strict cross-source price agreement. It does NOT pretend Coinbase timestamps are Robinhood timestamps, turn a Coinbase price into a broker order price or infer permission to submit live orders.

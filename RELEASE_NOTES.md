@@ -1,3 +1,7 @@
+## v1.3.32 — Automatic read-only Webull migration-readiness worker
+
+The existing app now schedules authenticated Webull broker preflight observations automatically. Users can still request the same read-only check from Trading Operations, and the dashboard shows the last redacted readiness reason. Broker orders and permissions remain with V1. The new background worker never submits live orders; a full V2 broker cutover still requires signed holdings/funding/market-session evidence and exclusive account ownership.
+
 ## v1.3.31 — Fix Robinhood quote-source mismatch before live migration
 
 Robinhood's official signed V2 bid/ask endpoint has no exchange quote timestamp or last trade. V2 no longer requires those nonexistent fields for read-only migration analysis: it independently validates a timestamped Coinbase trade and strict price agreement while retaining the broker's actual signed bid/ask for limit-price risk. A separately labeled quote-source view is available under Trading Operations.
