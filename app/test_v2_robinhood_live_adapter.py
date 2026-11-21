@@ -63,6 +63,16 @@ class RobinhoodV2AdapterTest(TestCase):
         self.assertEqual(quote.bid,D("10"))
         self.assertEqual(quote.ask,D("10.01"))
 
+    def test_high_precision_external_holdings_count_toward_exposure(self):
+        self.client.holdings=[{"asset_code":"BTC",
+            "total_quantity":"1.123456789012345678"}]
+        account=self.adapter.account("account123")
+        self.assertEqual(account.positions,{}) # Still NOT bot-owned inventory
+        self.assertGreaterEqual(account.market_exposure,D("11.24"))
+        self.assertGreaterEqual(account.market_exposure,
+                                D("1.123456789012345678")*D("10"))
+        self.assertLessEqual(account.equity,D("111.235"))
+
     def test_missing_quote_timestamp_never_grants_execution(self):
         self.client.quote_rows["BTC-USD"]["results"][0].pop("quote_timestamp")
         with self.assertRaises(BrokerEvidenceUnavailable):

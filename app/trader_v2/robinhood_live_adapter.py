@@ -6,7 +6,7 @@ quote, paper mark or V1 local journal row can authorize a V2 broker write.
 """
 from __future__ import annotations
 from datetime import datetime,timezone
-from decimal import Decimal
+from decimal import Decimal,ROUND_DOWN,ROUND_UP
 from .models import (
     Account,AssetClass,Capability,AuthState,MarketSnapshot,OrderIntent,
     OrderSide,amount,utc
@@ -15,7 +15,7 @@ from .contracts import BrokerExecution
 from .live_pipeline import LiveMigrationRejected
 from .robinhood_signed_receipts import (
     RobinhoodReadOnlyReceiptAdapter,client_id,
-    normalize_order,BrokerEvidenceUnavailable
+    normalize_order,BrokerEvidenceUnavailable,signed_holding_quantity
 )
 from .market_sources import robinhood_market_quote,MarketSourceError
 
@@ -112,7 +112,7 @@ class RobinhoodLiveAdapter:
             symbol=asset+"-USD"
             if symbol in signed_positions:
                 raise BrokerEvidenceUnavailable("DUPLICATE_SIGNED_HOLDING")
-            try:qty=amount(holding.get("total_quantity"),"broker quantity")
+            try:qty=signed_holding_quantity(holding.get("total_quantity"))
             except (ValueError,TypeError):
                 raise BrokerEvidenceUnavailable("SIGNED_POSITION_QUANTITY_INVALID") from None
             if qty==0:continue
@@ -141,13 +141,19 @@ class RobinhoodLiveAdapter:
             managed[symbol]=qty
         # This cash field represents VERIFIED broker USD *buying power* for
         # spot crypto risk sizing; the UI must NOT label it settled cash.
-        equity=buying+market_exposure
+        # V2 canonical money uses cents/12 digits at most. Round invested
+        # exposure UP and equity DOWN, so tiny external positions cannot be
+        # dropped or increase an unsupported account's deployable budget.
+        rounded_exposure=market_exposure.quantize(Decimal("0.01"),rounding=ROUND_UP)
+        conservative_equity=buying+market_exposure.quantize(
+            Decimal("0.01"),rounding=ROUND_DOWN)
         pair=self._pair()
         return Account(account_id,self.provider_id,
             Capability(frozenset({AssetClass.CRYPTO}),
                        fractional=True,min_notional=pair["min_order_amount"],
                        quantity_increment=pair["asset_increment"]),
-            buying,equity,managed,AuthState.CONNECTED,True,market_exposure)
+            buying,conservative_equity,managed,AuthState.CONNECTED,True,
+            rounded_exposure)
 
     def find_order(self,key):
         return self.receipts.find_order(key)

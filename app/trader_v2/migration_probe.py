@@ -13,6 +13,7 @@ import argparse
 import time
 import os
 from .models import amount,utc
+from .robinhood_signed_receipts import signed_holding_quantity,BrokerEvidenceUnavailable
 from .market_sources import robinhood_market_quote,MarketSourceError
 from .readonly_adapters import private_json
 from .recorded_replay import _atomic_json
@@ -85,12 +86,9 @@ def _probe(state,client,policy,*,now=None):
             report["holdings_failure_category"]="SIGNED_HOLDING_DUPLICATE_ASSET"
             break
         seen.add(symbol)
-        try:amount(row.get("total_quantity"),"signed holding")
-        except (ValueError,TypeError):
-            raw=row.get("total_quantity")
-            report["holdings_failure_category"]=(
-                "SIGNED_HOLDING_NUMERIC_TYPE_UNSUPPORTED" if isinstance(raw,(float,bool))
-                else "SIGNED_HOLDING_QUANTITY_MISSING_OR_INVALID")
+        try:signed_holding_quantity(row.get("total_quantity"))
+        except BrokerEvidenceUnavailable as exc:
+            report["holdings_failure_category"]=exc.code
             break
     else:
         report["holdings_verified"]=True

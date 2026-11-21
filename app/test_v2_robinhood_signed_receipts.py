@@ -4,7 +4,7 @@ from unittest import TestCase, main
 from uuid import UUID
 from trader_v2.robinhood_signed_receipts import (
     client_id,normalize_order,RobinhoodReadOnlyReceiptAdapter,
-    BrokerEvidenceUnavailable,
+    BrokerEvidenceUnavailable,signed_holding_quantity,
 )
 
 ACCOUNT="account123"
@@ -115,6 +115,15 @@ class SignedReceiptTests(TestCase):
         with self.assertRaises(BrokerEvidenceUnavailable):
             broker.submit({"key":KEY})
 
+    def test_readonly_signed_holdings_accept_high_precision_without_order_permission(self):
+        self.assertEqual(signed_holding_quantity("0E-18"),D("0"))
+        self.assertEqual(signed_holding_quantity("1.123456789012345678"),
+                         D("1.123456789012345678"))
+        self.assertEqual(signed_holding_quantity("0.000000000000000001"),
+                         D("0.000000000000000001"))
+        for raw in (None,False,0.1,"NaN","Infinity","-0.1","1E-30"):
+            with self.subTest(raw=raw),self.assertRaises(BrokerEvidenceUnavailable):
+                signed_holding_quantity(raw)
     def test_history_unavailable_not_empty(self):
         broker=RobinhoodReadOnlyReceiptAdapter(BrokerReads(None),ACCOUNT)
         with self.assertRaises(BrokerEvidenceUnavailable):

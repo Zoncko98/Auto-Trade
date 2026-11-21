@@ -1,3 +1,11 @@
+## v1.3.26 — Signed Robinhood high-precision holdings normalization (2026-11-21)
+
+- Fixed the V2 signed Robinhood migration probe's genuine production holdings-quantity failure: crypto holdings can report valid decimals with more than 12 fractional places, including zero values such as 0E-18. Added an explicit READ-ONLY holdings normalizer accepting finite nonnegative Decimal, integer or string quantities through 24 fractional places; rejecting nonfinite, negative, float/boolean, missing, unreasonably large or absurdly precise values. Canonical order, broker fill and fee precision limits remain unchanged.
+- V2 Robinhood signed account observation reuses the same high-precision holdings parser, counts every external holding toward account market exposure (never as automatically sellable bot inventory), rounds external exposure UP to the nearest cent and account equity DOWN to the nearest cent before passing values into the canonical risk pipeline. New orders still follow exact pair asset increments, minimums, quote time, funding and signed reconciliation.
+- Refined private, signed read-only migration diagnostics to surface a bounded reason code when holdings quantity parsing fails; no account numbers, assets, prices, holdings, credentials or broker signing material are published in the Operations preflight.
+- Added cases for legitimate 18-decimal holdings, 0E-18, very small valid external exposure and invalid precision or types. The V1 and V2 per-account single-writer locks introduced in v1.3.25 remain intact. No live broker cutover, V1 pause, order submission or guard bypass is part of this change.
+- Production broker order history, holdings, exact session, settlement and writer handoff still require authenticated acceptance evidence before real V2 live execution is authorized.
+
 ## v1.3.25 — Shared account-writer exclusion and signed broker probe diagnostics (2026-11-21)
 
 - Added durable per-broker/per-account cross-process writer ownership guards using protected SHA-256 account-scoped lock files and fcntl/flock. Existing accounts default to V1 ownership. The V1 Schwab, Webull, and Robinhood Crypto order submit paths now hold the same exclusive account lock from persistence of the legacy intent through broker POST and acknowledgement.

@@ -1,3 +1,9 @@
+## v1.3.26 — Accurate high-precision signed crypto holdings in migration checks
+
+The Robinhood V2 migration probe now accepts valid high-precision signed broker holdings, including small fractional balances, without treating them as bot-owned shares. The live V2 adapter rounds exposure conservatively and still refuses an order when a quote, brokerage position, cost, order ID, fee, or account authorization is not independently verified.
+
+This is an observational broker-data correction, not a live-trading activation. The existing Schwab, Webull and Robinhood V1 order writers remain the only production submitters, protected by the shared account ownership locks. V2 core 2.0.0-alpha.22.
+
 ## v1.3.25 — Single-writer protection for broker migration
 
 Every existing Schwab, Webull and Robinhood V1 order-writing path now participates in a protected, cross-process, account-scoped ownership lock. V1 owns each account until an independently verified migration assigns V2; V2 now refuses an account even if a callback claims a handoff unless its persisted owner generation explicitly matches. This prevents both architectures from submitting to the same broker account in the transfer window.

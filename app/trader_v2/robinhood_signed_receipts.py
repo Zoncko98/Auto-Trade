@@ -5,7 +5,7 @@ Existing Robinhood client performs signed GETs. No keys or broker writes are
 created here. Unknown provider states or incomplete fills NEVER imply a fill.
 """
 from __future__ import annotations
-from decimal import Decimal
+from decimal import Decimal,InvalidOperation
 from uuid import uuid5, NAMESPACE_URL
 from typing import Mapping
 from .contracts import BrokerExecution
@@ -21,6 +21,18 @@ def client_id(intent_key: str, account_id: str) -> str:
     from .models import valid_id
     valid_id(intent_key); valid_id(account_id)
     return str(uuid5(NAMESPACE_URL, "auto-trader-v2|robinhood_crypto|"+account_id+"|"+intent_key))
+
+def signed_holding_quantity(value):
+    """Read-only signed broker inventory; never an order or fill quantity."""
+    if isinstance(value,(float,bool)) or not isinstance(value,(str,int,Decimal)):
+        raise BrokerEvidenceUnavailable("SIGNED_HOLDING_QUANTITY_TYPE_INVALID")
+    try:quantity=Decimal(str(value))
+    except (InvalidOperation,ValueError,TypeError):
+        raise BrokerEvidenceUnavailable("SIGNED_HOLDING_QUANTITY_INVALID") from None
+    if (not quantity.is_finite() or quantity<0 or quantity.adjusted()>14
+            or (quantity!=0 and quantity.as_tuple().exponent < -24)):
+        raise BrokerEvidenceUnavailable("SIGNED_HOLDING_QUANTITY_PRECISION_INVALID")
+    return Decimal("0") if quantity==0 else quantity
 
 def _money(value, field, positive=False):
     try:

@@ -69,6 +69,15 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(self.report()["first_blocker"],
                          "SIGNED_ACCOUNT_UNAVAILABLE_OR_INELIGIBLE")
 
+    def test_high_precision_signed_holdings_are_observed_not_discarded(self):
+        self.client.holdings=[{"asset_code":"BTC","total_quantity":"1.123456789012345678"},
+                              {"asset_code":"ETH","total_quantity":"0E-18"}]
+        report=self.report()
+        self.assertTrue(report["holdings_verified"])
+        self.assertEqual(report["holdings_rows_observed"],2)
+        self.assertEqual(report["first_blocker"],
+            "V1_WRITER_HANDOFF_AND_BROKER_SESSION_REQUIRED")
+
     def test_signed_positions_missing_fails_closed(self):
         self.client.holdings=None
         result=self.report()
