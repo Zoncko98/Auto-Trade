@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
-from .models import Account,AssetClass,AIReview,Candidate,Candle,MarketSnapshot,OrderIntent
+from .models import Account,AssetClass,AIReview,Candidate,Candle,MarketSnapshot,OrderIntent,amount,valid_id
 
 @dataclass(frozen=True)
 class BrokerExecution:
@@ -13,6 +13,16 @@ class BrokerExecution:
     filled_quantity:Decimal
     average_price:Decimal
     fees:Decimal
+    def __post_init__(self):
+        valid_id(self.key)
+        if self.state not in ("BROKER_ACCEPTED","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED"):
+            raise ValueError("Unsupported broker receipt state")
+        if (not isinstance(self.broker_order_id,str) or
+                not 1<=len(self.broker_order_id)<=160 or
+                any(ch.isspace() or ord(ch)<32 for ch in self.broker_order_id)):
+            raise ValueError("Broker order identifier is invalid")
+        for field in ("filled_quantity","average_price","fees"):
+            object.__setattr__(self,field,amount(getattr(self,field),field))
 
 @runtime_checkable
 class TradingBroker(Protocol):

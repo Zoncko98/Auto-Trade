@@ -1,3 +1,12 @@
+## v1.3.22 — V2 broker-receipt boundary validation and fail-closed partial-fill recovery (2026-11-21)
+
+- Validates all V2 broker execution receipts against the ORIGINAL persisted intent before recording an accepted, partial, filled, canceled or rejected order. A matching idempotency key alone no longer establishes a valid fill: cumulative quantity cannot exceed the authorized quantity, a claimed full fill must match it exactly, marketable average fill price must respect the saved BUY/SELL limit, and a provider cannot silently change the broker order ID or regress an earlier partial fill.
+- Adds strict broker-receipt value/status/identifier validation and retains cumulative quantity, actual receipt price and fee evidence when a partially filled order is subsequently canceled or rejected.
+- Invalid or inconsistent evidence is persisted as UNKNOWN_REQUIRES_RECONCILIATION (or remains unresolved) and the original order is never blindly resubmitted. A later read-only lookup by the original idempotency key may reconcile it; no new order writer or broker API was introduced.
+- New regression tests cover incorrect full fills, overfills, limit violations, invalid state and monetary values, changed broker order identity, decreasing partial fills, cancellation economics, and no re-post after an ambiguous reply. The full 714-test Python suite passed locally with one skipped test prior to GitHub CI.
+- Existing V1 Schwab, Webull and Robinhood live order services are unchanged. V2 continues to use only SimulatedBroker for order writes; V2 live authority, broker adapter reconciliation and account cutover remain disabled. No new risk controls are bypassed.
+- Next: independently verified broker order/holdings/settled-cash adapters, live market-session validation, account-specific V2 risk mapping and staged single-writer cutovers after broker-safe acceptance.
+
 ## v1.3.21 — Durable V2 crypto fee/reward shadow and rolling cost blocker frequencies (2026-11-21)
 
 - Extended the existing private SQLite V2 crypto paper scan journal to persist advisory fee/reward classifications by symbol and one-minute interval, without touching the simulator order journal or opening another brokerage connection. A backward-compatible, owner-only ALTER TABLE migration adds fee_shadow_state to existing V2 scan data without discarding historical records, and the status reader supports legacy journals before their first post-upgrade scan.

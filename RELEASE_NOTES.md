@@ -1,3 +1,9 @@
+## v1.3.22 — Receipt validation before any V2 order is declared filled
+
+The V2 paper executor now checks a broker receipt against the original saved order: broker ID, fill quantity and cumulative progress, BUY/SELL limit price, fees and terminal state must all agree. If any response conflicts, the existing intent is held for reconciliation and is never retried as a fresh order. Partial-fill economics survive cancellation and rejection for later accounting.
+
+This is a contract-hardening milestone for future broker adapters, not a V2 live-trading activation. V1 live brokers and their permissions are unchanged. Latest full local Python regression: 714 tests passed (one skipped). V2 core 2.0.0-alpha.18 still requires market-session/settlement checks, signed broker-order reconciliation and single-writer handoff before any live cutover.
+
 ## v1.3.21 — Historical advisory fee/reward evidence retained for V2
 
 The existing authenticated V2 Trading Operations crypto paper 3-hour and 24-hour reports now retain fee-aware shadow classifications for genuine BUY signals. An append-safe migration adds one column to the private scan history and never changes real or simulated order journals. All existing order and risk paths remain exactly as before.

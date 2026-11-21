@@ -13,6 +13,7 @@ from .models import (AIReview,AIState,Account,Candidate,MarketSnapshot,
                      OrderIntent,OrderSide,OrderState,RiskPolicy,utc)
 from .risk import evaluate_risk
 from .simulation import SimulatedBroker,SimulationRejected
+from .receipt_validation import receipt_failure
 from .store import EventStore
 
 @dataclass(frozen=True)
@@ -68,9 +69,23 @@ class PaperPipeline:
         return self._accept(key,actual)
 
     def _accept(self,key,receipt:BrokerExecution)->PipelineResult:
-        if not isinstance(receipt,BrokerExecution) or receipt.key!=key:
-            raise ValueError("Unverified broker acknowledgment identity")
-        state=OrderState(self.store.get(key)["state"])
+        item=self.store.get(key)
+        if item is None:
+            raise KeyError("Unknown persisted order intent")
+        state=OrderState(item["state"])
+        try:
+            mismatch=receipt_failure(key,receipt,item["document"],self.store.events(key))
+        except (ValueError,TypeError,KeyError):
+            mismatch="BROKER_RECEIPT_EVIDENCE_UNVERIFIED"
+        if mismatch:
+            # Never mark an inconsistent provider acknowledgment as FILLED.
+            # A later read-only lookup of the ORIGINAL order ID may resolve it.
+            if state in (OrderState.SUBMITTING,OrderState.BROKER_ACCEPTED,
+                         OrderState.PARTIALLY_FILLED):
+                self.store.transition(key,OrderState.UNKNOWN_REQUIRES_RECONCILIATION,
+                                      evidence={"reason":mismatch})
+            return PipelineResult("RECONCILIATION_REQUIRED",mismatch,key,
+                                  self.store.get(key)["state"])
         if state is OrderState.SUBMITTING or state is OrderState.UNKNOWN_REQUIRES_RECONCILIATION:
             self.store.transition(key,OrderState.BROKER_ACCEPTED,
                 evidence={"broker_order_id":receipt.broker_order_id})
@@ -83,16 +98,24 @@ class PaperPipeline:
             return PipelineResult("FILLED","Simulated fill reconciled",key,"FILLED")
         if receipt.state=="PARTIALLY_FILLED":
             self.store.transition(key,OrderState.PARTIALLY_FILLED,
-                evidence={"filled_quantity":str(receipt.filled_quantity),
+                evidence={"broker_order_id":receipt.broker_order_id,
+                          "filled_quantity":str(receipt.filled_quantity),
+                          "average_price":str(receipt.average_price),
                           "fees":str(receipt.fees)})
             return PipelineResult("PARTIALLY_FILLED","Await remaining fill",key,"PARTIALLY_FILLED")
         if receipt.state=="REJECTED":
             self.store.transition(key,OrderState.REJECTED,
-                 evidence={"broker_order_id":receipt.broker_order_id})
+                 evidence={"broker_order_id":receipt.broker_order_id,
+                           "filled_quantity":str(receipt.filled_quantity),
+                           "average_price":str(receipt.average_price),
+                           "fees":str(receipt.fees)})
             return PipelineResult("REJECTED","Simulated broker rejection",key,"REJECTED")
         if receipt.state=="CANCELED":
             self.store.transition(key,OrderState.CANCELED,
-                 evidence={"broker_order_id":receipt.broker_order_id})
+                 evidence={"broker_order_id":receipt.broker_order_id,
+                           "filled_quantity":str(receipt.filled_quantity),
+                           "average_price":str(receipt.average_price),
+                           "fees":str(receipt.fees)})
             return PipelineResult("CANCELED","Broker canceled order",key,"CANCELED")
         return PipelineResult("BROKER_ACCEPTED","Broker acknowledged original intent",key,
                               self.store.get(key)["state"])

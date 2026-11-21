@@ -12,7 +12,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.17","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.18","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_6_PERSISTED_CRYPTO_FEE_SHADOW_AND_SCAN_RECONCILIATION",
