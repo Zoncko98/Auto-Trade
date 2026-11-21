@@ -183,6 +183,38 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   const freshNode=document.getElementById("v2-paper-fresh-report");
   const activityNode=document.getElementById("v2-paper-activity-report");
+  const economicsNode=document.getElementById("v2-paper-econ-report");
+  function showPaperEconomics(data){
+    if(!economicsNode)return;
+    economicsNode.replaceChildren();
+    const summary=document.createElement("p");
+    summary.className="muted";
+    summary.textContent="Cumulative isolated simulator results only; not live broker P/L. Estimated spread/slippage cannot be separately verified.";
+    economicsNode.append(summary);
+    const results=data&&data.economic_reconciliation&&
+      typeof data.economic_reconciliation==="object"?data.economic_reconciliation:{};
+    for(const symbol of ["BTCUSD","ETHUSD"]){
+      const card=results[symbol];
+      if(!card || card.simulated_only!==true || card.live_orders_authorized!==false)continue;
+      const item=document.createElement("p");
+      if(card.state!=="SIMULATED_CASH_AND_POSITIONS_RECONCILED" ||
+         card.cash_reconciled!==true){
+        item.textContent=symbol+" · Simulated economics unavailable — "+
+          String(card.state||"LEDGER_UNVERIFIED")+
+          " · No performance claim";
+      }else{
+        item.textContent=symbol+
+          " · "+Number(card.simulated_fills||0)+" confirmed simulated fills"+
+          " · "+Number(card.completed_round_trips||0)+" closed round trips"+
+          " · "+Number(card.winning_round_trips||0)+" profitable"+
+          " · Assumed fees $"+String(card.total_assumed_fees_usd)+
+          " · Realized net after fees $"+String(card.realized_net_pnl_usd)+
+          " · Remaining simulated qty "+String(card.remaining_quantity)+
+          " · Wallet cash / holdings reconciled";
+      }
+      economicsNode.append(item);
+    }
+  }
   function showPaperActivity(data){
     if(!activityNode)return;
     activityNode.replaceChildren();
@@ -228,6 +260,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       if(!response.ok)throw Error("Fresh-paper worker status unavailable");
       const data=await response.json();
       showPaperActivity(data);
+      showPaperEconomics(data);
       freshNode.replaceChildren();
       const list=Array.isArray(data.reports)?data.reports:[];
       for(const report of list){
@@ -291,6 +324,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     }catch(_error){
       freshNode.textContent="Fresh-paper worker status unavailable. No live orders are affected.";
       if(activityNode)activityNode.textContent="Rolling paper activity unavailable; scan records and simulated fill counts could not be verified.";
+      if(economicsNode)economicsNode.textContent="Simulated economic reconciliation unavailable; no performance claim can be made.";
     }
   }
 

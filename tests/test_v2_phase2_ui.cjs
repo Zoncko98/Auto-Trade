@@ -155,6 +155,23 @@ test("Schwab V2 stock price bridge reuses V1 quotes without broker submission",(
   assert.match(html,/Schwab stock quotes are reused from its existing authenticated V1 scanner/);
 });
 
+test("V2 actual simulated P/L is reconciled after fees with no live claims",()=>{
+  const econ=read("app/trader_v2/sim_economics.py");
+  const fresh=read("app/trader_v2/fresh_paper.py");
+  const ui=read("web/v2-status.js");
+  const html=read("web/index.html");
+  assert.match(econ,/SIMULATED_CASH_AND_POSITIONS_RECONCILED/);
+  assert.match(econ,/SIMULATOR_RECONCILIATION_REQUIRED/);
+  assert.match(econ,/STARTING_CASH=Decimal/);
+  assert.match(econ,/"live_orders_authorized":False/);
+  assert.match(fresh,/"economic_reconciliation":read_economics\(base,now=now\)/);
+  assert.match(html,/id="v2-paper-econ-report"/);
+  assert.match(ui,/showPaperEconomics\(data\)/);
+  assert.match(ui,/Realized net after fees/);
+  assert.match(ui,/No performance claim/);
+  assert.doesNotMatch(econ,/place_order\(|submit_order\(|from schwab\.|from robinhood/);
+});
+
 test("V2 paper rolling 3h/24h activity separates signals, blockers and simulated fills",()=>{
   const source=read("app/trader_v2/paper_activity.py");
   const fresh=read("app/trader_v2/fresh_paper.py");

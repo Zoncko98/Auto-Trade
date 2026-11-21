@@ -1,3 +1,13 @@
+## v1.3.19 — Reconciled V2 simulated realized net profitability (2026-11-21)
+
+- Validated the existing genuine V2 BTC/ETH simulator ledger against all filled orders, virtual-account cash and remaining inventory, using the exact SimulatedBroker weighted-average acquisition cost including purchase fees and sale proceeds after sale fees. No broker SDK calls, new orders, credential reads, or live policy changes.
+- Production read-only verification: BTCUSD 6 simulated fills, 3 completed round trips, 0 profitable, fees $0.06, realized net -$0.14; ETHUSD 6 fills, 3 round trips, 0 profitable, fees $0.06, realized net -$0.16. Both accounts have zero remaining inventory and their virtual cash balances reconcile. These are synthetic executed prices with modelled costs, NOT real broker accepted fills or real investment performance.
+- Added strictly private, read-only simulated economic reconciliation under the existing authenticated V2 paper status API and the Trading Operations crypto paper section. It displays verified completed round trips, profitable cycles, assumed fees, net realized simulated P/L and any remaining simulated position, or a reconciliation-required state if the ledger cannot be verified.
+- Fail-closed verification rejects invalid/tampered funds, mismatched asset/account symbols, malformed or future order timestamps, non-SIM order IDs, cross-account positions, missing simulator accounts, and inaccessible or public/symlinked ledger files. It never turns an unverified ledger into a zero-profit claim.
+- Distinguishes ledger-assumed fees from market spread/slippage: no reliable source quote at each simulated fill is persisted, so the additional impact from simulated spread/slippage cannot be separately attributed. A profitable backtest is not claimed.
+- Added tests using actual SimulatedBroker submissions for cash/position reconciliation, losing/winning round trips, open holdings, invalid source evidence and no live-order access; bounded UI output is a read-only addition to the existing account workspace.
+- Next work: fee-adjusted candidate filtering with reproducible historical replay and shadow baseline comparison, broker market-session checks, canonical per-account risk, broker adapters and staged one-writer handoff before any V2 live authority.
+
 ## v1.3.18 — V2 three-hour/24-hour paper scan-to-fill diagnostics (2026-11-21)
 
 - Inspected the real TrueNAS V2 crypto paper scan and simulator ledgers for the previous three hours. Both BTC and ETH scans remained active, AI returned PASS/VETO/UNAVAILABLE evidence, and zero new simulated fills occurred because the existing three-entry daily cap and absence of held inventory blocked new orders. No broker orders were placed by V2.

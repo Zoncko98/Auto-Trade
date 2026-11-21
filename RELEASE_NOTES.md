@@ -1,3 +1,11 @@
+## v1.3.19 — Reconciled V2 crypto paper P/L after simulated trading costs
+
+The existing Trading Operations V2 paper section now shows the result of a separate, strict read-only simulator-account reconciliation. It checks that confirmed simulated fills, fees and long position quantities reproduce the account cash and inventory, then reports cumulative realized net simulated P/L and win counts. Any mismatch is explicitly shown as unavailable rather than presenting guessed performance.
+
+Both BTC and ETH simulated accounts currently show three completed buy/sell cycles, zero profitable cycles, assumed fees of $0.06 each, and realized net simulated losses of $0.14 and $0.16 respectively. This is not broker performance. No new V2 orders were placed by this release and V2 live broker write authority remains disabled.
+
+V2 core 2.0.0-alpha.15 still needs independent market sessions, executable quotes, broker lot/cash reconciliation, controlled broker adapters and one-writer cutover.
+
 ## v1.3.18 — Confirmed paper activity and why-no-trade evidence
 
 The existing authenticated Trading Operations V2 paper section now shows independent rolling three-hour and 24-hour scan and simulator activity. It distinguishes genuine BTC/ETH candidate signal-minutes from verified simulated fills and displays the actual broker-independent risk blockers: ENTRY_DAILY_COUNT_LIMIT and NO_LONG_HOLDING, without altering the safeguards.

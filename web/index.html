@@ -187,6 +187,11 @@
               <p class="muted">Read-only V2 scan and simulator ledger counts. Qualified signal-minutes are not orders or fills. Missing/unverified order journal evidence is not displayed as zero. Entry and exit blockers remain enforced.</p>
               Awaiting rolling simulated activity…
             </div>
+            <div id="v2-paper-econ-report" class="ops-records" role="status" aria-live="polite" style="margin-top:10px">
+              <strong>Cumulative simulated execution economics — verified ledger</strong>
+              <p class="muted">Counts real SimulatedBroker fills only. Computes weighted-cost realized P/L after assumed buy/sell fees, and confirms resulting virtual cash and inventory. Prices, spreads and slippage are synthetic assumptions, not broker-executable prices or proof of future profitability.</p>
+              Awaiting isolated paper execution reconciliation…
+            </div>
           </div>
           <div class="ops-records" id="v2-paper-replay-card" style="margin-top:12px">
             <strong>Historical paper replay · V2 shared pipeline</strong>
