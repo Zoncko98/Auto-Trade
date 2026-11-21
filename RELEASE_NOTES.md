@@ -1,3 +1,9 @@
+## v1.3.10 — V2 measurable paper scan outcomes
+
+The existing Trading Operations V2 panel adds independent BTC/ETH paper scan coverage and economic scorecards. Each shows actual observed/no-signal minutes, actual simulated fills if any, model shadow PASS/VETO/UNAVAILABLE counts, virtual-account marked P/L and paper drawdown. No fills means no measured trading profitability; the virtual account remains distinct from each live broker.
+
+Read-only production evidence before this release showed both BTC and ETH accumulating real closed candles but each at NO_SIGNAL and zero simulated orders. A separate actual configured Ollama test timed out after six seconds, despite healthy model endpoint discovery. This release reports model inference timeouts accurately but does not automatically switch models or weaken gates. V2 alpha.8 remains non-live and user permission settings are unchanged.
+
 ## v1.3.9 — V2 Ollama shadow decisions alongside safe paper execution
 
 When the public crypto paper controller identifies a qualified signal, V2 may request a bounded JSON PASS/VETO review from the existing configured Ollama model and store it next to the simulated baseline outcome. The review has NO authority over risk, entry sizing or order submission and may report UNAVAILABLE when the local model is slow or offline. Without an operator-configured model it reports NOT_CONFIGURED. A no-signal scan reports NOT_INVOKED. The independent V2 paper worker and all V1 brokers retain their prior permissions.

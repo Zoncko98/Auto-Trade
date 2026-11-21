@@ -62,6 +62,8 @@ class SharedAIReviewer:
             data = json.loads(response)
         except ReviewUnavailable:
             raise
+        except TimeoutError as exc:
+            raise ReviewUnavailable("MODEL_TIMEOUT") from exc
         except Exception as exc:
             raise ReviewUnavailable("AI_UNAVAILABLE") from exc
         if not isinstance(data, dict) or set(data) != {"symbol", "state", "reason"}:

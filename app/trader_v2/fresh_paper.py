@@ -27,6 +27,7 @@ from .simulation import SimulatedBroker
 from .public_crypto import PRODUCTS,PublicFeedError,fetch_ticker
 from .ai_shadow import shadow_review
 from .recorded_replay import _atomic_json, _private_json
+from .scan_observability import capture_scan,read_scorecards
 
 STATE_VERSION="live-crypto-paper-1"
 INTERVAL_SECONDS=30
@@ -230,6 +231,12 @@ def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None,shadow=shadow_review
                     "simulated_only":True,
                     "market_executable_for_user_broker":False,
                     "live_orders_submitted":0,"ai_mode":"OFF_BASELINE"}
+        try:
+            capture_scan(root,report)
+            report["scan_history"]="PERSISTED"
+        except (ValueError,PermissionError,OSError,sqlite3.Error):
+            # A failed diagnostic write never changes paper order authority.
+            report["scan_history"]="UNAVAILABLE"
         _atomic_json(path,report)
         return report
 
@@ -258,7 +265,8 @@ def status(state_dir):
             "live_orders_authorized":False,"broker_credentials_used":False,
             "market_executable_for_user_broker":False,
             "sources":["COINBASE_PUBLIC_TICKER_ONLY"],
-            "ai_mode":"OFF_BASELINE","reports":reports}
+            "ai_mode":"OFF_BASELINE","reports":reports,
+            "scorecards":read_scorecards(base)}
 
 
 def _signal_stop(_sig,_frame):

@@ -1,3 +1,12 @@
+## v1.3.10 — Durable V2 crypto paper scan economics and model timeout diagnostics (2026-11-21)
+
+- Added a private, standalone, bounded 30-day SQLite V2 paper scan observation ledger for BTCUSD and ETHUSD, keyed by symbol and UTC minute. Repeated 30-second polls do not duplicate signal/fill minutes; a stronger confirmed simulated-fill outcome is not replaced by a subsequent no-signal poll.
+- Existing authenticated GET /api/v2/paper-fresh now provides read-only 24-hour scan scorecards for each account: sampled minutes, actual eligible-signal minutes, no-signal coverage, data errors, simulated-fill minutes, shadow AI PASS/VETO/UNAVAILABLE counts, last paper observation and synthetic marked-to-market P/L and peak-to-trough drawdown. P/L includes simulation cash/positions and the simulator's configured assumed fees/slippage. No live-broker result, actual fee or strategy profitability is implied.
+- The scorecard is displayed below the current BTC/ETH paper worker status inside the existing Trading Operations view, with explicit labels for its synthetic nature and missing performance evidence.
+- Shared typed AI reviewer distinguishes socket/transport TimeoutError as MODEL_TIMEOUT instead of generic AI_UNAVAILABLE. Production read-only probe confirmed configured Ollama HTTP endpoints respond quickly and the chosen model is listed, but an isolated candidate review exceeded the six-second budget. No model PASS/VETO has been confirmed from an actual production signal; that remains a validation gap.
+- Added tests for read-only status, owner-only SQLite permissions, independent accounts, scorecard aggregation, restart/minute idempotency, preserved strongest fill state, time windows, invalid paper values/symlinks, existing API auth, browser contract and simulated-only isolation.
+- The V2 live broker writer remains OFF. Existing paper and live broker processes, live journals, saved risk settings, credentials, OAuth, order minimums, and safeguards are unchanged. Next milestones: qualified real-signal shadow evidence, fee-aware replay benchmarking, stock paper feed and account-specific V2 UI/live cutover.
+
 ## v1.3.9 — Strict AI shadow decision capture for V2 public crypto paper (2026-11-21)
 
 - Connected the existing shared V2 AI reviewer and bounded Ollama JSON transport to qualified public crypto paper candidates as a NON-AUTHORITATIVE shadow assessment. The operator-configured Ollama URL/model are reused; there is no new account credential, untrusted external endpoint, live adapter or broker-side order request.

@@ -60,6 +60,7 @@ class ShadowAITests(unittest.TestCase):
                      env={"AI_MODEL":"synthetic-llm",
                           "AI_OLLAMA_URL":"http://localhost:11434"})
         self.assertEqual(result["state"],"UNAVAILABLE")
+        self.assertEqual(result["reason"],"MODEL_TIMEOUT")
         self.assertFalse(result["changed_order_authority"])
 
 if __name__=="__main__":unittest.main()

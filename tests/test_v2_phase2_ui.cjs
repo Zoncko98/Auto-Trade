@@ -104,6 +104,21 @@ test("AI shadow evidence cannot grant paper or live order permission",()=>{
   assert.doesNotMatch(shadow,/submit_order|place_order|RobinhoodCryptoAdapter|WebullBroker/);
 });
 
+test("Paper scan scorecard is read-only evidence, not live performance",()=>{
+  const worker=read("app/trader_v2/fresh_paper.py");
+  const ledger=read("app/trader_v2/scan_observability.py");
+  const status=read("web/v2-status.js");
+  assert.match(worker,/capture_scan\(root,report\)/);
+  assert.match(worker,/read_scorecards\(base\)/);
+  assert.match(ledger,/paper_scan_history.sqlite3/);
+  assert.match(ledger,/mode=ro/);
+  assert.match(ledger,/live_orders_submitted/);
+  assert.doesNotMatch(ledger,/submit_order|place_order|SchwabClient|RobinhoodCryptoAdapter/);
+  assert.match(status,/24h paper scan history/);
+  assert.match(status,/marked P\/L/);
+  assert.match(status,/Peak-to-trough paper drawdown/);
+});
+
 test("Fresh market V2 paper worker has no live broker controls",()=>{
   const html=read("web/index.html");
   const js=read("web/v2-status.js");

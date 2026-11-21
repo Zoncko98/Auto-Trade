@@ -97,6 +97,11 @@ class FreshPaperTests(unittest.TestCase):
         self.assertFalse((self.root/"schwab_token.json").exists())
         self.assertFalse((self.root/"robinhood").exists())
         self.assertEqual(status(self.root)["live_orders_authorized"],False)
+        scorecard=status(self.root)["scorecards"]["BTCUSD"]
+        self.assertGreater(scorecard["sample_minutes"],0)
+        self.assertGreater(scorecard["signal_minutes"],0)
+        self.assertGreater(scorecard["fill_minutes"],0)
+        self.assertEqual(scorecard["state"],"OBSERVED")
 
     def test_ai_shadow_veto_does_not_change_baseline_order_authority(self):
         seen=[]

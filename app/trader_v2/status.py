@@ -11,10 +11,10 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.7","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.8","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
-            "stage":"PHASE_3_PUBLIC_PAPER_AI_SHADOW_NO_LIVE_AUTHORITY",
+            "stage":"PHASE_3_PAPER_SCAN_ECONOMICS_NO_LIVE_AUTHORITY",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
             "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","AI_RUNTIME_CONFIGURATION_AND_VALIDATION",
@@ -25,6 +25,7 @@ def summary(state_dir)->dict:
                                    "recorded_replay_journal":"PERSISTENT_SEPARATE_FROM_V1",
                                    "fresh_crypto_paper":"SUPERVISED_WHEN_PAPER_ENABLED",
                                    "ai_shadow":"ADVISORY_NO_ORDER_AUTHORITY",
+                                   "paper_scan_metrics":"PERSISTED_24H_AND_7D",
                                    "why_no_trade":"READ_ONLY_NO_LIVE_ORDER_AUTHORITY"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.

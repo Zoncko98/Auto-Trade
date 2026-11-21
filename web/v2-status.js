@@ -126,6 +126,30 @@ document.addEventListener("DOMContentLoaded",()=>{
         item.textContent=text;
         freshNode.append(item);
       }
+      const cards=(data.scorecards&&typeof data.scorecards==="object")?
+        data.scorecards:{};
+      for(const symbol of ["BTCUSD","ETHUSD"]){
+        const card=cards[symbol];
+        if(!card||card.state!=="OBSERVED")continue;
+        const summary=document.createElement("p");
+        summary.className="muted";
+        const ai=card.ai_shadow||{};
+        summary.textContent=symbol+" · 24h paper scan history: "+
+          Number(card.sample_minutes||0)+" observed minutes · "+
+          Number(card.no_signal_minutes||0)+" NO_SIGNAL · "+
+          Number(card.signal_minutes||0)+" qualified signals · "+
+          Number(card.fill_minutes||0)+" simulated-fill minutes · "+
+          Number(card.data_error_minutes||0)+" data errors · "+
+          "AI shadow PASS/VETO/UNAVAILABLE "+
+          Number(ai.PASS||0)+"/"+Number(ai.VETO||0)+"/"+
+          Number(ai.UNAVAILABLE||0)+
+          " · Paper-only marked P/L $"+
+          (card.synthetic_pnl_usd==null?"unavailable":String(card.synthetic_pnl_usd))+
+          " · Peak-to-trough paper drawdown "+
+          (card.max_paper_drawdown_pct==null?"unavailable":
+             String(card.max_paper_drawdown_pct)+"%");
+        freshNode.append(summary);
+      }
       if(freshNode.childElementCount===0)
         freshNode.textContent="No verified V2 paper worker observations yet.";
     }catch(_error){

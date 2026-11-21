@@ -33,6 +33,7 @@ class FreshPaperAPI(unittest.TestCase):
             self.assertFalse(body["broker_credentials_used"])
             self.assertEqual(body["ai_mode"],"OFF_BASELINE")
             self.assertEqual(len(body["reports"]),2)
+            self.assertEqual(body["scorecards"]["BTCUSD"]["state"],"NOT_RECORDED")
             self.assertTrue(all(x["scan_state"]=="NOT_SCANNED"
                                 for x in body["reports"]))
             self.assertFalse((Path(folder)/"v2").exists())
