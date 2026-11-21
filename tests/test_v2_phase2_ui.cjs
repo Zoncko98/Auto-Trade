@@ -119,6 +119,33 @@ test("Paper scan scorecard is read-only evidence, not live performance",()=>{
   assert.match(status,/Peak-to-trough paper drawdown/);
 });
 
+test("Schwab V2 stock shadow uses genuine source candles and stays read-only",()=>{
+  const worker=read("app/trader_v2/stock_shadow.py");
+  const runtime=read("app/unified_runtime.py");
+  const stock=read("app/live_worker.py");
+  const html=read("web/index.html");
+  const js=read("web/v2-status.js");
+  const server=read("app/dashboard_server.py");
+  assert.match(worker,/class StockShadowError/);
+  assert.match(worker,/from autonomous_selector import UNIVERSE/);
+  assert.match(worker,/StockController\(\)/);
+  assert.match(worker,/granularity_seconds": 300/);
+  assert.match(worker,/signals_recorded/);
+  assert.match(worker,/"live_orders_submitted": 0/);
+  assert.match(worker,/"broker_sdk_calls": 0/);
+  assert.doesNotMatch(worker,/submit_order|place_order|from schwab\.auth|client_from_token_file/);
+  assert.match(runtime,/spawn\("v2-stock-shadow"/);
+  assert.match(runtime,/if enabled\["live"\]/);
+  assert.match(stock,/return bars/);
+  assert.match(stock,/capture_schwab_candles\(STATE_DIR, symbol, bars, now=now\)/);
+  assert.match(html,/id="v2-stock-shadow-card"/);
+  assert.match(html,/id="v2-stock-shadow-status"/);
+  assert.match(html,/id="v2-stock-shadow-symbols"/);
+  assert.match(js,/readStockShadowStatus\(\)/);
+  assert.match(js,/\/api\/v2\/stock-shadow/);
+  assert.match(server,/path == "\/api\/v2\/stock-shadow"/);
+});
+
 test("Schwab V2 stock price bridge reuses V1 quotes without broker submission",()=>{
   const worker=read("app/live_worker.py");
   const html=read("web/index.html");

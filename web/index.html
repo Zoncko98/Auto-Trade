@@ -170,6 +170,14 @@
           </div>
           <p class="muted">Read-only snapshots never authorize orders. Missing or stale account values remain unavailable. Schwab stock quotes are reused from its existing authenticated V1 scanner when available; exchange timestamps, market hours, executable quotes, and account-specific V2 order rules still require independent verification.</p>
           <button id="v2-status-refresh" class="btn secondary tiny" type="button">Refresh V2 status</button>
+          <div class="ops-records" id="v2-stock-shadow-card" style="margin-top:12px">
+            <strong>V2 Schwab stock shadow · genuine 5-minute V1 history</strong>
+            <p class="muted">Uses the existing authenticated Schwab scanner's completed five-minute candle history and original exchange-timestamped quotes. V2 evaluates read-only stock candidates and optional bounded AI shadow reviews. It makes no additional broker requests, is not a live or simulated executor, and cannot verify market sessions, cash, settlement, broker acceptance, or fills. Data may be unavailable when equities markets are closed.</p>
+            <p id="v2-stock-shadow-status" role="status">Awaiting authenticated V2 stock shadow scan…</p>
+            <details><summary>All stock symbols and data blockers</summary>
+              <div id="v2-stock-shadow-symbols"></div>
+            </details>
+          </div>
           <div class="ops-records" id="v2-paper-fresh-card" style="margin-top:12px">
             <strong>V2 crypto paper scan · live public market observations</strong>
             <p class="muted">Collects real timestamped Coinbase public ticker observations every 30 seconds when your existing Paper Trading setting is on. Closed 1-minute bars take time to accumulate. Orders and balances are simulated in isolated V2 paper wallets; Coinbase prices are NOT executable quotes for Robinhood or Webull. The no-AI order baseline stays authoritative; configured Ollama models may provide bounded shadow PASS/VETO/UNAVAILABLE evidence without controlling orders. The 24-hour scorecard counts real scan minutes and shows only synthetic virtual-account P/L and drawdown; no observed fill implies no trading performance evidence. Live trading permissions are unchanged.</p>

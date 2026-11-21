@@ -355,6 +355,19 @@ def recent_candles(client, symbol):
     return bars["candles"]
 
 
+def _shadow_stock_history(client, symbol, now):
+    """Reuse the EXISTING V1 candle request, preserving its original response."""
+    bars = recent_candles(client, symbol)
+    try:
+        from trader_v2.stock_shadow import capture_schwab_candles
+        capture_schwab_candles(STATE_DIR, symbol, bars, now=now)
+    except Exception:
+        # This auxiliary read-only recording must NEVER change V1 selection
+        # or prevent its normal entry/exit and reconciliation workflow.
+        pass
+    return bars
+
+
 def scan_entries(client, now, excluded=()):
     """Rank live market opportunities, excluding symbols already held."""
     quotes=result(client.get_quotes(list(UNIVERSE)), "automated quote batch")
@@ -372,7 +385,8 @@ def scan_entries(client, now, excluded=()):
         # Noncritical diagnostics must never prevent existing V1 exit,
         # entry-risk evaluation or its normal broker-order reconciliation.
         pass
-    selected,ranked=select_entry(quotes,lambda sym:recent_candles(client,sym),
+    selected,ranked=select_entry(quotes,
+                                 lambda sym:_shadow_stock_history(client,sym,now),
                                  now,excluded=excluded)
     print(f"Market scanner: {len(ranked)} liquid and affordable candidates, scanning up to {len(ranked)} trend histories.")
     scan_entries.last_comparison=comparisons(ranked,selected.symbol if selected else None)

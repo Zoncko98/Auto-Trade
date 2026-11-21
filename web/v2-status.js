@@ -115,12 +115,58 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
       showCutover(data.cutover_preflight);
+      void readStockShadowStatus();
       void readFreshPaperStatus();
       void readRecordedReplay();
     }catch(_error){
       target.textContent="V2 status unavailable. V1 broker operation is unchanged.";
       if(health)health.textContent="Read-only broker adapter evidence unavailable.";
       if(cutover)cutover.textContent="V2 cutover preflight unavailable; no live-order authority.";
+    }
+  }
+
+  const stockStatus=document.getElementById("v2-stock-shadow-status");
+  const stockSymbols=document.getElementById("v2-stock-shadow-symbols");
+  async function readStockShadowStatus(){
+    if(!stockStatus)return;
+    try{
+      const response=await fetch("/api/v2/stock-shadow",{
+        credentials:"same-origin",cache:"no-store",
+        headers:{"Accept":"application/json"}});
+      if(!response.ok)throw Error("Stock shadow worker status unavailable");
+      const data=await response.json();
+      const rows=Array.isArray(data.reports)?data.reports:[];
+      const states={};
+      for(const row of rows){
+        const state=String(row.state||"UNKNOWN");
+        states[state]=(states[state]||0)+1;
+      }
+      stockStatus.textContent="Schwab V2 stock shadow: "+
+        String(data.state||"NOT_STARTED")+" · "+
+        rows.length+"/"+Number(data.universe_size||24)+" monitored symbols · "+
+        Object.entries(states).map(([key,value])=>key+" "+value).join(" · ")+
+        " · Read-only signals recorded: "+Number(data.signals_recorded||0)+
+        " · Live V2 orders: 0"+
+        (data.heartbeat_age_sec!=null?
+          " · Last heartbeat "+Number(data.heartbeat_age_sec)+"s ago":"");
+      if(stockSymbols){
+        stockSymbols.replaceChildren();
+        for(const row of rows){
+          if(!row||typeof row.symbol!=="string")continue;
+          const line=document.createElement("p");
+          const review=row.ai_shadow||{};
+          line.textContent=row.symbol+" · "+String(row.state||"UNKNOWN")+
+            " · "+Number(row.recorded_candle_count||0)+" genuine 5m bars"+
+            (row.signal?" · "+row.signal+" read-only signal":"")+
+            (row.reason?" · "+String(row.reason):"")+
+            (row.last_closed_bar_at?" · Last bar "+String(row.last_closed_bar_at):"")+
+            (review.state&&review.state!=="NOT_INVOKED"?
+              " · AI shadow "+String(review.state):"");
+          stockSymbols.append(line);
+        }
+      }
+    }catch(_error){
+      stockStatus.textContent="V2 stock shadow status unavailable. Existing broker execution is unchanged.";
     }
   }
 

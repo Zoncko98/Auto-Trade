@@ -1,3 +1,9 @@
+## v1.3.15 — New continuously supervised V2 Schwab stock shadow worker
+
+The existing Schwab scanner now publishes only the five-minute completed price history it already fetched to a separate private V2 directory. A new V2 stock shadow worker consumes those source candles with source-timestamped quotes and evaluates the shared StockController. Qualified candidates can receive bounded local Ollama shadow evidence. Results are durable, duplicate-safe, and visible in Trading Operations across all 24 Schwab stock symbols.
+
+This is strictly observational. It neither makes a second Schwab API call nor uses a broker or simulated order adapter. No exchange session, executable broker quote, settlement or live risk rule is implicitly verified; the existing Schwab V1 worker remains the only authorized live writer. Since equity markets are closed on Saturday, fresh production stock candidates/AI reviews are not claimed. V2 engine 2.0.0-alpha.11 is still non-live for broker orders.
+
 ## v1.3.14 — One Schwab quote fetch, two isolated consumers
 
 The existing Schwab V1 stock scanner now saves a sanitized owner-only copy of the actual quote batch it already requested so the V2 MarketDataProvider can validate quote source, symbol, exchange time and bid/ask without a second OAuth connection. V2 market observations remain NON_EXECUTABLE and do not control real brokerage orders.
