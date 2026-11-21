@@ -1,3 +1,12 @@
+## v1.3.9 — Strict AI shadow decision capture for V2 public crypto paper (2026-11-21)
+
+- Connected the existing shared V2 AI reviewer and bounded Ollama JSON transport to qualified public crypto paper candidates as a NON-AUTHORITATIVE shadow assessment. The operator-configured Ollama URL/model are reused; there is no new account credential, untrusted external endpoint, live adapter or broker-side order request.
+- AI responses are symbol-bound and schema-validated with a 6-second transport budget, TTL and timestamp checks; PASS, VETO, UNAVAILABLE, NOT_CONFIGURED and NOT_INVOKED are reported accurately. Malformed/wrong-symbol/expired responses and connection failures never count as approval.
+- Paper orders still use the tested no-AI baseline through deterministic risk, EventStore and SimulatedBroker. Even a shadow VETO cannot submit, reject or alter a simulated order; model response cannot bypass authentication, broker restrictions, exposure, cash or duplicate-intent controls.
+- Added a nonsecret model/decision/reason/latency/expiry read model and source-safe text-only AI shadow evidence in the existing V2 Trading Operations view; no new dashboard or direct broker-trading UI.
+- Added tests for model response validation, VETO isolation, wrong symbol, unavailable/timeout behavior and no model/network fallback. Live runtime verification of actual Ollama responses requires a fresh qualified signal and a working configured model; no AI-controlled live order has been placed.
+- Still outstanding: broker-independent stock paper market data, account-specific AI policy controls, V2 live adapter/reconciliation integration, four-dashboard parity, quantitative replay benchmarking and staged live cutover.
+
 ## v1.3.8 — Independent continuously supervised V2 public crypto paper worker (2026-11-21)
 
 - Added a production-contained Coinbase Exchange public ticker adapter for BTC-USD and ETH-USD, validating genuine exchange timestamps, bid/ask, last trade, spread and quote freshness. Explicit fixed HTTPS endpoint allowlist; no broker OAuth, tokens or order placement.

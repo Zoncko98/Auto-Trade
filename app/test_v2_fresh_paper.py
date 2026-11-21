@@ -34,12 +34,15 @@ class FreshPaperTests(unittest.TestCase):
         return MarketSnapshot(symbol,AssetClass.CRYPTO,
             "coinbase_public_paper",now-timedelta(seconds=2),now,
             val*Decimal("0.9995"),val*Decimal("1.0005"),val,True)
-    def run_tape(self):
+    def run_tape(self,shadow=None):
         reports=[]
+        ai=shadow or (lambda candidate,quote,now:
+            {"state":"NOT_CONFIGURED","changed_order_authority":False})
         for i,price in enumerate(self.prices):
             now=self.start+timedelta(minutes=i,seconds=10)
             record=run_once(self.root,"BTCUSD",now=now,
-                fetch=lambda symbol,now,price=price:self.quote(symbol,price,now))
+                fetch=lambda symbol,now,price=price:self.quote(symbol,price,now),
+                shadow=ai)
             reports.append(record)
         return reports
 
@@ -94,6 +97,20 @@ class FreshPaperTests(unittest.TestCase):
         self.assertFalse((self.root/"schwab_token.json").exists())
         self.assertFalse((self.root/"robinhood").exists())
         self.assertEqual(status(self.root)["live_orders_authorized"],False)
+
+    def test_ai_shadow_veto_does_not_change_baseline_order_authority(self):
+        seen=[]
+        def veto(candidate,quote,now):
+            seen.append((candidate.symbol,candidate.side.value))
+            return {"state":"VETO","model":"fixture","reason":"diagnostic only",
+                    "changed_order_authority":False}
+        reports=self.run_tape(shadow=veto)
+        self.assertGreater(len(seen),0)
+        self.assertGreater(len([r for r in reports if r["scan_state"]=="FILLED"]),0)
+        reviewed=[r["ai_shadow"] for r in reports if r.get("signal")]
+        self.assertTrue(all(x["state"]=="VETO" and
+                            not x["changed_order_authority"] for x in reviewed))
+        self.assertTrue(all(r["live_orders_submitted"]==0 for r in reports))
 
     def test_repeated_same_scan_no_duplicate_fill_or_entry(self):
         reports=self.run_tape()

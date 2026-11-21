@@ -105,6 +105,13 @@ document.addEventListener("DOMContentLoaded",()=>{
         let text=report.symbol+" · "+state+
            " · "+bars+"/"+target+" real closed candles";
         if(report.reason)text+=" · "+String(report.reason);
+        if(report.ai_shadow && typeof report.ai_shadow==="object"){
+          const review=report.ai_shadow;
+          text+=" · AI shadow: "+String(review.state||"UNAVAILABLE");
+          if(review.model)text+=" ("+String(review.model)+")";
+          if(review.reason)text+=" — "+String(review.reason);
+          text+=" · AI has no order authority";
+        }
         if(report.last_quote_at)text+=" · Quote "+String(report.last_quote_at);
         if(report.heartbeat_age_sec!==undefined &&
            report.heartbeat_age_sec!==null)

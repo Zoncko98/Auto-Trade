@@ -1,3 +1,9 @@
+## v1.3.9 — V2 Ollama shadow decisions alongside safe paper execution
+
+When the public crypto paper controller identifies a qualified signal, V2 may request a bounded JSON PASS/VETO review from the existing configured Ollama model and store it next to the simulated baseline outcome. The review has NO authority over risk, entry sizing or order submission and may report UNAVAILABLE when the local model is slow or offline. Without an operator-configured model it reports NOT_CONFIGURED. A no-signal scan reports NOT_INVOKED. The independent V2 paper worker and all V1 brokers retain their prior permissions.
+
+The deployed V2 core is 2.0.0-alpha.7. This is shadow AI integration, NOT validated AI-controlled broker execution or performance.
+
 ## v1.3.8 — Fresh BTC/ETH public-feed V2 paper worker; no broker orders
 
 V2 now independently acquires timestamped Coinbase Exchange public ticker data, builds real completed minute bars, and continuously supervises simulated BTC and ETH paper strategy scans when the existing Paper Trading setting is on. The workflow is an actual shared V2 CryptoController -> deterministic risk -> durable intent/EventStore -> SimulatedBroker path, with separate virtual balances, fees and order status in existing Trading Operations.

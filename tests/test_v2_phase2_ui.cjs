@@ -90,6 +90,20 @@ test("Recorded replay API is authenticated and CSRF gated",()=>{
 });
 
 
+test("AI shadow evidence cannot grant paper or live order permission",()=>{
+  const worker=read("app/trader_v2/fresh_paper.py");
+  const shadow=read("app/trader_v2/ai_shadow.py");
+  const ui=read("web/v2-status.js");
+  assert.match(worker,/shadow\(candidate,quote,now=now\)/);
+  assert.match(worker,/RiskPolicy\(ai_mode="OFF"\)/);
+  assert.match(shadow,/SharedAIReviewer/);
+  assert.match(shadow,/OllamaReviewTransport/);
+  assert.match(shadow,/changed_order_authority/);
+  assert.match(ui,/AI shadow:/);
+  assert.match(ui,/AI has no order authority/);
+  assert.doesNotMatch(shadow,/submit_order|place_order|RobinhoodCryptoAdapter|WebullBroker/);
+});
+
 test("Fresh market V2 paper worker has no live broker controls",()=>{
   const html=read("web/index.html");
   const js=read("web/v2-status.js");

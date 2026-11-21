@@ -25,6 +25,7 @@ from .engine import PaperPipeline
 from .store import EventStore
 from .simulation import SimulatedBroker
 from .public_crypto import PRODUCTS,PublicFeedError,fetch_ticker
+from .ai_shadow import shadow_review
 from .recorded_replay import _atomic_json, _private_json
 
 STATE_VERSION="live-crypto-paper-1"
@@ -140,7 +141,7 @@ def _today_counts(broker, account, now):
     return entries,exits
 
 
-def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None):
+def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None,shadow=shadow_review):
     if symbol not in PRODUCTS:raise FreshPaperError("UNSUPPORTED_PUBLIC_PAPER_SYMBOL")
     fixed_clock=now is not None
     now=utc(now or datetime.now(timezone.utc))
@@ -172,6 +173,7 @@ def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None):
             reason="WAITING_FOR_REAL_CLOSED_CANDLES"
             signal=None
             outcome=None
+            ai_evidence={"state":"NOT_INVOKED","changed_order_authority":False}
             if len(bars)>=_CONTROLLER.long+1:
                 last=bars[-(_CONTROLLER.long+1):]
                 # Missing source minutes cannot be filled from fabricated prices.
@@ -188,6 +190,11 @@ def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None):
                         state="NO_SIGNAL"
                         reason="NO_QUALIFIED_SMA_CROSS"
                     else:
+                        # AI shadow has no effect on the no-AI baseline.
+                        # Record verified PASS/VETO/UNAVAILABLE for comparison.
+                        ai_evidence=shadow(candidate,quote,now=now)
+                        if not fixed_clock:
+                            now=utc(datetime.now(timezone.utc))
                         entries,exits=_today_counts(broker,account,now)
                         result=PaperPipeline(broker,journal).evaluate(
                             candidate,quote,RiskPolicy(ai_mode="OFF"),
@@ -202,6 +209,7 @@ def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None):
                 "source":"COINBASE_PUBLIC_TICKER_ONLY",
                 "market_executable_for_user_broker":False,
                 "simulated_only":True,"ai_mode":"OFF_BASELINE",
+                "ai_shadow_mode":"ADVISORY_NO_ORDER_AUTHORITY",
                 "live_orders_submitted":0,"at":now.isoformat(),
                 "last_quote_at":quote.observed_at.isoformat(),
                 "closed_bars":len(bars),
@@ -209,6 +217,7 @@ def run_once(state_dir,symbol,*,fetch=fetch_ticker,now=None):
                 "last_closed_bar_at":bars[-1].observed_at.isoformat() if bars else None,
                 "scan_state":state,"reason":reason,
                 "signal":signal,"intent_key":outcome,
+                "ai_shadow":ai_evidence,
                 "virtual_cash":str(wallet.cash),
                 "virtual_equity":str(wallet.equity),
                 "virtual_positions":{s:str(v) for s,v in wallet.positions.items()},
