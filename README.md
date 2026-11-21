@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **V2 development source (November 21, 2026):** this branch declares **v1.3.16**, adding verified read-only account-specific V1 risk-budget previews and effective entry headroom for Schwab and Webull, while keeping Robinhood buying power separate from cash/positions and preserving all V2 live-order safeguards on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **V2 development source (November 21, 2026):** this branch declares **v1.3.17**, speeding up bounded V2 stock and crypto advisory Ollama assessments with structured JSON schema, reasoning-disabled responses and visible decision latency while maintaining strict identity validation and zero AI broker-order authority on top of the V2 Phase 1–2 foundation. V2 remains disabled for live broker execution; fresh BTC/ETH paper scans operate only while the existing Paper Trading setting is enabled and recorded-data replay remains an authenticated on-demand tool and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

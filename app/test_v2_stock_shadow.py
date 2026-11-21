@@ -50,12 +50,15 @@ class V2StockShadowTests(TestCase):
         invocations=[]
         def review(candidate,quote,now):
             invocations.append((candidate.side.value,quote.market_open))
-            return {"state":"PASS","reason":"test only"}
+            return {"state":"PASS","reason":"test only",
+                    "model":"synthetic-model","latency_ms":150}
         doc=run_once(self.root,now=self.now,review=review,quote_loader=self.quote)
         item=next(r for r in doc["reports"] if r["symbol"]==self.symbol)
         self.assertEqual(item["state"],"CANDIDATE_SHADOW_ONLY")
         self.assertEqual(item["signal"],"BUY")
         self.assertEqual(item["ai_shadow"]["state"],"PASS")
+        self.assertEqual(item["ai_shadow"]["latency_ms"],150)
+        self.assertEqual(item["ai_shadow"]["model"],"synthetic-model")
         self.assertEqual(invocations,[("BUY",False)])
         self.assertFalse(item["broker_executable"])
         self.assertFalse(item["market_session_verified"])

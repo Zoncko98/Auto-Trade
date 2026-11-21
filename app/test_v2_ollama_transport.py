@@ -25,7 +25,15 @@ class OllamaReviewTransportTests(unittest.TestCase):
             req = mock.call_args.args[0]
             sent = json.loads(req.data)
             self.assertFalse(sent["stream"])
-            self.assertEqual(sent["format"], "json")
+            self.assertEqual(sent["format"]["type"], "object")
+            self.assertCountEqual(sent["format"]["required"],
+                                  ["symbol","state","reason"])
+            self.assertEqual(sent["format"]["properties"]["state"]["enum"],
+                             ["PASS","VETO"])
+            self.assertFalse(sent["format"]["additionalProperties"])
+            self.assertFalse(sent["think"])
+            self.assertEqual(sent["options"]["num_predict"],90)
+            self.assertEqual(sent["options"]["num_ctx"],2048)
             self.assertEqual(sent["model"], "qwen3.5:4b")
             self.assertEqual(mock.call_args.kwargs["timeout"], 6)
             self.assertEqual(req.full_url, "http://localhost:11434/api/chat")

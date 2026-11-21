@@ -239,6 +239,9 @@ def run_once(state_dir, *, now=None, review=shadow_review, quote_loader=None):
                                     ai_reason = str(ai.get("reason", ""))[:160]
                                     record["ai_shadow"] = {
                                         "state": ai_state, "reason": ai_reason,
+                                        "model": str(ai.get("model",""))[:96],
+                                        "latency_ms": max(0,min(60000,
+                                            int(ai.get("latency_ms",0) or 0))),
                                         "changed_order_authority": False,
                                     }
                                 else:

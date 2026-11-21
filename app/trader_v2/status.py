@@ -12,10 +12,10 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.12","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.13","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
-            "stage":"PHASE_4_ACCOUNT_RISK_SOURCE_MAPPING_READ_ONLY",
+            "stage":"PHASE_4_FAST_TYPED_AI_SHADOW_WITH_READ_ONLY_RISK",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
             "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","AI_RUNTIME_CONFIGURATION_AND_VALIDATION",
@@ -31,6 +31,7 @@ def summary(state_dir)->dict:
                                    "schwab_stock_quote_bridge":"REUSES_V1_SCANNER_NO_EXTRA_SDK_CALLS",
                                    "schwab_stock_shadow":"SUPERVISED_READ_ONLY_WITH_GENUINE_5M_HISTORY",
                                    "broker_risk_envelopes":"V1_EFFECTIVE_BUDGET_UPPER_BOUNDS_ONLY",
+                                   "ollama_fast_json_shadow":"STRUCTURED_OUTPUT_NO_REASONING",
                                    "why_no_trade":"READ_ONLY_NO_LIVE_ORDER_AUTHORITY"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.

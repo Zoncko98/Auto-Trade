@@ -155,6 +155,21 @@ test("Schwab V2 stock price bridge reuses V1 quotes without broker submission",(
   assert.match(html,/Schwab stock quotes are reused from its existing authenticated V1 scanner/);
 });
 
+test("Fast V2 Ollama shadow shows bounded latency and no broker execution path",()=>{
+  const transport=read("app/trader_v2/ollama_transport.py");
+  const shared=read("app/trader_v2/ai_service.py");
+  const stock=read("app/trader_v2/stock_shadow.py");
+  const ui=read("web/v2-status.js");
+  assert.match(transport,/"think": False/);
+  assert.match(transport,/"num_predict": 90/);
+  assert.match(transport,/"additionalProperties": False/);
+  assert.match(transport,/\/api\/chat/);
+  assert.match(shared,/MODEL_TIMEOUT/);
+  assert.match(stock,/"changed_order_authority": False/);
+  assert.match(ui,/review\.latency_ms/);
+  assert.doesNotMatch(transport,/submit_order\(|place_order\(|TradeClient\(/);
+});
+
 test("V1 source-faithful risk headroom preview never grants a V2 order",()=>{
   const preview=read("app/trader_v2/risk_envelopes.py");
   const cutover=read("app/trader_v2/cutover_preflight.py");

@@ -1,3 +1,11 @@
+## v1.3.17 — Fast structured Ollama advisory decisions for V2 stock and crypto shadow (2026-11-21)
+
+- Updated the V2-only Ollama /api/chat transport to send a strict object-schema for {symbol,state,reason}, disable generation of internal reasoning tokens, cap predicted response tokens at 90 and context at 2,048, and keep deterministic zero-temperature selection. This reduces needless inference while retaining the shared typed response/identity checks and existing six-second timeout.
+- On the configured production model, a single synthetic no-order Ollama JSON probe with reasoning disabled and constrained output returned a valid state and symbol in approximately 405 ms, compared with prior isolated V2 review timeouts over six seconds. This is a transport benchmark, NOT a validated actual market signal, profitability result, or broker acceptance. Behavior under concurrent V1/V2 load still needs ongoing evidence.
+- Stock-shadow and crypto paper Trading Operations diagnostics now display available bounded model latency. Stock shadow records nonsecret model/latency alongside optional advisory PASS/VETO/UNAVAILABLE decisions; no review is allowed to alter live or simulated order authority.
+- Existing strict validation still rejects malformed/mismatched model outputs and stale prices/candidates. Failed or slow reviews remain UNAVAILABLE rather than being silently approved; no risk, order, broker credential or model-selection setting was changed.
+- Added transport request-shape tests for strict schema, allowed state enum, explicit think=false, bounded context/tokens and the existing HTTP/response-size protections. Ran focused AI/paper/stock tests and full Python/UI regression checks before deployment.
+
 ## v1.3.16 — Per-account V2 risk mapping audit and effective V1 budget preview (2026-11-21)
 
 - Added an authenticated read-only V1 risk-budget preview alongside each live broker in the existing V2 Trading Operations cutover panel. It reads private, bounded user-selected V1 risk documents and only freshly verified account observations, and makes no broker SDK calls or writes to V1/V2 risk, journal or token files.

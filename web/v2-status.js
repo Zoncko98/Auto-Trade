@@ -170,7 +170,9 @@ document.addEventListener("DOMContentLoaded",()=>{
             (row.reason?" · "+String(row.reason):"")+
             (row.last_closed_bar_at?" · Last bar "+String(row.last_closed_bar_at):"")+
             (review.state&&review.state!=="NOT_INVOKED"?
-              " · AI shadow "+String(review.state):"");
+              " · AI shadow "+String(review.state)+
+              (review.latency_ms==null?"":" · "+
+                Number(review.latency_ms)+"ms"):"");
           stockSymbols.append(line);
         }
       }
@@ -203,6 +205,8 @@ document.addEventListener("DOMContentLoaded",()=>{
           const review=report.ai_shadow;
           text+=" · AI shadow: "+String(review.state||"UNAVAILABLE");
           if(review.model)text+=" ("+String(review.model)+")";
+          if(review.latency_ms!==undefined)
+            text+=" · "+Number(review.latency_ms)+"ms";
           if(review.reason)text+=" — "+String(review.reason);
           text+=" · AI has no order authority";
         }

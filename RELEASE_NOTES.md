@@ -1,3 +1,9 @@
+## v1.3.17 — Faster local AI shadow evaluation with validated JSON
+
+V2's existing stock and crypto shadow pipelines use the configured local Ollama model with a constrained three-field JSON decision, reasoning-token generation disabled, a bounded token/context budget and the existing six-second timeout. Output still passes the shared AI service's symbol, state, timestamp, schema and expiry checks, and AI has no authority to modify the deterministic risk or order pipeline.
+
+An isolated production synthetic probe succeeded in about 405 milliseconds. This is not proof the next real signal will be timely, and live V2 broker orders are still disabled. Existing Schwab/Webull/Robinhood V1 workers and the current source-faithful V2 risk budget previews remain unchanged.
+
 ## v1.3.16 — V2 displays actual per-account V1 risk budget limits without order authority
 
 The read-only V2 live-cutover preflight now distinguishes the user-requested maximum order size from an observed account-specific preliminary permitted new-entry budget. Schwab uses its saved strategy capital, risk percentages, cash/equity and existing market exposure. Webull's source budget reflects the worker's 25% cash/exposure caps. Robinhood's reported buying power is not treated as settled cash or proof of position headroom.

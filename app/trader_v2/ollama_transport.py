@@ -25,12 +25,24 @@ class OllamaReviewTransport:
         body = json.dumps({
             "model": self.model,
             "stream": False,
-            "format": "json",
-            "options": {"temperature": 0, "num_predict": 180},
+            # Ollama supports structured JSON schema constraints directly.
+            # The model's internal reasoning stream is not needed for advisory
+            # decisions and had exceeded the six-second V2 budget.
+            "think": False,
+            "format": {
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string"},
+                    "state": {"type": "string", "enum": ["PASS", "VETO"]},
+                    "reason": {"type": "string"}
+                },
+                "required": ["symbol", "state", "reason"],
+                "additionalProperties": False
+            },
+            "options": {"temperature": 0, "num_predict": 90, "num_ctx": 2048},
             "messages": [{"role": "system", "content": (
-                "You only assess the provided trade candidate. Reply with a JSON object "
-                "containing exactly symbol, state (PASS or VETO), and reason. "
-                "Do not invent broker data or place orders.")},
+                "Return only concise JSON: symbol, state PASS or VETO, and a "
+                "short evidence-based reason. No broker orders or invented data.")},
                          {"role": "user", "content": request}],
         }, separators=(",", ":")).encode("utf-8")
         req = Request(self.url, body, {"Content-Type": "application/json"}, method="POST")
