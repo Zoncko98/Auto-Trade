@@ -16,10 +16,11 @@ from .models import amount,utc
 from .robinhood_signed_receipts import (
     signed_holding_quantity,signed_pair_limits,BrokerEvidenceUnavailable)
 from .market_sources import robinhood_market_quote,MarketSourceError
+from .robinhood_dual_quote import attest_quote,DualQuoteUnavailable
 from .readonly_adapters import private_json
 from .recorded_replay import _atomic_json
 
-def _probe(state,client,policy,*,now=None):
+def _probe(state,client,policy,*,now=None,public_feed=None):
     now=utc(now or datetime.now(timezone.utc))
     report={
         "schema":1,"broker":"robinhood_crypto","checked_at":now.isoformat(),
@@ -33,6 +34,8 @@ def _probe(state,client,policy,*,now=None):
         "funding_source":"UNVERIFIED","settled_cash_verified":False,
         "broker_session_verified":False,
         "quote_timestamp_verified_symbols":0,
+        "independent_trade_crosscheck_symbols":0,
+        "independent_broker_venue_timestamp_verified":False,
         "pairs_checked":0,"historical_fills_checked":0,
         "first_blocker":"BROKER_AUTH_UNVERIFIED",
     }
@@ -203,16 +206,39 @@ def _probe(state,client,policy,*,now=None):
         report["first_blocker"]="SIGNED_PAIR_INCREMENT_OR_MINIMUM_UNVERIFIED"
         return report
     quote_count=0
+    independent_count=0
     for symbol in ("BTC-USD","ETH-USD"):
         if symbol not in verified:continue
         try:
-            quote=robinhood_market_quote(client.quote(symbol),symbol,now=now)
-            if quote.last is not None and quote.bid>0 and quote.ask>=quote.bid:
-                quote_count+=1
+            # A signed Robinhood V2 bid/ask GET has no native venue time
+            # or LAST. Validate a separate exchange-timed Coinbase trade,
+            # without labeling its timestamp as Robinhood's.
+            started=datetime.now(timezone.utc)
+            raw=client.quote(symbol)
+            completed=datetime.now(timezone.utc)
+            try:
+                quote=robinhood_market_quote(raw,symbol,now=completed)
+                if quote.last is not None and quote.bid>0 and quote.ask>=quote.bid:
+                    quote_count+=1
+                    continue
+            except (MarketSourceError,ValueError,TypeError):
+                pass
+            if public_feed is not None:
+                try:
+                    market=public_feed(symbol.replace("-",""))
+                    proof=attest_quote(raw,market,symbol,
+                         request_started_at=started,
+                         request_completed_at=completed,
+                         examined_at=datetime.now(timezone.utc))
+                    if proof.public["independent_trade_timestamp_verified"]:
+                        independent_count+=1
+                except (DualQuoteUnavailable,ValueError,TypeError,OverflowError):
+                    pass
         except Exception:
             pass
     report["quote_timestamp_verified_symbols"]=quote_count
-    if quote_count==0:
+    report["independent_trade_crosscheck_symbols"]=independent_count
+    if quote_count==0 and independent_count==0:
         report["first_blocker"]="BROKER_QUOTE_TIMESTAMP_OR_LAST_TRADE_UNVERIFIED"
         return report
     # Even a fresh signed quote does not establish a single-writer lease,
@@ -220,7 +246,7 @@ def _probe(state,client,policy,*,now=None):
     report["first_blocker"]="V1_WRITER_HANDOFF_AND_BROKER_SESSION_REQUIRED"
     return report
 
-def run_once(state_dir,client=None,now=None):
+def run_once(state_dir,client=None,now=None,public_feed=None):
     base=Path(state_dir)
     now=utc(now or datetime.now(timezone.utc))
     from robinhood_policy import read_policy
@@ -228,12 +254,18 @@ def run_once(state_dir,client=None,now=None):
         "checked_at":now.isoformat(),"mode":"AUTHENTICATED_SIGNED_READ_ONLY",
         "v2_live_order_authority":False,"cutover_ready":False,
         "first_blocker":"SIGNED_BROKER_PREFLIGHT_UNAVAILABLE"}
+    signed_client_initialized_here=client is None
     try:
         policy=read_policy(base)
         if client is None:
             from robinhood_crypto_gateway import RobinhoodCryptoAdapter
             client=RobinhoodCryptoAdapter.from_state(base)
-        status=_probe(base,client,policy,now=now)
+        if signed_client_initialized_here and public_feed is None:
+            # Real production signed-client run uses an independent live
+            # public ticker. Mock unit tests may supply their own feed.
+            from .public_crypto import fetch_ticker
+            public_feed=fetch_ticker
+        status=_probe(base,client,policy,now=now,public_feed=public_feed)
     except Exception:
         pass
     target=base/"v2"/"broker_migration"

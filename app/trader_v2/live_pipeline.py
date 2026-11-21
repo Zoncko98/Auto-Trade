@@ -24,9 +24,12 @@ from .writer_ownership import account_writer_scope,WriterOwnershipError
 from pathlib import Path
 
 SIGNED_SOURCES={
-    "robinhood_crypto":"robinhood_signed",
-    "schwab":"schwab_signed",
-    "webull":"webull_signed",
+    # Validated source provenance is distinct from actual cutover permission.
+    # The dual source uses a signed broker top of book and an independently
+    # timestamped external LAST; it is NOT a native broker venue timestamp.
+    "robinhood_crypto":frozenset(("robinhood_signed","robinhood_dual_attested")),
+    "schwab":frozenset(("schwab_signed",)),
+    "webull":frozenset(("webull_signed",)),
 }
 class LiveMigrationRejected(RuntimeError):
     """Definitive refusal of a broker order before it is accepted."""
@@ -132,7 +135,7 @@ class LivePipeline(PaperPipeline):
                         daily_realized_loss,entries_today,exits_today):
         """Invoked while holding SAME exclusive lock as V1 broker POST."""
         expected_source=SIGNED_SOURCES[self.broker.provider_id]
-        if quote.source!=expected_source:
+        if quote.source not in expected_source:
             return PipelineResult("BLOCKED","EXECUTABLE_BROKER_QUOTE_UNVERIFIED",key)
         if self.store.pending(candidate.account_id):
             return PipelineResult("BLOCKED","ACCOUNT_RECONCILIATION_PENDING",key)

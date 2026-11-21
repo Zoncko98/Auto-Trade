@@ -13,7 +13,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.26","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.27","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
@@ -40,7 +40,9 @@ def summary(state_dir)->dict:
                                    "why_no_trade":"READ_ONLY_NO_LIVE_ORDER_AUTHORITY",
                                    "v1_order_journal_audit":"WEBULL_ROBINHOOD_LOCAL_RECORDS_NEVER_BROKER_AUTHORITY",
                                    "session_window":"EQUITY_TIME_WINDOW_WEEKENDS_CALENDAR_UNVERIFIED",
-                                   "four_broker_navigation":"SIX_SHARED_SECTIONS_IN_EXISTING_WORKSPACES"}}
+                                   "four_broker_navigation":"SIX_SHARED_SECTIONS_IN_EXISTING_WORKSPACES",
+                                   "robinhood_dual_quote":"SIGNED_BROKER_BID_ASK_AND_INDEPENDENT_COINBASE_TRADE",
+                                   "writer_transfer":"ATOMIC_ACCOUNT_SCOPED_NO_AUTO_TRANSFER"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.
         status["broker_adapters"]=[

@@ -52,7 +52,7 @@ class RobinhoodV2AdapterTest(TestCase):
         account=self.adapter.account("account123")
         self.assertEqual(account.cash,D("100"))
         self.assertEqual(account.positions,{})  # External holdings aren't bot-owned
-        self.assertEqual(account.equity,D("110"))
+        self.assertEqual(account.equity,D("110.01"))
         self.assertEqual(account.capability.quantity_increment,D("0.003"))
         self.assertEqual(account.capability.min_notional,D("1"))
 
@@ -71,7 +71,7 @@ class RobinhoodV2AdapterTest(TestCase):
         self.assertGreaterEqual(account.market_exposure,D("11.24"))
         self.assertGreaterEqual(account.market_exposure,
                                 D("1.123456789012345678")*D("10"))
-        self.assertLessEqual(account.equity,D("111.235"))
+        self.assertLessEqual(account.equity,D("111.245"))
 
     def test_signed_18_place_pair_increment_clamped_conservatively(self):
         self.client.pairs[0]["asset_increment"]="0.000000000000000001"
@@ -154,7 +154,7 @@ class RobinhoodV2AdapterTest(TestCase):
             verified_managed_positions={"BTC-USD":D("0.5")})
         account=adapter.account("account123")
         self.assertEqual(account.positions["BTC-USD"],D("0.5"))
-        self.assertEqual(account.market_exposure,D("10"))
+        self.assertEqual(account.market_exposure,D("10.01"))
         adapter=RobinhoodLiveAdapter(self.client,"account123",self.policy,
             "BTC-USD",clock=lambda:self.now,
             verified_managed_positions={"BTC-USD":D("1.5")})

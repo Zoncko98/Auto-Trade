@@ -19,12 +19,13 @@ from .robinhood_signed_receipts import (
     signed_pair_limits
 )
 from .market_sources import robinhood_market_quote,MarketSourceError
+from .robinhood_dual_quote import attest_quote,DualQuoteUnavailable
 
 class RobinhoodLiveAdapter:
     provider_id="robinhood_crypto"
 
     def __init__(self,signed_client,account_id,risk_policy,symbol,*,clock=None,
-                 verified_managed_positions=None):
+                 verified_managed_positions=None,public_trade_feed=None):
         from robinhood_crypto_gateway import PAIR,ACCOUNT
         if not isinstance(account_id,str) or not ACCOUNT.fullmatch(account_id):
             raise ValueError("Verified selected Robinhood account required")
@@ -40,6 +41,9 @@ class RobinhoodLiveAdapter:
         self.symbol=symbol
         self.clock=clock or (lambda:datetime.now(timezone.utc))
         self.receipts=RobinhoodReadOnlyReceiptAdapter(signed_client,account_id)
+        # Optional independently venue-timed feed for Robinhood v2 bid/ask
+        # responses that omit exchange time and LAST. Not execution authority.
+        self.public_trade_feed=public_trade_feed
         # This is managed BOT inventory verified from historical signed fills
         # and the canonical V2 fill journal, never all externally-held assets.
         # Default empty means sells are blocked until inventory provenance
@@ -70,23 +74,43 @@ class RobinhoodLiveAdapter:
             raise BrokerEvidenceUnavailable("SIGNED_PAIR_NOT_TRADABLE")
         return signed_pair_limits(selected[0])
 
+    def _validated_quote(self,symbol,now):
+        # The signed Robinhood v2 best_bid_ask response is three fields
+        # (symbol, bid, ask). Never invent an exchange timestamp or last.
+        started=datetime.now(timezone.utc)
+        try: raw=self.client.quote(symbol)
+        except Exception:
+            raise BrokerEvidenceUnavailable("SIGNED_BROKER_BID_ASK_READ_FAILED") from None
+        completed=datetime.now(timezone.utc)
+        try:
+            reading=robinhood_market_quote(raw,symbol,now=completed)
+            if reading.last is not None and reading.source_tradable:
+                return MarketSnapshot(symbol,AssetClass.CRYPTO,
+                    "robinhood_signed",reading.observed_at,reading.received_at,
+                    reading.bid,reading.ask,reading.last,True)
+        except (MarketSourceError,ValueError,TypeError):
+            pass
+        if self.public_trade_feed is None:
+            raise BrokerEvidenceUnavailable("INDEPENDENT_VENUE_TRADE_REQUIRED")
+        try:
+            external=self.public_trade_feed(symbol.replace("-",""))
+            proof=attest_quote(raw,external,symbol,
+                 request_started_at=started,request_completed_at=completed,
+                 examined_at=datetime.now(timezone.utc))
+        except (DualQuoteUnavailable,ValueError,TypeError,OverflowError):
+            raise BrokerEvidenceUnavailable("BROKER_PUBLIC_DUAL_QUOTE_UNVERIFIED") from None
+        # observed_at is the Coinbase trade time, NOT a broker venue
+        # timestamp. Broker BID/ASK are separately signed and time-bounded.
+        return MarketSnapshot(symbol,AssetClass.CRYPTO,
+            "robinhood_dual_attested",proof.independent_trade_at,
+            proof.examined_at,proof.signed_bid,proof.signed_ask,
+            proof.external_last,True)
+
     def quote(self,now=None):
         now=utc(now or self.clock())
         self._selected()
         self._pair()
-        # Exact signed Robinhood marketdata quote with a provider timestamp
-        # and LAST trade. The API may omit either: if so this adapter blocks.
-        try:
-            observation=robinhood_market_quote(
-                self.client.quote(self.symbol),self.symbol,now=now)
-        except (MarketSourceError,ValueError,TypeError):
-            raise BrokerEvidenceUnavailable("SIGNED_EXECUTABLE_QUOTE_UNVERIFIED") from None
-        if observation.last is None or not observation.source_tradable:
-            raise BrokerEvidenceUnavailable("SIGNED_QUOTE_LAST_OR_TRADABILITY_UNVERIFIED")
-        return MarketSnapshot(self.symbol,AssetClass.CRYPTO,
-            "robinhood_signed",observation.observed_at,
-            observation.received_at,observation.bid,observation.ask,
-            observation.last,True)
+        return self._validated_quote(self.symbol,now)
 
     def account(self,account_id):
         if account_id!=self.account_id:
@@ -114,16 +138,16 @@ class RobinhoodLiveAdapter:
             # Mark every external holding from a genuine signed broker price.
             # Unknown quote time/crossed market leaves exposure unknown,
             # rather than treating missing positions as $0.
-            from .market_sources import robinhood_market_quote,MarketSourceError
             try:
-                quote=robinhood_market_quote(
-                    self.client.quote(symbol),symbol,now=utc(self.clock()))
-            except (MarketSourceError,ValueError,TypeError):
+                quote=self._validated_quote(symbol,utc(self.clock()))
+            except (BrokerEvidenceUnavailable,ValueError,TypeError):
                 raise BrokerEvidenceUnavailable("SIGNED_POSITION_MARK_UNVERIFIED") from None
             if quote.bid<=0:
                 raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BID_INVALID")
             signed_positions[symbol]=qty
-            market_exposure+=qty*quote.bid
+            # Use executable-side ASK conservatively for gross exposure.
+            # Never understate risk based on a cheaper unverified last.
+            market_exposure+=qty*quote.ask
         managed={}
         for symbol,raw in self.managed_positions.items():
             if not isinstance(symbol,str):

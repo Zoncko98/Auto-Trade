@@ -1,3 +1,9 @@
+## v1.3.31 — Fix Robinhood quote-source mismatch before live migration
+
+Robinhood's official signed V2 bid/ask endpoint has no exchange quote timestamp or last trade. V2 no longer requires those nonexistent fields for read-only migration analysis: it independently validates a timestamped Coinbase trade and strict price agreement while retaining the broker's actual signed bid/ask for limit-price risk. A separately labeled quote-source view is available under Trading Operations.
+
+The account-scoped V1-to-V2 ownership-transfer primitive is now durable and independently proof-gated, including generation fencing and guarded rollback. It is **not activated** by this release; there is no V2 live trading worker, no live-order permission, and no broker order POST from V2. Before a real cutover, the supervisor must verify available funding/settlement, broker session, entire holdings, account risk, V1 stop and V2 readiness from signed evidence in the selected account.
+
 ## v1.3.30 — Robinhood signed pair limits and one consolidated migration branch
 
 The Robinhood Crypto V2 read-only preflight and adapter now enforce the signed broker's actual increment/minimum/maximum order constraints, rejecting unsupported precision before any possible live order. Robinhood and Webull migration gates remain visible in the existing Trading Operations UI. This is not an activation of live V2 trades.
