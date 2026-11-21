@@ -106,6 +106,8 @@ document.addEventListener("DOMContentLoaded",()=>{
         " (broker hours not certified)" +
         " · V1 risk: "+String(risk.state||"UNVERIFIED")+
         (values?" · Saved limits: "+values:"")+
+        " · V2 numeric risk mapping: "+String((item.v2_risk_mapping||{}).state||"UNAVAILABLE")+
+        " (not live permission)" +
         " · Effective V1 risk budget preview: "+String(envelope.state||"NOT_VERIFIED")+
         (envelope.requested_order_ceiling_usd==null?"":" · Requested order ceiling $"+
           String(envelope.requested_order_ceiling_usd))+

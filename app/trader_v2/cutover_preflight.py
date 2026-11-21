@@ -10,6 +10,7 @@ from decimal import Decimal,InvalidOperation
 from pathlib import Path
 from .readonly_adapters import private_json
 from .risk_envelopes import envelope
+from .conservative_risk_map import mapping
 from .legacy_journal_audit import observe_legacy_journal
 from .session_observation import session_observation
 
@@ -133,6 +134,7 @@ def preflight(state_dir,account_rows,market_sources):
         risk=_limits(root,broker)
         session=session_observation(broker)
         budget=envelope(root,broker,account)
+        risk_map=mapping(root,broker) # Saved V1 only, never signed account authority.
         journal=(_schwab_journal(root) if broker=="schwab"
                  else _other_journal(root,broker))
         v1_writer_active=worker=="ONLINE"
@@ -169,7 +171,11 @@ def preflight(state_dir,account_rows,market_sources):
             "source_state":market_state,
             "executable_quote_verified":False,
             "market_session":session,
-            "risk":risk,"risk_envelope":budget,"journal":journal,
+            "risk":risk,"risk_envelope":budget,
+            "v2_risk_mapping":{"state":risk_map["state"],
+                "v2_live_order_authorized":False,
+                "requirements_unmapped":risk_map["unmapped_controls"]},
+            "journal":journal,
             "requirements_remaining":[
                 "SOURCE_AND_SESSION_EXECUTABILITY",
                 "ACCOUNT_SPECIFIC_V2_RISK_MAPPING",

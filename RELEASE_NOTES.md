@@ -1,3 +1,7 @@
+## v1.3.33 — Account-specific risk inheritance for V2 migration
+
+The Trading Operations migration check now distinguishes saved V1 risk settings that can be safely mapped to V2 from missing or unverified controls. Per-broker cash exposure, daily loss, maximum positions, user allocation and cooldown restrictions cannot silently widen on migration. Structural policy preview does not grant V2 live trading; signed broker account funding/session and ownership transfer remain separate acceptance gates.
+
 ## v1.3.32 — Automatic read-only Webull migration-readiness worker
 
 The existing app now schedules authenticated Webull broker preflight observations automatically. Users can still request the same read-only check from Trading Operations, and the dashboard shows the last redacted readiness reason. Broker orders and permissions remain with V1. The new background worker never submits live orders; a full V2 broker cutover still requires signed holdings/funding/market-session evidence and exclusive account ownership.

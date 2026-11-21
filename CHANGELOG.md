@@ -1,3 +1,10 @@
+## v1.3.33 — Conservative account-specific V1-to-V2 risk mapping (2026-11-21)
+
+- Added a pure, private-source V1 risk policy translator for Schwab, Webull and Robinhood that maps saved USD maximum order, daily loss, open positions, per-asset percentages, strategy capital, allocation cash reserve and entry/exit counts into a strictly conservative V2 RiskPolicy preview only after receiving an explicitly verified broker Account.
+- Robinhood limits derive single-asset dollar exposure from saved total-exposure percentage instead of incorrectly applying it to equity. Webull applies additional 25% cash and equity allocation ceilings. Schwab maintains the selected strategy capital, cash allocation and explicit daily entry/exit ceilings; unsupported saved schemas or missing Robinhood cooldown/exit risk controls fail closed.
+- No view or source file authorizes live V2 orders: authenticated cutover diagnostics show numeric mapping state and explicitly separate still-unmapped broker market/session/settlement, V1 AI/exit strategy, order reconciliation and exclusive-writer handoff requirements. No live broker credentials, orders or financial journals are touched.
+- Added 8 offline Python risk-source/limits tests and a JavaScript account-risk diagnostics contract. Existing V1 workers, broker per-account controls and full historical order data remain unchanged.
+
 ## v1.3.32 — Supervised Webull read-only migration checks in the existing app (2026-11-21)
 
 - Started a bounded, signed read-only Webull migration-preflight child under the EXISTING unified runtime whenever the original Webull connection is configured. It runs account/position/balance/open-order and bounded historical-fill GET checks, with 15-minute restart pacing and a 20-minute read-only evidence TTL.
