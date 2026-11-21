@@ -155,8 +155,72 @@ class ProbeTests(unittest.TestCase):
             "client_order_id":"my-bot-2","state":"filled",
             "filled_asset_quantity":"0.5","average_price":"100",
             "fee_charged":"0"}]
-        self.assertEqual(self.report()["first_blocker"],
-            "HISTORICAL_V1_FILL_QTY_OR_PRICE_MISMATCH")
+        mismatch=self.report()
+        self.assertEqual(mismatch["first_blocker"],
+            "HISTORICAL_V1_FILL_EVIDENCE_UNVERIFIED")
+        self.assertEqual(mismatch["historical_fill_failure_category"],
+            "HISTORICAL_SIGNED_V1_QUANTITY_DIFFERENCE")
+
+    def test_signed_execution_weighted_price_fallback_matches_v1(self):
+        from robinhood_order_journal import OrderJournal
+        journal=OrderJournal(self.root)
+        journal.record_intent("acc1","exec-history","BTC-USD","2","12")
+        broker={
+            "client_order_id":"exec-history","state":"filled",
+            "filled_asset_quantity":"2","fee_charged":"0.02",
+            "executions":[{"quantity":"1","effective_price":"11"},
+                          {"quantity":"1","effective_price":"9"}],
+            "updated_at":self.now.isoformat()}
+        journal.reconcile("acc1",[broker])
+        self.client.orders_list=[broker]
+        result=self.report()
+        self.assertTrue(result["local_journal_matched"])
+        self.assertEqual(result["first_blocker"],
+            "V1_WRITER_HANDOFF_AND_BROKER_SESSION_REQUIRED")
+
+    def test_high_precision_historical_signed_fill_proves_parity(self):
+        from robinhood_order_journal import OrderJournal
+        journal=OrderJournal(self.root)
+        journal.record_intent("acc1","very-fine","BTC-USD","1","100")
+        signed={
+            "client_order_id":"very-fine","state":"filled",
+            "filled_asset_quantity":"0.123456789012345678",
+            "average_price":"100.000000012345678","fee_charged":"0.001",
+            "updated_at":self.now.isoformat()}
+        journal.reconcile("acc1",[signed])
+        self.client.orders_list=[signed]
+        result=self.report()
+        self.assertTrue(result["local_journal_matched"])
+        self.assertNotIn("historical_fill_failure_category",result)
+
+    def test_signed_fee_missing_does_not_infer_zero_fees(self):
+        from robinhood_order_journal import OrderJournal
+        journal=OrderJournal(self.root)
+        journal.record_intent("acc1","no-fees","BTC-USD","1","100")
+        broker={
+            "client_order_id":"no-fees","state":"filled",
+            "filled_asset_quantity":"1","average_price":"100",
+            "updated_at":self.now.isoformat()}
+        journal.reconcile("acc1",[broker])
+        self.client.orders_list=[broker]
+        result=self.report()
+        self.assertFalse(result["local_journal_matched"])
+        self.assertEqual(result["historical_fill_failure_category"],
+                         "HISTORICAL_SIGNED_FEE_UNVERIFIED")
+
+    def test_signed_historical_price_mismatch_stops_cutover(self):
+        from robinhood_order_journal import OrderJournal
+        journal=OrderJournal(self.root)
+        journal.record_intent("acc1","bad-price","BTC-USD","1","100")
+        broker={
+            "client_order_id":"bad-price","state":"filled",
+            "filled_asset_quantity":"1","average_price":"100",
+            "fee_charged":"0.01","updated_at":self.now.isoformat()}
+        journal.reconcile("acc1",[broker])
+        self.client.orders_list=[{**broker,"average_price":"99"}]
+        result=self.report()
+        self.assertEqual(result["historical_fill_failure_category"],
+                         "HISTORICAL_SIGNED_V1_PRICE_DIFFERENCE")
 
     def test_missing_quote_timestamp_blocks_live_cutover(self):
         self.client.quotes["BTC-USD"]["results"][0].pop("quote_timestamp")

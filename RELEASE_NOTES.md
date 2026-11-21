@@ -1,3 +1,9 @@
+## v1.3.27 — Verify legacy Robinhood fills against signed broker executions
+
+V2 now checks the old Robinhood fill journal against signed broker executions using the original V1 weighted-average execution parser. Tiny fractional quantities and broker-reported execution arrays are treated accurately without guessing costs. Any unverifiable or different fill, price or fee keeps live migration blocked and displays a privacy-preserving reason in Trading Operations.
+
+The existing V1 brokers remain the only authorized live order writers. No real orders are sent by these migrations or tests. V2 core 2.0.0-alpha.23.
+
 ## v1.3.26 — Accurate high-precision signed crypto holdings in migration checks
 
 The Robinhood V2 migration probe now accepts valid high-precision signed broker holdings, including small fractional balances, without treating them as bot-owned shares. The live V2 adapter rounds exposure conservatively and still refuses an order when a quote, brokerage position, cost, order ID, fee, or account authorization is not independently verified.

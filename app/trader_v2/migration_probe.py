@@ -32,7 +32,8 @@ def _probe(state,client,policy,*,now=None):
         "funding_source":"UNVERIFIED","settled_cash_verified":False,
         "broker_session_verified":False,
         "quote_timestamp_verified_symbols":0,
-        "pairs_checked":0,"first_blocker":"BROKER_AUTH_UNVERIFIED",
+        "pairs_checked":0,"historical_fills_checked":0,
+        "first_blocker":"BROKER_AUTH_UNVERIFIED",
     }
     if not isinstance(policy,dict) or policy.get("enabled") is not True:
         report["first_blocker"]="V1_ACCOUNT_OPERATOR_PERMISSION_NOT_ARMED"
@@ -140,18 +141,35 @@ def _probe(state,client,policy,*,now=None):
             if not isinstance(signed,dict) or str(signed.get("state","")).lower()!="filled":
                 report["first_blocker"]="HISTORICAL_V1_FILL_MISSING_FROM_SIGNED_BROKER"
                 return report
+            # V1 has already normalized fills from signed broker executions.
+            # Reuse EXACTLY its source-faithful weighted-average fallback
+            # rather than assuming every response has an average_price field.
+            signed_qty,signed_px,signed_fee,_=OrderJournal._fill_details(signed)
             try:
-                signed_qty=amount(signed.get("filled_asset_quantity"),
-                                  "signed historical fill",False)
-                local_qty=amount(local.get("filled_quantity"),
-                                 "saved historical fill",False)
-                signed_px=amount(signed.get("average_price"),
-                                 "signed historical price",False)
-                if signed_qty!=local_qty or signed_px<=0:
-                    raise ValueError
-            except (ValueError,TypeError):
-                report["first_blocker"]="HISTORICAL_V1_FILL_QTY_OR_PRICE_MISMATCH"
+                if signed_qty is None or signed_px is None:
+                    raise BrokerEvidenceUnavailable("SIGNED_FILL_ECONOMICS_UNAVAILABLE")
+                signed_qty=signed_holding_quantity(signed_qty)
+                signed_px=signed_holding_quantity(signed_px)
+                local_qty=signed_holding_quantity(local.get("filled_quantity"))
+                local_px=signed_holding_quantity(local.get("average_fill_price"))
+                if min(signed_qty,signed_px,local_qty,local_px)<=0:
+                    raise BrokerEvidenceUnavailable("HISTORICAL_ZERO_OR_INVALID_FILL")
+                if signed_qty!=local_qty:
+                    raise BrokerEvidenceUnavailable("HISTORICAL_SIGNED_V1_QUANTITY_DIFFERENCE")
+                if signed_px!=local_px:
+                    raise BrokerEvidenceUnavailable("HISTORICAL_SIGNED_V1_PRICE_DIFFERENCE")
+                if signed_fee is None or local.get("fee_verified") is False:
+                    raise BrokerEvidenceUnavailable("HISTORICAL_SIGNED_FEE_UNVERIFIED")
+                local_fee=signed_holding_quantity(local.get("fee_charged"))
+                signed_fee=signed_holding_quantity(signed_fee)
+                if signed_fee!=local_fee:
+                    raise BrokerEvidenceUnavailable("HISTORICAL_SIGNED_V1_FEE_DIFFERENCE")
+            except BrokerEvidenceUnavailable as exc:
+                # Never expose symbol, account, order UUID or amount.
+                report["historical_fill_failure_category"]=exc.code
+                report["first_blocker"]="HISTORICAL_V1_FILL_EVIDENCE_UNVERIFIED"
                 return report
+            report["historical_fills_checked"]+=1
         report["local_journal_matched"]=True
     except Exception:
         report["first_blocker"]="LOCAL_V1_ORDER_JOURNAL_UNVERIFIED"

@@ -52,6 +52,10 @@ document.addEventListener("DOMContentLoaded",()=>{
           " · Signed quote timestamps: "+Number((robinhoodProbe||{}).quote_timestamp_verified_symbols||0)+
           ((robinhoodProbe||{}).holdings_failure_category?
             " · Holdings failure: "+String(robinhoodProbe.holdings_failure_category):"")+
+          ((robinhoodProbe||{}).historical_fill_failure_category?
+            " · Historical fill mismatch: "+String(robinhoodProbe.historical_fill_failure_category):"")+
+          ((robinhoodProbe||{}).historical_fills_checked!=null?
+            " · Signed historical fills checked: "+Number(robinhoodProbe.historical_fills_checked):"")+
           ((robinhoodProbe||{}).report_fresh===false?
             " · Read-only observation STALE":""):"")+
         " · Market: "+String(item.source_state||"UNVERIFIED")+
