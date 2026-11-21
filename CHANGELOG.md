@@ -1,3 +1,12 @@
+## v1.3.3 — Schwab exit priority, OAuth reauthorization states and truthful UI (2026-11-21)
+
+- Fixed the critical legacy Schwab issue in which the combined daily-order cap returned before existing-position sell signals were evaluated. Held positions and verified exit signals are now evaluated first, while new entries still stop at the original combined-order ceiling.
+- Added an independently owner-editable, conservative daily exit-order allowance (default 3, maximum 30), with an explicit limit and transparent rejection evidence in the existing Schwab Risk & Start UI. All broker market-session, verified-quote, held-position, settlement, reconciliation and idempotent journal controls remain in force.
+- Existing eight- and nine-field risk documents are accepted through an in-memory migration, preserving all original saved exposure limits and revisions without rewriting settings during startup.
+- Added a private, nonsecret Schwab refresh-token revocation marker tied to token file metadata. A rejected OAuth refresh token now stops autonomous restart attempts until it changes; a subsequent authenticated account lookup clears the marker. No broker token or response payload is persisted.
+- The V2 read-only broker status distinguishes REAUTH_REQUIRED from ordinary worker downtime; account UI distinguishes configured order permission from actual execution readiness and directs the user to Broker Connections.
+- Added synthetic limit-priority, OAuth rotation, security, legacy policy, and UI tests. No live order was submitted to validate these fixes. V2 live writer cutover is still disabled; legacy workers and their journals are preserved.
+
 ## v1.3.2 — V2 Phase 3 advisory AI and historical synthetic replay foundations (2026-11-21)
 
 - Added a shared, typed AI reviewer for the same V2 paper pipeline. Rejects malformed decisions, wrong symbols, stale quotes, expired signals and oversized payloads; caches short-lived advisory reviews; does not place orders or override deterministic risk.

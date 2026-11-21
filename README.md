@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **V2 development source (November 21, 2026):** this branch declares **v1.3.2**, introducing typed shared advisory AI review, bounded Ollama transport and deterministic historical synthetic replay on top of the V2 Phase 1–2 foundation. V2 remains disabled by default, has no live-order authority and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **V2 development source (November 21, 2026):** this branch declares **v1.3.3**, adding account-visible Schwab OAuth reauthorization status and separate bounded exit priority to the existing V1 worker alongside V2 Phase 3 paper/replay foundations on top of the V2 Phase 1–2 foundation. V2 remains disabled by default, has no live-order authority and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

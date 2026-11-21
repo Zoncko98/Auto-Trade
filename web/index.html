@@ -835,7 +835,8 @@
             <div class="setting-item"><div><label for="live-max_daily_loss">Daily loss threshold</label><p>Blocks new buys when the equity drawdown hits this amount; not a guaranteed stop-loss.</p></div><div class="setting-control"><span>$</span><input id="live-max_daily_loss" type="number" min=".5" max="100000" step=".5" required></div></div>
             <div class="setting-item"><div><label for="live-max_open_positions">Simultaneous holdings</label><p>Maximum simultaneous stock/ETF holdings; currently held assets count toward this limit.</p></div><div class="setting-control"><input id="live-max_open_positions" type="number" min="1" max="30" step="1" required><span>slots</span></div></div>
             <div class="setting-item"><div><label for="live-max_buys_per_day">Daily buy orders</label><p>Maximum buy submissions per session; eligible signals, AI review, and verified cash still required.</p></div><div class="setting-control"><input id="live-max_buys_per_day" type="number" min="1" max="30" step="1" required><span>buys</span></div></div>
-            <div class="setting-item"><div><label for="live-max_orders_per_day">Total daily orders</label><p>Maximum combined daily orders, including sells. Must be at least your daily buy limit.</p></div><div class="setting-control"><input id="live-max_orders_per_day" type="number" min="1" max="100" step="1" required><span>orders</span></div></div>
+            <div class="setting-item"><div><label for="live-max_orders_per_day">Daily entry ceiling</label><p>New buys stop once total submitted orders (buys and sells) reach this ceiling. Must be at least the daily buy limit. Verified exits have a separate allowance.</p></div><div class="setting-control"><input id="live-max_orders_per_day" type="number" min="1" max="100" step="1" required><span>orders</span></div></div>
+            <div class="setting-item"><div><label for="live-max_exit_orders_per_day">Separate daily exit orders</label><p>Maximum verified risk-reducing sell orders per session, even when the entry ceiling is reached. Broker reconciliation, settlement, candles, positions and limit-price checks still apply.</p></div><div class="setting-control"><input id="live-max_exit_orders_per_day" type="number" min="1" max="30" step="1" required><span>exits</span></div></div>
             <div class="setting-item"><div><label for="live-daily_growth_target_pct">Daily growth objective</label><p>For reporting only; never forces a trade or promises a result.</p></div><div class="setting-control"><input id="live-daily_growth_target_pct" type="number" min="0" max="25" step=".1" required><span>%</span></div></div>
             <div class="settings-submit"><p id="live-risk-message" role="status"></p><button class="btn primary" id="live-risk-save" type="submit">Save live risk limits</button></div>
           </section>
@@ -846,7 +847,8 @@
               <div class="preview-breakdown"><span>Verified cash</span><strong id="live-risk-cash-preview">—</strong></div>
               <div class="preview-breakdown"><span>Available strategy headroom</span><strong id="live-risk-headroom-preview">—</strong></div>
               <div class="preview-breakdown"><span>Daily loss cap</span><strong id="live-risk-loss-preview">—</strong></div>
-              <div class="preview-breakdown"><span>Order slots/day</span><strong id="live-risk-orders-preview">—</strong></div>
+              <div class="preview-breakdown"><span>Entry order ceiling</span><strong id="live-risk-orders-preview">—</strong></div>
+              <div class="preview-breakdown"><span>Independent exit limit</span><strong id="live-risk-exits-preview">—</strong></div>
               <div class="preview-breakdown"><span>Growth objective</span><strong id="live-risk-target-preview">—</strong></div>
             </section>
             <section class="panel instruction-panel"><span>◈</span><h2>Independent hard guardrails</h2>

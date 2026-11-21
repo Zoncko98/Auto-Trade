@@ -22,7 +22,13 @@ document.addEventListener("DOMContentLoaded",()=>{
       const body=document.createElement("span");
       const state=String(row.worker_state||"OFFLINE");
       const auth=String(row.auth||"UNVERIFIED");
-      const permission=row.permission_armed?"V1 armed":"V1 not armed";
+      const permission=row.permission_armed
+        ?(state==="ONLINE"&&auth==="CONNECTED"?"V1 permission armed":
+          "V1 authorized in settings; execution unavailable")
+        :"V1 disarmed";
+      const userAction=auth==="REAUTH_REQUIRED"
+        ?" · Action: Reconnect Schwab under Broker connections"
+        :"";
       const value=(key,label)=>row.read_verified&&row[key]!==null&&
         row[key]!==undefined?label+" $"+String(row[key]):null;
       const values=[value("cash_usd","Cash"),value("equity_usd","Equity"),
@@ -33,7 +39,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       body.textContent=state+" · "+auth+" · "+permission+
         " · "+String(row.reason_code||"UNVERIFIED")+
         (values?" · "+values:" · Values unavailable")+
-        " · Market: "+quote+" (read-only)";
+        " · Market: "+quote+" (read-only)"+userAction;
       line.append(body);
       health.append(line);
     }

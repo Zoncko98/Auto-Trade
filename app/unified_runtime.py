@@ -9,6 +9,7 @@ from __future__ import annotations
 import json, os, secrets, signal, subprocess, sys, tempfile, time
 from pathlib import Path
 from unified_config import pairing_code, settings,credentials,configured
+from schwab_auth_health import reauth_required
 
 STATE=Path(os.getenv("STATE_DIR","/state"))
 LOGS=Path(os.getenv("LOG_DIR","/logs"))
@@ -234,13 +235,17 @@ def main():
                     if not enabled[name]:stop_process(name)
                 if enabled["live"]:
                     if live_started_signature is None:
-                        live_env=dict(runtime_env,LIVE_TRADING="true",LIVE_MODE="AUTONOMOUS",
-                                      LIVE_ACCOUNT_HASH=cfg["live_account_hash"])
-                        spawn("live",["/app/live_worker.py","--account","schwab","--run"],live_env)
-                        live_started_signature=str(cfg["live_account_hash"])
-                        live_stop_logged=False
-                        live_last_spawn_at=time.monotonic()
-                        live_supervisor_event("STARTED","OPERATOR_AUTHORIZED")
+                        if reauth_required(STATE):
+                            live_supervisor_event("REAUTH_REQUIRED",
+                                "SCHWAB_OAUTH_REAUTH_REQUIRED")
+                        else:
+                            live_env=dict(runtime_env,LIVE_TRADING="true",LIVE_MODE="AUTONOMOUS",
+                                          LIVE_ACCOUNT_HASH=cfg["live_account_hash"])
+                            spawn("live",["/app/live_worker.py","--account","schwab","--run"],live_env)
+                            live_started_signature=str(cfg["live_account_hash"])
+                            live_stop_logged=False
+                            live_last_spawn_at=time.monotonic()
+                            live_supervisor_event("STARTED","OPERATOR_AUTHORIZED")
                     elif CHILDREN.get("live") and CHILDREN["live"].poll() is not None:
                         child=CHILDREN["live"]
                         exit_code=child.poll()
@@ -256,6 +261,13 @@ def main():
                                                 if now-t<3600]
                         if not safe:
                             live_supervisor_event("RECONCILIATION_REQUIRED",why,
+                                len(live_recovery_attempts),exit_code)
+                        elif reauth_required(STATE):
+                            # Do not burn the restart budget on a known revoked
+                            # refresh token. A new token is still subject to
+                            # full broker and order-journal preflight.
+                            live_supervisor_event("REAUTH_REQUIRED",
+                                "SCHWAB_OAUTH_REAUTH_REQUIRED",
                                 len(live_recovery_attempts),exit_code)
                         elif len(live_recovery_attempts)>=3:
                             live_supervisor_event("MANUAL_REVIEW_REQUIRED",

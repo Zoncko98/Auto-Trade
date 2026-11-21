@@ -23,24 +23,30 @@ RISK_DEFAULTS={
   "strategy_capital_usd":100.0,
   "allocation_pct":100.0, "max_order_usd":25.0, "max_position_pct":25.0,
   "max_daily_loss":5.0, "max_open_positions":3, "max_buys_per_day":3,
-  "max_orders_per_day":7, "daily_growth_target_pct":1.0}
+  "max_orders_per_day":7, "max_exit_orders_per_day":3, "daily_growth_target_pct":1.0}
 RISK_BOUNDS={
   "strategy_capital_usd":(25,100000),
   "allocation_pct":(0,100), "max_order_usd":(1,100000),
   "max_position_pct":(1,100), "max_daily_loss":(0.5,100000),
   "max_open_positions":(1,30), "max_buys_per_day":(1,30),
-  "max_orders_per_day":(1,100), "daily_growth_target_pct":(0,25)}
-INTEGERS={"max_open_positions","max_buys_per_day","max_orders_per_day"}
+  "max_orders_per_day":(1,100), "max_exit_orders_per_day":(1,30), "daily_growth_target_pct":(0,25)}
+INTEGERS={"max_open_positions","max_buys_per_day","max_orders_per_day","max_exit_orders_per_day"}
 
 def validate_risk(settings):
     if not isinstance(settings,dict):
         raise ValueError("Expected a Schwab risk settings object")
-    # Existing v1.2.3 settings have eight fields and no strategy-capital
-    # key. Migrate them in memory without silently raising any live exposure.
-    if set(settings)==set(RISK_DEFAULTS)-{"strategy_capital_usd"}:
-        settings={**settings,"strategy_capital_usd":100.0}
-    if set(settings)!=set(RISK_DEFAULTS):
-        raise ValueError("Exactly nine supported live risk settings required")
+    # Read legacy 8/9-field documents without mutating persisted permissions.
+    # Existing account entry limits stay untouched. A distinct bounded allowance
+    # exists only for verified risk-reducing exits, never for fresh entries.
+    prior=set(settings)
+    full=set(RISK_DEFAULTS)
+    if prior in (full-{"strategy_capital_usd","max_exit_orders_per_day"},
+                 full-{"strategy_capital_usd"},full-{"max_exit_orders_per_day"}):
+        settings={**settings,
+            "strategy_capital_usd":settings.get("strategy_capital_usd",100.0),
+            "max_exit_orders_per_day":settings.get("max_exit_orders_per_day",3)}
+    if set(settings)!=full:
+        raise ValueError("Exactly ten supported live risk settings required")
     result={}
     for name,(low,high) in RISK_BOUNDS.items():
         val=settings[name]

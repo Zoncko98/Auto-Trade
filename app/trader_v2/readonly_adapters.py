@@ -119,7 +119,8 @@ def _schwab(root,now):
     if at and (now-at).total_seconds()>120:
         at=None  # V1 live_state considers >120s offline; V2 must agree.
     if not at:
-        if str(supervisor.get("reason","")).upper() in ("INVALID_GRANT","REAUTH_REQUIRED"):
+        if str(supervisor.get("reason","")).upper() in (
+                "INVALID_GRANT","REAUTH_REQUIRED","SCHWAB_OAUTH_REAUTH_REQUIRED"):
             return AccountObservation("schwab",AssetClass.STOCK,AuthState.REAUTH_REQUIRED,
                 "OFFLINE",armed,False,None,"BROKER_OAUTH_REAUTH_REQUIRED","SCHWAB_SUPERVISOR")
         state="MANUAL_REVIEW_REQUIRED" if supervisor.get("state")=="MANUAL_REVIEW_REQUIRED" else "WORKER_HEARTBEAT_STALE"

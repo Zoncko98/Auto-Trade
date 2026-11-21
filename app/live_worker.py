@@ -29,6 +29,7 @@ from trade_explanations import comparisons, explanation
 from ai_research import approve_entry, research_evidence
 from live_position_ai import review_held
 from live_extension import (read_live_risk, broker_fills, log_decision)
+from schwab_auth_health import (is_revoked_refresh_error, mark_reauth_required, clear_verified_reauth)
 
 CONFIG_PATH = Path(os.getenv("SCHWAB_ENV_FILE",
     str(Path.home() / ".config" / "auto-trader" / "schwab.env")))
@@ -42,6 +43,7 @@ JOURNAL = STATE_DIR / "orders.json"
 MAX_CONCURRENT_POSITIONS = 30
 MAX_DAILY_BUYS = 30
 MAX_DAILY_ACTIONS = 100
+MAX_DAILY_EXITS = 30
 
 
 def write_private_json(path, payload):
@@ -467,11 +469,9 @@ def attempt(client, account_hash, ledger, now, submit):
         if submit:_audit(now,"-","MARKET_CLOSED","Outside allowed trading session")
         print("Market closed / outside allowed session; no order.")
         return
-    if _orders_today(ledger,now)>=min(MAX_DAILY_ACTIONS,limits['max_orders_per_day']):
-        if submit:_audit(now,"-","DAILY_ORDER_LIMIT","Daily brokerage order cap reached")
-        print("Daily brokerage order cap reached; monitoring existing positions.")
-        return
-
+    # Always inspect held positions before applying the entry-only daily cap.
+    # A separate owner-configured exit allowance can permit verified protective
+    # sells after the prior combined-order ceiling has been consumed.
     # First priority is the explicitly authorized SPYD exit, even if other
     # known holdings are present. Reconciliation prevents duplicate attempts.
     sell=None
@@ -512,6 +512,14 @@ def attempt(client, account_hash, ledger, now, submit):
             return
 
     if sell is not None:
+        exits_today=_orders_today(ledger,now,action="SELL")
+        if exits_today>=min(MAX_DAILY_EXITS,limits["max_exit_orders_per_day"]):
+            if submit:_audit(now,"-","EXIT_ORDER_LIMIT",
+                "Separate authorized Schwab exit-order allowance reached",
+                signals={"exits_today":exits_today,
+                         "max_exit_orders_per_day":limits["max_exit_orders_per_day"]})
+            print("Separate Schwab daily exit allowance reached; no sell submitted.")
+            return
         symbol,qty,candle,reason=sell
         quote=result(client.get_quote(symbol),"held-symbol quote")
         bid,ask=quote_levels(quote.get(symbol),now)
@@ -520,6 +528,13 @@ def attempt(client, account_hash, ledger, now, submit):
                  f"limit={price}, shares={qty}")
         action="SELL"
     else:
+        # Keep the original combined-order count as an entry-side restriction:
+        # adding protected exit capacity must never raise the buy allowance.
+        if _orders_today(ledger,now)>=min(MAX_DAILY_ACTIONS,limits["max_orders_per_day"]):
+            if submit:_audit(now,"-","DAILY_ENTRY_ORDER_LIMIT",
+                "Daily entry allowance exhausted; verified exits remain separately limited")
+            print("Daily entry allowance reached; managing existing holdings only.")
+            return
         # Advisory AI review of held positions. Never converts an AI opinion into a SELL.
         # Persist state independently of the broker ledger; never block protective exits.
         if submit and positions:
@@ -708,6 +723,9 @@ def main():
         while True:
             try:
                 confirm_account(client,account_hash)
+                # Broker-authenticated account mapping, not file presence,
+                # proves a newly authorized token is usable.
+                clear_verified_reauth(STATE_DIR)
                 break
             except (httpx.ConnectError,httpx.ConnectTimeout) as exc:
                 if not args.run:
@@ -807,3 +825,16 @@ if __name__=="__main__":
     except (LiveBlocked, PermissionError, FileNotFoundError, BlockingIOError) as exc:
         print(f"SAFE STOP: {exc}",file=sys.stderr)
         sys.exit(2)
+    except Exception as exc:
+        # Authlib may raise OAuthError directly during token refresh. Persist
+        # ONLY a token-file fingerprint, never the token or server response.
+        # Paper workers may also encounter the legacy Schwab market-data
+        # error, but must NEVER mark the live Schwab execution token revoked.
+        live_schwab=("--account" not in sys.argv or
+                     sys.argv[sys.argv.index("--account")+1]=="schwab")
+        if live_schwab and is_revoked_refresh_error(exc):
+            mark_reauth_required(STATE_DIR,TOKEN_PATH)
+            print("SAFE STOP: Schwab refresh token rejected; reconnect Schwab in Broker Connections.",
+                  file=sys.stderr,flush=True)
+            sys.exit(3)
+        raise

@@ -198,7 +198,7 @@ function renderLiveDecisions(items){
 const LIVE_RISK_FIELDS=[
   "strategy_capital_usd","allocation_pct","max_order_usd","max_position_pct","max_daily_loss",
   "max_open_positions","max_buys_per_day","max_orders_per_day",
-  "daily_growth_target_pct"
+  "max_exit_orders_per_day","daily_growth_target_pct"
 ];
 function populateLiveRisk(live){
   if(!live||!live.risk||!live.risk.settings)return;
@@ -216,7 +216,7 @@ function liveRiskValues(){
   const values={};
   for(const k of LIVE_RISK_FIELDS){
     const control=$("live-"+k);
-    values[k]=["max_open_positions","max_buys_per_day","max_orders_per_day"].includes(k)
+    values[k]=["max_open_positions","max_buys_per_day","max_orders_per_day","max_exit_orders_per_day"].includes(k)
       ?Number.parseInt(control.value,10):Number(control.value);
   }
   return values;
@@ -238,7 +238,8 @@ function updateLiveRiskPreview(){
   $("live-risk-cash-preview").textContent=hasBrokerSnapshot?money(cash):"—";
   $("live-risk-headroom-preview").textContent=hasBrokerSnapshot?money(headroom):"—";
   $("live-risk-loss-preview").textContent=money(values.max_daily_loss);
-  $("live-risk-orders-preview").textContent=values.max_orders_per_day+" per day";
+  $("live-risk-orders-preview").textContent=values.max_orders_per_day+" entry ceiling";
+  $("live-risk-exits-preview").textContent=values.max_exit_orders_per_day+" separate exits/day";
   $("live-risk-target-preview").textContent=values.daily_growth_target_pct+"% (reporting only)";
 }
 async function saveLiveRisk(ev){
@@ -249,6 +250,8 @@ async function saveLiveRisk(ev){
   if(!Number.isInteger(settings.max_open_positions)
     ||!Number.isInteger(settings.max_buys_per_day)
     ||!Number.isInteger(settings.max_orders_per_day)
+    ||!Number.isInteger(settings.max_exit_orders_per_day)
+    ||settings.max_exit_orders_per_day<1||settings.max_exit_orders_per_day>30
     ||settings.max_orders_per_day<settings.max_buys_per_day)
     return toast("Invalid daily order/position limits.",true);
   if(settings.max_order_usd>settings.strategy_capital_usd

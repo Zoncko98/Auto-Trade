@@ -1,3 +1,11 @@
+## v1.3.3 — Schwab exit-order priority and revocation-aware worker recovery
+
+Legacy Schwab automation now evaluates risk-reducing exits before its entry-side daily order ceiling, while enforcing an independent user-configurable daily exit-order allowance. Existing saved entry, cash, exposure and loss limits are preserved. The authenticated Schwab Risk & Start form shows both limits and the next-order preview.
+
+When the Schwab refresh token is rejected, the worker writes a nonsecret REAUTH_REQUIRED marker. Its supervisor stops repeated authentication attempts against the same token, and V2 diagnostics show a reconnect action rather than falsely asserting the account is online. No token is rotated or OAuth login performed automatically.
+
+The V2 shared AI/replay foundation remains paper-only and is not the live execution engine. This release does not assert broker-accepted or broker-filled production orders. See CHANGELOG.md for regression coverage and remaining V2 cutover work.
+
 ## v1.3.2 — V2 Phase 3 advisory AI and synthetic replay libraries
 
 This release adds an isolated V2 shared AI reviewer and Ollama JSON transport. Model decisions are strictly typed, short-lived, symbol-bound and advisory; mandatory AI failures block entry. None of these components can submit live broker orders, and no V2 live adapter or account cutover is enabled.
