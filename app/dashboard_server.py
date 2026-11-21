@@ -378,6 +378,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(200,v2_summary(STATE_DIR))
                 except (OSError,ValueError,TypeError):
                     return self._json(503,{"error":"V2 foundation status unavailable"})
+            if UNIFIED_APP and path == "/api/v2/replay":
+                # Authenticated only. Never reads OAuth or calls a broker.
+                from trader_v2.recorded_replay import replay_status
+                return self._json(200, replay_status(STATE_DIR))
             if UNIFIED_APP and path == "/api/ai/readiness":
                 cfg=integration_settings(STATE_DIR)
                 model=effective_selected_model(cfg,STATE_DIR)
@@ -665,6 +669,22 @@ class Handler(BaseHTTPRequestHandler):
             })
         if not self._csrf_ok():
             return self._json(403, {"error": "Invalid session or CSRF token"})
+        if UNIFIED_APP and path == "/api/v2/replay/run":
+            # Every POST has already passed same-origin, session AND CSRF.
+            # This endpoint has NO live broker mode, even if V2 is armed.
+            from trader_v2.recorded_replay import run_recorded_replay, ReplayUnavailable
+            try:
+                payload = self._body()
+                if set(payload) != {"symbol"}:
+                    return self._json(400, {"error": "Only a recorded symbol is accepted"})
+                return self._json(200, run_recorded_replay(STATE_DIR, payload["symbol"]))
+            except ReplayUnavailable as exc:
+                return self._json(409, {"error": str(exc)[:100]})
+            except (ValueError,TypeError):
+                return self._json(400, {"error": "Invalid recorded replay request"})
+            except Exception:
+                # Never leak filesystem state, order journals or credentials.
+                return self._json(503, {"error": "Historical paper replay unavailable"})
         if UNIFIED_APP and path == "/api/profile/webull-margin":
             from webull_account_preferences import read,save,PreferenceError
             try:

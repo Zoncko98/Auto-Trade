@@ -56,3 +56,35 @@ test("Unified Operations offers read-only V2 why-no-trade diagnostics",()=>{
   assert.match(reducer,/order_reconciliation/);
   assert.match(reducer,/NOT_VERIFIED/);
 });
+
+
+test("Historical recorded paper replay uses the existing Operations view",()=>{
+  const html=read("web/index.html");
+  const ui=read("web/v2-status.js");
+  assert.match(html,/id="v2-paper-replay-card"/);
+  assert.match(html,/id="v2-replay-symbol"/);
+  assert.match(html,/id="v2-replay-run"/);
+  assert.match(html,/Historical paper replay/);
+  assert.match(html,/does not contact a broker/);
+  assert.match(ui,/\/api\/v2\/replay\/run/);
+  assert.match(ui,/\/api\/session/);
+  assert.match(ui,/X-CSRF-Token/);
+  assert.match(ui,/credentials:"same-origin"/);
+  assert.match(ui,/live_orders_submitted!==0/);
+  assert.match(ui,/showRecordedReport/);
+  assert.doesNotMatch(ui,/innerHTML|submit_order|place_order/);
+});
+test("Recorded replay API is authenticated and CSRF gated",()=>{
+  const server=read("app/dashboard_server.py");
+  const getPos=server.indexOf('if UNIFIED_APP and path == "/api/v2/replay":');
+  const authPos=server.indexOf('if not nonce:');
+  const postPos=server.indexOf('if UNIFIED_APP and path == "/api/v2/replay/run":');
+  const csrfPos=server.indexOf('if not self._csrf_ok():',server.indexOf('def do_POST'));
+  assert.ok(authPos>=0 && authPos<getPos);
+  assert.ok(csrfPos>=0 && csrfPos<postPos);
+  assert.match(server,/run_recorded_replay\(STATE_DIR, payload\["symbol"\]\)/);
+  const replay=read("app/trader_v2/recorded_replay.py");
+  assert.match(replay,/RECORDED_V1_PAPER_CLOSED_BARS/);
+  assert.match(replay,/SimulatedBroker/);
+  assert.doesNotMatch(replay,/\b(place_order|submit_order|TradeClient|WebullBroker)\b/);
+});

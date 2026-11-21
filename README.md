@@ -1,6 +1,6 @@
 # Auto Trader
 
-> **V2 development source (November 21, 2026):** this branch declares **v1.3.6**, adding account-visible Schwab OAuth reauthorization status and separate bounded exit priority to the existing V1 worker alongside V2 Phase 3 paper/replay foundations on top of the V2 Phase 1–2 foundation. V2 remains disabled by default, has no live-order authority and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
+> **V2 development source (November 21, 2026):** this branch declares **v1.3.7**, adding an authenticated, on-demand V2 historical paper replay using persisted synthetic order journals, independently of all brokerage OAuth and V1 live order execution on top of the V2 Phase 1–2 foundation. V2 remains disabled for general execution by default; the authenticated recorded-data replay can be triggered manually and has no live-order authority and is not proof of broker fills or profitability. Verify the actual TrueNAS image independently after deployment; see [release notes](RELEASE_NOTES.md) and [changelog](CHANGELOG.md).
 
 ## Current broker capabilities in source (not production verification)
 

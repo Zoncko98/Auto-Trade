@@ -1,3 +1,9 @@
+## v1.3.7 — On-demand historical paper replay through the actual V2 simulated pipeline
+
+The authenticated V2 Trading Operations panel now supports selecting previously recorded closed paper-market candles and running an explicit historical synthetic replay with its own permanent event journal and report. This needs no live broker authentication and can never write a live brokerage order. The report distinguishes strategy signals, blocked decisions, simulated fills, assumed transaction costs and net simulated P/L.
+
+This is an operator-triggered *historical* paper/replay baseline, NOT a continuously scanning fresh-market paper worker or broker-verified trading. The general V2 feature flag and all V2 live-order authority remain disabled. Schwab still requires authorized OAuth reauthentication; Webull and Robinhood V1 operation is unchanged. V2 engine is 2.0.0-alpha.5.
+
 ## v1.3.6 — Explain unknown and blocked V2 trading gates without inventing signals
 
 The existing authenticated Trading operations panel now displays one read-only diagnostic explanation per Schwab, Webull, Robinhood Crypto and Paper account, including the first known blocker, next action and unverified signal/AI/risk/order gates. V2 version is 2.0.0-alpha.4; paper/shadow libraries are not armed and the original V1 broker execution paths remain unchanged.

@@ -5,6 +5,8 @@ quotes or evidence of profitability. No live broker imports, access or orders.
 """
 from __future__ import annotations
 from datetime import datetime, timezone
+from contextlib import nullcontext
+import stat
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -16,7 +18,7 @@ from .strategies import StockController, CryptoController
 
 def replay_candles(candles: list[Candle], asset_class: AssetClass, *,
                    policy: RiskPolicy | None = None, starting_cash="1000",
-                   fee_bps="5", slippage_bps="5", spread_bps="10") -> dict:
+                   fee_bps="5", slippage_bps="5", spread_bps="10", workspace=None) -> dict:
     if asset_class not in (AssetClass.STOCK, AssetClass.CRYPTO):
         raise ValueError("Unsupported replay asset class")
     if not isinstance(candles, list) or len(candles) < 10 or len(candles) > 100000:
@@ -41,8 +43,14 @@ def replay_candles(candles: list[Candle], asset_class: AssetClass, *,
     clock = [times[0]]
     account = "replay-stock" if asset_class is AssetClass.STOCK else "replay-crypto"
     outcomes = []
-    with TemporaryDirectory(prefix="v2-replay-") as folder:
+    context = (TemporaryDirectory(prefix="v2-replay-") if workspace is None
+               else nullcontext(str(workspace)))
+    with context as folder:
         base = Path(folder)
+        if workspace is not None:
+            if (base.is_symlink() or not base.is_dir() or
+                    base.stat().st_mode & 0o077):
+                raise PermissionError("Persistent replay workspace must be private")
         broker = SimulatedBroker(base/"sim.sqlite3", fee_bps=fees,
                                  slippage_bps=slippage, clock=lambda: clock[0])
         broker.seed(account, asset_class, cash, fractional=asset_class is AssetClass.CRYPTO)
@@ -73,6 +81,7 @@ def replay_candles(candles: list[Candle], asset_class: AssetClass, *,
                 else:
                     exit_count += 1
         final = broker.account(account)
+        journal = store.summary()
         gross_buy_hold = cash * (candles[-1].close/candles[0].close - Decimal("1"))
         return {"mode":"HISTORICAL_SYNTHETIC_REPLAY_ONLY",
                 "live_orders_submitted":0,"asset_class":asset_class.value,
@@ -83,4 +92,4 @@ def replay_candles(candles: list[Candle], asset_class: AssetClass, *,
                 "final_equity":str(final.equity),
                 "net_pnl_after_simulated_costs":str(final.equity-cash),
                 "gross_buy_hold_reference":str(gross_buy_hold),
-                "outcomes":outcomes}
+                "journal":journal, "outcomes":outcomes}

@@ -1,3 +1,12 @@
+## v1.3.7 — Authenticated, broker-independent recorded V2 paper replay (2026-11-21)
+
+- Added an operator-triggered historical replay inside the existing Trading Operations V2 detail, with a list of explicitly supported recorded instruments, available closed candle counts, last replay report and actual simulated order/fill numbers.
+- Runs the V2 stock/crypto strategy controllers through the same deterministic risk, idempotent intent/EventStore journal and SimulatedBroker pathway. Historical source is the existing paper collector's completed-bar CSV, not Schwab OAuth, a broker quote or a made-up current price.
+- Synthetic bid/ask spreads, fees and slippage are declared in the report (10/5/5 bps defaults). AI is explicitly OFF for the no-AI baseline; decisions and synthetic fills cannot be construed as live profitability or verified executable broker quotes.
+- A source-hash/strategy-version run identifier persists each replay's independent SQLite broker/order journal and private 0600 JSON report under state/v2/recorded_replays, leaving all Schwab/Webull/Robinhood/V1 Paper order journals untouched. Identical recordings return the same report without duplicate events.
+- Added authenticated GET /api/v2/replay and CSRF/Origin-protected POST /api/v2/replay/run. Input accepts only a predefined recorded instrument; data size, bar count, file type, directory permissions and concurrent writes are bounded; no live broker order-writing code is reachable.
+- Added integration, durability, input validation, symlink, unknown symbol, auth and UI regression tests. The general V2 live cutover remains disabled. Next: independent fresh candle provider, real-market replay, account-specific AI/shadow comparison, full dashboard parity, and broker write-adapter integration.
+
 ## v1.3.6 — Read-only V2 why-no-trade diagnostics (2026-11-21)
 
 - Added a typed, bounded, broker-agnostic diagnostic reducer for Schwab, Webull, Robinhood Crypto and Paper accounts. Each account reports verified vs unknown authentication, worker, account observation, operator permission, read-only market data, strategy signal, AI, risk and order reconciliation gates.

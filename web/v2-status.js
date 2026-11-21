@@ -73,13 +73,122 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · "+flag+" · Live broker authority: OFF"+
         " · Event store: "+store+
         " · Persisted intents: "+Number(data.intents||0)+
-        " · Unresolved: "+Number(data.unresolved||0);
+        " · Unresolved: "+Number(data.unresolved||0)+
+        " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
+      void readRecordedReplay();
     }catch(_error){
       target.textContent="V2 status unavailable. V1 broker operation is unchanged.";
       if(health)health.textContent="Read-only broker adapter evidence unavailable.";
     }
   }
+
+  const replaySelect=document.getElementById("v2-replay-symbol");
+  const replayRun=document.getElementById("v2-replay-run");
+  const replayStatus=document.getElementById("v2-replay-status");
+  const replayReport=document.getElementById("v2-replay-report");
+  let replayBusy=false;
+
+  function showRecordedReport(report){
+    if(!replayReport)return;
+    replayReport.replaceChildren();
+    if(!report || report.simulated_only!==true ||
+       report.live_orders_submitted!==0 || !report.run_id)return;
+    const message=document.createElement("p");
+    const journal=report.journal&&typeof report.journal==="object"?report.journal:{};
+    message.textContent="Historical synthetic replay · "+String(report.symbol||"")+
+      " · Closed candles: "+Number(report.candles||0)+
+      " · Strategy signals: "+Number(report.signals||0)+
+      " · Simulated fills: "+Number(report.fills||0)+
+      " · Blocked: "+Number(report.blocked||0)+
+      " · Net after assumed costs: $"+String(report.net_pnl_after_simulated_costs||"unknown")+
+      " · Final simulated equity: $"+String(report.final_equity||"unknown")+
+      " · V2 intents: "+Number(journal.intents||0)+
+      " · Unresolved intents: "+Number(journal.unresolved||0)+
+      " · No live orders, broker quotes or AI reviews";
+    replayReport.append(message);
+    const detail=document.createElement("small");
+    detail.className="muted";
+    const assumptions=report.assumptions||{};
+    detail.textContent="Tape "+String(report.recording_start||"unknown")+
+      " through "+String(report.recording_end||"unknown")+
+      " · Synthetic spread "+String(assumptions.synthetic_spread_bps||"?")+" bps"+
+      " · Simulated fees "+String(assumptions.fee_bps||"?")+" bps"+
+      " · Simulated slippage "+String(assumptions.slippage_bps||"?")+" bps"+
+      " · Replay ID "+String(report.run_id).slice(0,12);
+    replayReport.append(detail);
+  }
+
+  async function readRecordedReplay(){
+    if(!replaySelect || !replayRun)return;
+    try{
+      const response=await fetch("/api/v2/replay",{
+        credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
+      if(response.status===401)throw Error("Sign in to view recorded replay");
+      if(!response.ok)throw Error("Historical replay status unavailable");
+      const data=await response.json();
+      const former=replaySelect.value;
+      replaySelect.replaceChildren();
+      const list=Array.isArray(data.symbols)?data.symbols.filter(
+        entry=>entry&&entry.replayable===true&&typeof entry.symbol==="string"):[];
+      for(const entry of list){
+        const option=document.createElement("option");
+        option.value=entry.symbol;
+        option.textContent=entry.symbol+" · "+entry.asset_class+
+          " · "+Number(entry.closed_bars)+" closed candles";
+        replaySelect.append(option);
+      }
+      if(list.some(entry=>entry.symbol===former))replaySelect.value=former;
+      replaySelect.disabled=list.length===0||replayBusy;
+      replayRun.disabled=list.length===0||replayBusy;
+      if(replayStatus && !replayBusy){
+        replayStatus.textContent=list.length
+          ?"Recorded closed candles available for an explicitly triggered paper replay."
+          :"No replayable recorded candles: "+String(data.state||"UNAVAILABLE");
+      }
+      showRecordedReport(data.last_report);
+    }catch(err){
+      replaySelect.disabled=true;
+      replayRun.disabled=true;
+      if(replayStatus)replayStatus.textContent=err.message||"Historical replay unavailable";
+    }
+  }
+
+  async function submitRecordedReplay(){
+    if(!replaySelect||!replayRun||replayBusy||!replaySelect.value)return;
+    const symbol=replaySelect.value;
+    replayBusy=true;
+    replayRun.disabled=true;
+    replaySelect.disabled=true;
+    if(replayStatus)replayStatus.textContent="Running historical, broker-independent simulation…";
+    try{
+      const auth=await fetch("/api/session",{
+        credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
+      if(!auth.ok)throw Error("Sign in again to run historical replay");
+      const session=await auth.json();
+      if(typeof session.csrf!=="string"||session.csrf.length<16)throw Error("Session expired");
+      const response=await fetch("/api/v2/replay/run",{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json","Accept":"application/json",
+                 "X-CSRF-Token":session.csrf},
+        body:JSON.stringify({symbol})
+      });
+      const report=await response.json();
+      if(!response.ok)throw Error(String(report.error||"Historical simulation failed"));
+      if(report.simulated_only!==true||report.live_orders_submitted!==0)
+        throw Error("Simulation did not prove paper-only execution");
+      showRecordedReport(report);
+      if(replayStatus)replayStatus.textContent="Historical paper replay complete. All orders were simulated.";
+    }catch(err){
+      if(replayStatus)replayStatus.textContent=err.message||"Historical replay unavailable";
+    }finally{
+      replayBusy=false;
+      replaySelect.disabled=false;
+      replayRun.disabled=false;
+    }
+  }
+  replayRun?.addEventListener("click",submitRecordedReplay);
+
   document.getElementById("v2-status-refresh")?.addEventListener("click",readV2Status);
   document.getElementById("operations-refresh")?.addEventListener("click",readV2Status);
   document.querySelector('[data-view="operations"]')?.addEventListener("click",readV2Status);
