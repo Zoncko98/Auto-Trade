@@ -43,6 +43,12 @@ class ExitOrderPriorityTests(unittest.TestCase):
         root.orders=orders;root.utils=utils;orders.equities=equities
         captured=io.StringIO()
         with ExitStack() as stack:
+            # Isolate account-writer lock state in CI rather than trying to
+            # create or inspect /state under an unprivileged GitHub runner.
+            temp=stack.enter_context(tempfile.TemporaryDirectory())
+            isolated_live=Path(temp)/"live"
+            isolated_live.mkdir(mode=0o700)
+            stack.enter_context(patch.object(live_worker,"STATE_DIR",isolated_live))
             stack.enter_context(patch.dict(sys.modules,{
                 "schwab":root,"schwab.orders":orders,
                 "schwab.orders.equities":equities,"schwab.utils":utils}))
