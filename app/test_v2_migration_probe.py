@@ -71,8 +71,17 @@ class ProbeTests(unittest.TestCase):
 
     def test_signed_positions_missing_fails_closed(self):
         self.client.holdings=None
-        self.assertEqual(self.report()["first_blocker"],
-                         "SIGNED_HOLDINGS_UNVERIFIED")
+        result=self.report()
+        self.assertEqual(result["first_blocker"],"SIGNED_HOLDINGS_UNVERIFIED")
+        self.assertEqual(result["holdings_failure_category"],"SIGNED_POSITIONS_NOT_LIST")
+
+    def test_signed_holdings_transport_failure_reports_only_safe_exception_class(self):
+        self.client.positions=lambda account:(_ for _ in ()).throw(TimeoutError("SECRET_TOKEN"))
+        report=self.report()
+        self.assertEqual(report["first_blocker"],"SIGNED_HOLDINGS_UNVERIFIED")
+        self.assertEqual(report["holdings_failure_category"],"SIGNED_POSITIONS_REQUEST_FAILED")
+        self.assertEqual(report["holdings_error_class"],"TimeoutError")
+        self.assertNotIn("SECRET_TOKEN",__import__("json").dumps(report))
 
     def test_active_broker_order_blocks(self):
         self.client.orders_list=[{"client_order_id":"abc","state":"open"}]

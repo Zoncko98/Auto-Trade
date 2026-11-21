@@ -20,6 +20,8 @@ from .models import (
 from .risk import evaluate_risk
 from .store import EventStore,IntentConflict
 from .simulation import SimulatedBroker
+from .writer_ownership import account_writer_scope,WriterOwnershipError
+from pathlib import Path
 
 SIGNED_SOURCES={
     "robinhood_crypto":"robinhood_signed",
@@ -73,7 +75,7 @@ class LivePipeline(PaperPipeline):
     exclusive supervisor lease. There is intentionally no default permit.
     """
     def __init__(self,broker:TradingBroker,store:EventStore,gate:Callable,
-                 *,reviewer:AIReviewer|None=None):
+                 *,ownership_root,reviewer:AIReviewer|None=None):
         if (isinstance(broker,SimulatedBroker) or
                 not isinstance(broker,TradingBroker) or
                 not isinstance(store,EventStore) or not callable(gate)):
@@ -84,6 +86,9 @@ class LivePipeline(PaperPipeline):
         self.store=store
         self.gate=gate
         self.reviewer=reviewer
+        if not isinstance(ownership_root,(str,Path)):
+            raise TypeError("Persistent account ownership root required")
+        self.ownership_root=Path(ownership_root)
 
     def _handoff(self,candidate,now,generation=None):
         try:
@@ -114,6 +119,18 @@ class LivePipeline(PaperPipeline):
         proof=self._handoff(candidate,now)
         if proof is None:
             return PipelineResult("BLOCKED","V1_TO_V2_SINGLE_WRITER_HANDOFF_UNVERIFIED",key)
+        try:
+            with account_writer_scope(self.ownership_root,self.broker.provider_id,
+                                      candidate.account_id,owner="V2",
+                                      generation=proof.generation):
+                return self._evaluate_owned(candidate,quote,policy,now,explicit,
+                           key,proof,daily_realized_loss,entries_today,exits_today)
+        except WriterOwnershipError:
+            return PipelineResult("BLOCKED","ACCOUNT_WRITER_OWNERSHIP_UNVERIFIED",key)
+
+    def _evaluate_owned(self,candidate,quote,policy,now,explicit,key,proof,
+                        daily_realized_loss,entries_today,exits_today):
+        """Invoked while holding SAME exclusive lock as V1 broker POST."""
         expected_source=SIGNED_SOURCES[self.broker.provider_id]
         if quote.source!=expected_source:
             return PipelineResult("BLOCKED","EXECUTABLE_BROKER_QUOTE_UNVERIFIED",key)

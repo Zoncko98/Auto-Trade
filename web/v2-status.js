@@ -49,7 +49,11 @@ document.addEventListener("DOMContentLoaded",()=>{
           " · Broker account: "+((robinhoodProbe||{}).account_verified===true?"signed":"unverified")+
           " · Holdings: "+((robinhoodProbe||{}).holdings_verified===true?"signed":"unverified")+
           " · Complete broker order history: "+((robinhoodProbe||{}).broker_history_verified===true?"verified":"unverified")+
-          " · Signed quote timestamps: "+Number((robinhoodProbe||{}).quote_timestamp_verified_symbols||0):"")+
+          " · Signed quote timestamps: "+Number((robinhoodProbe||{}).quote_timestamp_verified_symbols||0)+
+          ((robinhoodProbe||{}).holdings_failure_category?
+            " · Holdings failure: "+String(robinhoodProbe.holdings_failure_category):"")+
+          ((robinhoodProbe||{}).report_fresh===false?
+            " · Read-only observation STALE":""):"")+
         " · Market: "+String(item.source_state||"UNVERIFIED")+
         " · Session: "+String((item.market_session||{}).state||"NOT_VERIFIED")+
         " (broker hours not certified)" +

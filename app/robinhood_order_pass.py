@@ -164,17 +164,22 @@ def submit_approved(state,client,policy,signal,now=None):
     prepared=review_order(state,client,policy,signal,now)
     order_id=str(uuid4())
     journal=OrderJournal(state)
-    journal.record_intent(prepared["account"],order_id,
-                         prepared["symbol"],prepared["quantity"],prepared["limit_price"])
+    from trader_v2.writer_ownership import account_writer_scope,WriterOwnershipError
     try:
-        result=client.submit_order(prepared["account"],{
-            "type":"limit","side":"buy","symbol":prepared["symbol"],
-            "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
-            "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
-    except RobinhoodWriteRejected as exc:
-        journal.mark_submission_rejected(order_id,str(exc))
-        raise
-    journal.mark_submission_ack(order_id,result if isinstance(result,dict) else {})
+        with account_writer_scope(state,"robinhood_crypto",prepared["account"],owner="V1"):
+            journal.record_intent(prepared["account"],order_id,
+                              prepared["symbol"],prepared["quantity"],prepared["limit_price"])
+            try:
+                result=client.submit_order(prepared["account"],{
+                    "type":"limit","side":"buy","symbol":prepared["symbol"],
+                    "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
+                    "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
+            except RobinhoodWriteRejected as exc:
+                journal.mark_submission_rejected(order_id,str(exc))
+                raise
+            journal.mark_submission_ack(order_id,result if isinstance(result,dict) else {})
+    except WriterOwnershipError:
+        raise OrderPassBlocked("V1_ORDER_WRITER_OWNERSHIP_TRANSFERRED_OR_UNVERIFIED") from None
     return {"client_order_id":order_id,"broker_order_id":result.get("id") if isinstance(result,dict) else None,
             "broker_acknowledged":isinstance(result,dict) and bool(result.get("id")),
             "fill_verified":False,"prepared":prepared}
@@ -309,17 +314,22 @@ def submit_sell_approved(state,client,policy,signal,now=None):
     prepared=review_sell(state,client,policy,signal,now)
     order_id=str(uuid4())
     journal=OrderJournal(state)
-    journal.record_intent(prepared["account"],order_id,prepared["symbol"],
-                          prepared["quantity"],prepared["limit_price"],side="sell")
+    from trader_v2.writer_ownership import account_writer_scope,WriterOwnershipError
     try:
-        result=client.submit_order(prepared["account"],{
-            "type":"limit","side":"sell","symbol":prepared["symbol"],
-            "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
-            "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
-    except RobinhoodWriteRejected as exc:
-        journal.mark_submission_rejected(order_id,str(exc))
-        raise
-    journal.mark_submission_ack(order_id,result if isinstance(result,dict) else {})
+        with account_writer_scope(state,"robinhood_crypto",prepared["account"],owner="V1"):
+            journal.record_intent(prepared["account"],order_id,prepared["symbol"],
+                               prepared["quantity"],prepared["limit_price"],side="sell")
+            try:
+                result=client.submit_order(prepared["account"],{
+                    "type":"limit","side":"sell","symbol":prepared["symbol"],
+                    "asset_quantity":prepared["quantity"],"limit_price":prepared["limit_price"],
+                    "client_order_id":order_id,"risk_approved":True,"operator_approved":True})
+            except RobinhoodWriteRejected as exc:
+                journal.mark_submission_rejected(order_id,str(exc))
+                raise
+            journal.mark_submission_ack(order_id,result if isinstance(result,dict) else {})
+    except WriterOwnershipError:
+        raise OrderPassBlocked("V1_ORDER_WRITER_OWNERSHIP_TRANSFERRED_OR_UNVERIFIED") from None
     return {"client_order_id":order_id,"broker_order_id":result.get("id") if isinstance(result,dict) else None,
         "broker_acknowledged":isinstance(result,dict) and bool(result.get("id")),
         "fill_verified":False,"prepared":prepared}

@@ -48,7 +48,17 @@ class TestLiveCutover(TestCase):
         self.policy=RiskPolicy(max_order_notional=D("10"),max_total_exposure=D("50"),
              max_position_fraction=D("0.5"),max_snapshot_age_seconds=90)
         self.gate=Mock(side_effect=lambda:self.proof())
-        self.pipe=LivePipeline(self.broker,self.store,self.gate)
+        # Only tests create a V2 owner proof, NOT a production activation API.
+        from trader_v2.writer_ownership import _paths
+        _,ownership_file,digest=_paths(Path(self.temp.name),
+                                        "robinhood_crypto","crypto-account")
+        ownership_file.write_text(__import__("json").dumps({
+            "schema":1,"broker":"robinhood_crypto",
+            "account_digest":digest,"owner":"V2","generation":"handoff-1"}))
+        ownership_file.chmod(0o600)
+        self.ownership_file=ownership_file
+        self.pipe=LivePipeline(self.broker,self.store,self.gate,
+                               ownership_root=self.temp.name)
     def proof(self,**kwargs):
         args=dict(broker="robinhood_crypto",account_id="crypto-account",
           generation="handoff-1",checked_at=self.now,
@@ -61,6 +71,22 @@ class TestLiveCutover(TestCase):
     def evaluate(self,**kwargs):
         return self.pipe.evaluate(self.candidate,self.quote,self.policy,
                 now=self.now,**kwargs)
+
+    def test_v1_owned_account_cannot_submit_even_if_gate_claims_all_clear(self):
+        import json
+        doc=json.loads(self.ownership_file.read_text())
+        doc["owner"]="V1"
+        self.ownership_file.write_text(json.dumps(doc))
+        self.ownership_file.chmod(0o600)
+        result=self.evaluate()
+        self.assertEqual(result.reason,"ACCOUNT_WRITER_OWNERSHIP_UNVERIFIED")
+        self.assertEqual(self.broker.sends,0)
+        self.assertEqual(self.store.summary()["intents"],0)
+
+    def test_missing_owner_record_cannot_implicitly_authorize_v2(self):
+        self.ownership_file.unlink()
+        self.assertEqual(self.evaluate().reason,"ACCOUNT_WRITER_OWNERSHIP_UNVERIFIED")
+        self.assertEqual(self.broker.sends,0)
 
     def test_no_handoff_no_live_order(self):
         self.gate.side_effect=lambda:None
@@ -161,7 +187,8 @@ class TestLiveCutover(TestCase):
         from trader_v2.simulation import SimulatedBroker
         sim=SimulatedBroker(Path(self.temp.name)/"sim.sqlite3")
         with self.assertRaises(TypeError):
-            LivePipeline(sim,self.store,self.gate)
+            LivePipeline(sim,self.store,self.gate,
+                         ownership_root=self.temp.name)
 
     def test_permit_invalid_boolean_and_time_fail_closed(self):
         for item in (dict(operator_armed=1),

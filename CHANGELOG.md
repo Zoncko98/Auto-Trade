@@ -1,3 +1,11 @@
+## v1.3.25 — Shared account-writer exclusion and signed broker probe diagnostics (2026-11-21)
+
+- Added durable per-broker/per-account cross-process writer ownership guards using protected SHA-256 account-scoped lock files and fcntl/flock. Existing accounts default to V1 ownership. The V1 Schwab, Webull, and Robinhood Crypto order submit paths now hold the same exclusive account lock from persistence of the legacy intent through broker POST and acknowledgement.
+- V2's live coordinator now REQUIRES an existing private owner record granting V2 the correct generation and holds that exact lock through the entire signed submission workflow; neither a forged handoff callback nor a missing owner record can authorize V2. No production action to set V2 ownership is available until signed acceptance, account risk, reconciliation and an exclusive V1 stop can all be proven.
+- Added targeted no-network tests for same-account locking, V1 default behavior, V2 owner rejection of V1 BUY/SELL, unverified files, symlink/mode protection, race exclusion, and V2 refusal when ownership is not transferred.
+- Extended the signed Robinhood migration probe's holdings failure reporting with bounded, non-sensitive reason categories and exception CLASS only. Authenticated status downgrades stale/future probes and never treats cached observations as a current broker authorization. The existing Operations panel displays which signed holdings check failed.
+- Live V1 trading permissions and policy values remain unchanged; no new V2 live broker writer is spawned and no real test orders were sent. Robinhood production migration remains gated by signed holdings and historical fill verification, broker funding/session proof and a safe V1-to-V2 worker handoff. Schwab and Webull real V2 broker execution cutovers are not complete.
+
 ## v1.3.24 — V2 live-order coordinator staging, Robinhood signed adapter and production migration probe (2026-11-21)
 
 - Added a distinct fail-closed V2 **live execution coordinator** that shares the canonical paper receipt/event state machine but requires a fresh operator-authorized, single-writer, account-specific handoff, signed executable market data, verified funding and broker-session proof before any real submission. It cannot accept the simulated broker or be activated by importing this module.

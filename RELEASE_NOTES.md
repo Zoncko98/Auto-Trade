@@ -1,3 +1,9 @@
+## v1.3.25 — Single-writer protection for broker migration
+
+Every existing Schwab, Webull and Robinhood V1 order-writing path now participates in a protected, cross-process, account-scoped ownership lock. V1 owns each account until an independently verified migration assigns V2; V2 now refuses an account even if a callback claims a handoff unless its persisted owner generation explicitly matches. This prevents both architectures from submitting to the same broker account in the transfer window.
+
+Robinhood's signed read-only migration probe reports sanitized holdings-check failure categories, and the dashboard rejects stale probe evidence. **This milestone does not grant V2 live order authority or pause the existing broker writers**; we will only complete live account cutover after certified broker data and reconciliation pass. V2 core 2.0.0-alpha.21.
+
 ## v1.3.24 — Live migration coordination and authenticated broker proof
 
 V2 now has an explicit live-pipeline boundary and an account-locked, idempotent order process for future controlled broker cutovers. Robinhood Crypto has a signed official-API adapter with conservative price, inventory, fee and order-identity validation. The TrueNAS runtime also runs a *read-only* Robinhood migration probe every 15 minutes and surfaces its first verified blocker in Trading Operations.

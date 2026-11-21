@@ -58,17 +58,43 @@ def _probe(state,client,policy,*,now=None):
         return report
     try:
         holdings=client.positions(account_ref)
-        if not isinstance(holdings,list):raise ValueError
-        seen=set()
-        for row in holdings:
-            if not isinstance(row,dict):raise ValueError
-            symbol=row.get("asset_code")
-            if (not isinstance(symbol,str) or not symbol or symbol in seen):
-                raise ValueError
-            seen.add(symbol)
-            amount(row.get("total_quantity"),"signed holding")
+    except Exception as exc:
+        # Provider exception CLASS only; never persist signed response text,
+        # order IDs, holding assets, balances, tokens or credential material.
+        report["holdings_failure_category"]="SIGNED_POSITIONS_REQUEST_FAILED"
+        report["holdings_error_class"]=type(exc).__name__ if type(exc).__name__ in (
+            "RobinhoodUnavailable","TimeoutError","ConnectionError","HTTPError",
+            "ValueError","OSError") else "OTHER"
+        report["first_blocker"]="SIGNED_HOLDINGS_UNVERIFIED"
+        return report
+    if not isinstance(holdings,list):
+        report["holdings_failure_category"]="SIGNED_POSITIONS_NOT_LIST"
+        report["first_blocker"]="SIGNED_HOLDINGS_UNVERIFIED"
+        return report
+    report["holdings_rows_observed"]=len(holdings)
+    seen=set()
+    for row in holdings:
+        if not isinstance(row,dict):
+            report["holdings_failure_category"]="SIGNED_HOLDING_ROW_NOT_OBJECT"
+            break
+        symbol=row.get("asset_code")
+        if not isinstance(symbol,str) or not symbol:
+            report["holdings_failure_category"]="SIGNED_HOLDING_ASSET_MISSING"
+            break
+        if symbol in seen:
+            report["holdings_failure_category"]="SIGNED_HOLDING_DUPLICATE_ASSET"
+            break
+        seen.add(symbol)
+        try:amount(row.get("total_quantity"),"signed holding")
+        except (ValueError,TypeError):
+            raw=row.get("total_quantity")
+            report["holdings_failure_category"]=(
+                "SIGNED_HOLDING_NUMERIC_TYPE_UNSUPPORTED" if isinstance(raw,(float,bool))
+                else "SIGNED_HOLDING_QUANTITY_MISSING_OR_INVALID")
+            break
+    else:
         report["holdings_verified"]=True
-    except Exception:
+    if not report["holdings_verified"]:
         report["first_blocker"]="SIGNED_HOLDINGS_UNVERIFIED"
         return report
     try:

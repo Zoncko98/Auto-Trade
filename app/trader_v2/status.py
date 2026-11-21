@@ -1,6 +1,7 @@
 """Read-only, authentication-gated V2 feature status; no live order authority."""
 from __future__ import annotations
 from pathlib import Path
+from datetime import datetime,timezone
 import os,sqlite3
 from .models import OrderState,TERMINAL
 from .readonly_adapters import ReadOnlyBrokerRegistry,private_json
@@ -12,7 +13,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.20","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.21","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
@@ -57,6 +58,25 @@ def summary(state_dir)->dict:
             "mode":"AUTHENTICATED_SIGNED_READ_ONLY",
             "first_blocker":"SIGNED_BROKER_PROBE_NOT_YET_RUN",
             "v2_live_order_authority":False,"cutover_ready":False})
+    # Even correctly signed, cached broker observations expire. A stale
+    # status must not appear as current authentication or cutover permission.
+    probe=status["robinhood_signed_migration_probe"]
+    try:
+        observed=datetime.fromisoformat(str(probe["checked_at"]).replace("Z","+00:00"))
+        if observed.tzinfo is None:raise ValueError("naive broker observation")
+        age=(datetime.now(timezone.utc)-observed.astimezone(timezone.utc)).total_seconds()
+    except (TypeError,ValueError,KeyError,AttributeError):
+        age=float("inf")
+    if not 0<=age<=1200:
+        status["robinhood_signed_migration_probe"]={
+            "mode":"AUTHENTICATED_SIGNED_READ_ONLY",
+            "first_blocker":"SIGNED_BROKER_PROBE_STALE_OR_UNAVAILABLE",
+            "report_fresh":False,
+            "v2_live_order_authority":False,"cutover_ready":False}
+    else:
+        probe["report_fresh"]=True
+        probe["v2_live_order_authority"]=False
+        probe["cutover_ready"]=False
     # Observational gate explanations never grant live order authority;
     # no unauthenticated API can expose this authenticated status object.
     status["readiness_diagnostics"]=explain(

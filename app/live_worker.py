@@ -652,25 +652,30 @@ def attempt(client, account_hash, ledger, now, submit):
         _audit(now,symbol,"ORDER_INTENT",reason,candle,signals,details)
     from schwab.orders.equities import equity_buy_limit,equity_sell_limit
     from schwab.utils import Utils
-    entry=ledger.record_before_network(symbol,action,qty,price,candle,
-                                       reason=reason,
-                                       capital_limit=capital if action=="BUY" else CAPITAL)
+    from trader_v2.writer_ownership import account_writer_scope,WriterOwnershipError
     try:
-        order=(equity_buy_limit(symbol,qty,float(price)) if action=="BUY"
-               else equity_sell_limit(symbol,qty,float(price))).build()
-        response=client.place_order(account_hash,order)
-        if response.status_code not in (200,201):
-            ledger.halt("Schwab order response was not success")
-            raise LiveBlocked("Broker order not confirmed; halted")
-        order_id=Utils(client,account_hash).extract_order_id(response)
-        if order_id is None:
-            ledger.halt("No confirmed broker order ID")
-            raise LiveBlocked("Order ID missing: halted to prevent retry")
-        ledger.mark_accepted(entry,order_id)
-        print(f"Schwab accepted autonomous {action} DAY LIMIT; order ID journaled.")
-    except BaseException:
-        ledger.halt("Order POST outcome requires broker verification")
-        raise
+        with account_writer_scope(STATE_DIR.parent,"schwab",account_hash,owner="V1"):
+            entry=ledger.record_before_network(symbol,action,qty,price,candle,
+                                               reason=reason,
+                                               capital_limit=capital if action=="BUY" else CAPITAL)
+            try:
+                order=(equity_buy_limit(symbol,qty,float(price)) if action=="BUY"
+                       else equity_sell_limit(symbol,qty,float(price))).build()
+                response=client.place_order(account_hash,order)
+                if response.status_code not in (200,201):
+                    ledger.halt("Schwab order response was not success")
+                    raise LiveBlocked("Broker order not confirmed; halted")
+                order_id=Utils(client,account_hash).extract_order_id(response)
+                if order_id is None:
+                    ledger.halt("No confirmed broker order ID")
+                    raise LiveBlocked("Order ID missing: halted to prevent retry")
+                ledger.mark_accepted(entry,order_id)
+                print(f"Schwab accepted autonomous {action} DAY LIMIT; order ID journaled.")
+            except BaseException:
+                ledger.halt("Order POST outcome requires broker verification")
+                raise
+    except WriterOwnershipError:
+        raise LiveBlocked("V1_ORDER_WRITER_OWNERSHIP_TRANSFERRED_OR_UNVERIFIED") from None
 
 def refresh_paused_account(client, account_hash, last_checked,
                            prior_verified=True, interval=60):

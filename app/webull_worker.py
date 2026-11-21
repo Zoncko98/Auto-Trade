@@ -311,10 +311,15 @@ def _order(root,broker,policy,risk,journal,account,sym,asset,side,signal,qty,pri
         if (not isinstance(result,dict) or result.get("success") is False or
                 result.get("errors") or result.get("error")):
             raise WebullBlocked("Stock order preview was not accepted")
-    journal.new_intent(account,order_id,sym,asset,side,str(qty),str(price),reason)
-    # Never auto-retry this call, including timeouts; reconciliation by ID first.
-    receipt=broker.place(account,payload)
-    journal.acknowledged(order_id,receipt)
+    from trader_v2.writer_ownership import account_writer_scope,WriterOwnershipError
+    try:
+        with account_writer_scope(root,"webull",account,owner="V1"):
+            journal.new_intent(account,order_id,sym,asset,side,str(qty),str(price),reason)
+            # Never auto-retry this call, including timeouts; reconcile by ID first.
+            receipt=broker.place(account,payload)
+            journal.acknowledged(order_id,receipt)
+    except WriterOwnershipError:
+        raise WebullBlocked("V1_ORDER_WRITER_OWNERSHIP_TRANSFERRED_OR_UNVERIFIED") from None
     return {"client_order_id":order_id,"state":"BROKER_ACKNOWLEDGED_UNFILLED",
             "symbol":sym,"asset":asset,"side":side}
 
