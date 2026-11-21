@@ -20,6 +20,9 @@ SYMBOLS = {"BTCUSD": "v2-paper-btcusd", "ETHUSD": "v2-paper-ethusd"}
 SCAN_DB = "paper_scan_history.sqlite3"
 FILL_DB = "sim.sqlite3"
 AI_STATES = ("PASS", "VETO", "UNAVAILABLE", "NOT_CONFIGURED", "NOT_INVOKED")
+FEE_STATES = ("EXIT_NOT_GATED","INSUFFICIENT_HISTORY","EVIDENCE_UNAVAILABLE",
+              "SHADOW_PASS_PAST_RESISTANCE_ROOM","SHADOW_REJECT_REWARD_AFTER_FEES",
+              "SHADOW_REJECT_SPREAD")
 _BLOCKER = re.compile(r"^[A-Z][A-Z0-9_]{0,79}$")
 MAX_DB_BYTES = 32_000_000
 
@@ -74,6 +77,9 @@ def read_activity(directory, *, hours=3, now=None):
         "no_signal_minutes": 0, "data_error_minutes": 0,
         "rejection_reasons": {},
         "ai_shadow": {ai: 0 for ai in AI_STATES},
+        "fee_shadow": {state:0 for state in FEE_STATES},
+        "fee_shadow_observations": 0,
+        "fee_shadow_coverage": "NOT_RECORDED",
         "simulated_fills": None,
         "simulated_buys": None,
         "simulated_sells": None,
@@ -87,13 +93,15 @@ def read_activity(directory, *, hours=3, now=None):
     db = _private_readonly(directory, SCAN_DB)
     if db is not None:
         try:
+            columns={r[1] for r in db.execute("PRAGMA table_info(paper_scans)")}
+            fee_expr="fee_shadow_state" if "fee_shadow_state" in columns else "NULL"
             rows = db.execute(
-                """SELECT symbol, minute, state, reason, signal, ai_state, equity
-                     FROM paper_scans
+                """SELECT symbol, minute, state, reason, signal, ai_state, equity, """
+                +fee_expr+""" FROM paper_scans
                      WHERE minute>=? AND minute<=?
                      ORDER BY symbol, minute LIMIT 10000""",
                 (since, until)).fetchall()
-            for sym, minute, state, reason, side, ai, equity in rows:
+            for sym, minute, state, reason, side, ai, equity, fee_state in rows:
                 card = result.get(sym)
                 if card is None:
                     continue
@@ -115,6 +123,10 @@ def read_activity(directory, *, hours=3, now=None):
                     card["data_error_minutes"] += 1
                 if ai in card["ai_shadow"]:
                     card["ai_shadow"][ai] += 1
+                if fee_state in card["fee_shadow"]:
+                    card["fee_shadow"][fee_state] += 1
+                    card["fee_shadow_observations"] += 1
+                    card["fee_shadow_coverage"] = "OBSERVED_ADVISORY_ONLY"
                 if is_blocked:
                     code = reason if isinstance(reason, str) and _BLOCKER.fullmatch(reason) else "UNVERIFIED_REJECTION_REASON"
                     card["rejection_reasons"][code] = card["rejection_reasons"].get(code, 0) + 1
@@ -131,6 +143,9 @@ def read_activity(directory, *, hours=3, now=None):
                     card[key] = 0
                 card["rejection_reasons"] = {}
                 card["ai_shadow"] = {ai: 0 for ai in AI_STATES}
+                card["fee_shadow"] = {state: 0 for state in FEE_STATES}
+                card["fee_shadow_observations"] = 0
+                card["fee_shadow_coverage"] = "SCAN_JOURNAL_UNVERIFIED"
         finally:
             db.close()
 

@@ -246,6 +246,13 @@ document.addEventListener("DOMContentLoaded",()=>{
           Number((card.ai_shadow||{}).PASS||0)+"/"+
           Number((card.ai_shadow||{}).VETO||0)+"/"+
           Number((card.ai_shadow||{}).UNAVAILABLE||0)+
+          " · Fee/reward shadow: "+
+          (card.fee_shadow_coverage==="OBSERVED_ADVISORY_ONLY"?
+             ("past-high room "+Number((card.fee_shadow||{}).SHADOW_PASS_PAST_RESISTANCE_ROOM||0)+
+              ", insufficient net upside "+Number((card.fee_shadow||{}).SHADOW_REJECT_REWARD_AFTER_FEES||0)+
+              ", spread rejects "+Number((card.fee_shadow||{}).SHADOW_REJECT_SPREAD||0)+
+              ", missing evidence "+Number((card.fee_shadow||{}).INSUFFICIENT_HISTORY||0)+
+              " (advisory only)"):"not yet recorded")+
           " · Market data errors "+Number(card.data_error_minutes||0);
         activityNode.append(line);
       }

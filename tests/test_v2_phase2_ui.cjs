@@ -172,6 +172,20 @@ test("V2 actual simulated P/L is reconciled after fees with no live claims",()=>
   assert.doesNotMatch(econ,/place_order\(|submit_order\(|from schwab\.|from robinhood/);
 });
 
+test("V2 rolling paper scan journal persists fee-shadow decisions without broker authority",()=>{
+  const store=read("app/trader_v2/scan_observability.py");
+  const report=read("app/trader_v2/paper_activity.py");
+  const ui=read("web/v2-status.js");
+  assert.match(store,/ALTER TABLE paper_scans ADD COLUMN fee_shadow_state TEXT/);
+  assert.match(store,/fee_shadow_state=CASE/);
+  assert.match(store,/excluded.fee_shadow_state != 'NOT_INVOKED'/);
+  assert.match(report,/fee_shadow_coverage/);
+  assert.match(report,/fee_shadow_observations/);
+  assert.match(ui,/insufficient net upside/);
+  assert.match(ui,/Fee\/reward shadow/);
+  assert.doesNotMatch(report,/place_order\(|submit_order\(/);
+});
+
 test("V2 fee-aware crypto shadow cannot veto a simulated or live order",()=>{
   const policy=read("app/trader_v2/crypto_fee_shadow.py");
   const worker=read("app/trader_v2/fresh_paper.py");

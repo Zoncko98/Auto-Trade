@@ -1,3 +1,9 @@
+## v1.3.21 — Historical advisory fee/reward evidence retained for V2
+
+The existing authenticated V2 Trading Operations crypto paper 3-hour and 24-hour reports now retain fee-aware shadow classifications for genuine BUY signals. An append-safe migration adds one column to the private scan history and never changes real or simulated order journals. All existing order and risk paths remain exactly as before.
+
+The historical counts represent *advisory counterfactuals*: whether a previously observed price high could hypothetically cover modelled round-trip fees, spread, slippage and a 0.5% net target. They are not broker-executable quotes, proof of future prices, or instructions to trade. This upgrade does not retroactively reclassify older signals. V2 core is 2.0.0-alpha.17.
+
 ## v1.3.20 — Cost-aware V2 crypto signal diagnostics, without order changes
 
 V2's live public-market paper scanner now compares a genuine BTC/ETH BUY signal's earlier price resistance to an estimated round trip using its own existing synthetic spread/slippage/fee assumptions. It can flag a signal whose prior observed upside would not pay for execution costs and a 0.5% illustrative net target. This is not a prediction, broker-executable quote, calibrated profitable strategy, or trade permission; the original V2 paper engine and the V1 brokerage live traders remain unchanged.

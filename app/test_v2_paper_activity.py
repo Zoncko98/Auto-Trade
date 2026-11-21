@@ -49,6 +49,47 @@ class PaperActivityTests(TestCase):
         self.assertFalse((self.root/"paper_scan_history.sqlite3").exists())
         self.assertFalse(doc["BTCUSD"]["live_orders_authorized"])
 
+    def test_rolling_fee_shadow_counts_are_advisory_and_durable(self):
+        report=self.scan(minutes_ago=20,state="BLOCKED",
+            reason="ENTRY_DAILY_COUNT_LIMIT",side="BUY",ai="PASS")
+        report["fee_shadow"]={"state":"SHADOW_REJECT_REWARD_AFTER_FEES",
+            "changed_execution":False,"live_order_authorized":False}
+        capture_scan(self.root,report)
+        capture_scan(self.root,self.scan(minutes_ago=19,state="NO_SIGNAL"))
+        capture_scan(self.root,self.scan(symbol="ETHUSD",minutes_ago=10,
+            state="BLOCKED",reason="NO_LONG_HOLDING",side="SELL",ai="VETO"))
+        self.make_fills([])
+        cards=read_activity(self.root,now=self.now,hours=3)
+        btc=cards["BTCUSD"]
+        self.assertEqual(btc["fee_shadow_observations"],1)
+        self.assertEqual(btc["fee_shadow"]["SHADOW_REJECT_REWARD_AFTER_FEES"],1)
+        self.assertEqual(btc["fee_shadow_coverage"],"OBSERVED_ADVISORY_ONLY")
+        self.assertEqual(btc["simulated_fills"],0)
+        self.assertFalse(btc["live_orders_authorized"])
+        self.assertEqual(cards["ETHUSD"]["fee_shadow_observations"],0)
+        self.assertEqual(cards["ETHUSD"]["fee_shadow_coverage"],"NOT_RECORDED")
+
+    def test_legacy_scan_reader_does_not_mutate_schema_or_fabricate_fee_data(self):
+        path=self.root/"paper_scan_history.sqlite3"
+        with sqlite3.connect(path) as db:
+            db.execute("""CREATE TABLE paper_scans(
+                symbol TEXT NOT NULL, minute INTEGER NOT NULL, scanned_at TEXT NOT NULL,
+                state TEXT NOT NULL, reason TEXT NOT NULL, signal TEXT,
+                ai_state TEXT NOT NULL, priority INTEGER NOT NULL,
+                equity TEXT, cash TEXT, attempts INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY(symbol,minute))""")
+            db.execute("INSERT INTO paper_scans VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                ("BTCUSD",int((self.now-timedelta(minutes=10)).timestamp()),
+                 self.now.isoformat(),"BLOCKED","ENTRY_DAILY_COUNT_LIMIT",
+                 "BUY","PASS",3,"1000","1000",1))
+        path.chmod(0o600)
+        cards=read_activity(self.root,now=self.now,hours=3)
+        self.assertEqual(cards["BTCUSD"]["scan_minutes"],1)
+        self.assertEqual(cards["BTCUSD"]["fee_shadow_coverage"],"NOT_RECORDED")
+        with sqlite3.connect(path) as db:
+            self.assertNotIn("fee_shadow_state",
+                [x[1] for x in db.execute("PRAGMA table_info(paper_scans)")])
+
     def test_last_three_hours_blockers_not_confused_with_fills(self):
         capture_scan(self.root,self.scan(minutes_ago=175,state="NO_SIGNAL",equity="1000"))
         capture_scan(self.root,self.scan(minutes_ago=65,state="BLOCKED",

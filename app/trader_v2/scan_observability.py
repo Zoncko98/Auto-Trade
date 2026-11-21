@@ -12,6 +12,9 @@ import os,re,sqlite3,stat
 
 SYMBOLS=("BTCUSD","ETHUSD")
 STATES=("PASS","VETO","UNAVAILABLE","NOT_CONFIGURED","NOT_INVOKED")
+FEE_STATES=("NOT_INVOKED","EXIT_NOT_GATED","INSUFFICIENT_HISTORY",
+    "EVIDENCE_UNAVAILABLE","SHADOW_PASS_PAST_RESISTANCE_ROOM",
+    "SHADOW_REJECT_REWARD_AFTER_FEES","SHADOW_REJECT_SPREAD")
 DB_NAME="paper_scan_history.sqlite3"
 
 def _stamp(value):
@@ -45,9 +48,20 @@ def _normalize(report):
     minute=int(at.timestamp())//60*60
     priority=5 if state=="FILLED" else 3 if side else 2 if state=="NO_SIGNAL" else 1
     reason=str(report.get("reason",""))[:80]
+    fee=report.get("fee_shadow")
+    fee_state="NOT_INVOKED"
+    if isinstance(fee,dict):
+        candidate=fee.get("state")
+        if (candidate in FEE_STATES and fee.get("changed_execution") is False
+                and fee.get("live_order_authorized") is False):
+            fee_state=candidate
+        elif candidate not in (None,"NOT_INVOKED"):
+            fee_state="EVIDENCE_UNAVAILABLE"
+    if fee_state.startswith("SHADOW_") and side!="BUY":
+        fee_state="EVIDENCE_UNAVAILABLE"
     return (report["symbol"],minute,at.isoformat(),state,reason,side,
             ai_state,priority,_money(report.get("virtual_equity")),
-            _money(report.get("virtual_cash")))
+            _money(report.get("virtual_cash")),fee_state)
 
 def capture_scan(directory,report):
     values=_normalize(report)
@@ -70,10 +84,16 @@ def capture_scan(directory,report):
             state TEXT NOT NULL, reason TEXT NOT NULL, signal TEXT,
             ai_state TEXT NOT NULL, priority INTEGER NOT NULL,
             equity TEXT, cash TEXT, attempts INTEGER NOT NULL DEFAULT 1,
+            fee_shadow_state TEXT,
             PRIMARY KEY(symbol,minute))""")
+        # Existing V2 30-day journals retain their original rows and scans.
+        # Add only the new diagnostic column, never rewrite order journals.
+        columns={row[1] for row in db.execute("PRAGMA table_info(paper_scans)")}
+        if "fee_shadow_state" not in columns:
+            db.execute("ALTER TABLE paper_scans ADD COLUMN fee_shadow_state TEXT")
         db.execute("""INSERT INTO paper_scans
-            (symbol,minute,scanned_at,state,reason,signal,ai_state,priority,equity,cash)
-            VALUES(?,?,?,?,?,?,?,?,?,?)
+            (symbol,minute,scanned_at,state,reason,signal,ai_state,priority,equity,cash,fee_shadow_state)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(symbol,minute) DO UPDATE SET
               attempts=paper_scans.attempts+1,
               scanned_at=excluded.scanned_at,
@@ -86,7 +106,12 @@ def capture_scan(directory,report):
                     THEN excluded.ai_state ELSE paper_scans.ai_state END,
               priority=MAX(paper_scans.priority,excluded.priority),
               equity=COALESCE(excluded.equity,paper_scans.equity),
-              cash=COALESCE(excluded.cash,paper_scans.cash)""",values)
+              cash=COALESCE(excluded.cash,paper_scans.cash),
+              fee_shadow_state=CASE
+                  WHEN excluded.fee_shadow_state != 'NOT_INVOKED'
+                    THEN excluded.fee_shadow_state
+                  ELSE COALESCE(paper_scans.fee_shadow_state,'NOT_INVOKED')
+              END""",values)
         db.execute("DELETE FROM paper_scans WHERE minute<?",
             (values[1]-30*86400,))
 

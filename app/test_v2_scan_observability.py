@@ -54,6 +54,53 @@ class PaperScanScorecardTests(TestCase):
         with sqlite3.connect(self.root/"paper_scan_history.sqlite3") as db:
             self.assertEqual(db.execute("SELECT attempts FROM paper_scans").fetchone()[0],2)
 
+    def test_fee_shadow_counts_preserved_over_repeated_no_signal_minute(self):
+        row=self.report(state="FILLED",signal="BUY",ai="PASS")
+        row["fee_shadow"]={"state":"SHADOW_REJECT_REWARD_AFTER_FEES",
+            "changed_execution":False,"live_order_authorized":False}
+        capture_scan(self.root,row)
+        capture_scan(self.root,self.report(state="NO_SIGNAL",
+            at=self.now+timedelta(seconds=12)))
+        with sqlite3.connect(self.root/"paper_scan_history.sqlite3") as db:
+            row=db.execute("SELECT fee_shadow_state,state,signal,attempts FROM paper_scans").fetchone()
+        self.assertEqual(row,("SHADOW_REJECT_REWARD_AFTER_FEES","FILLED","BUY",2))
+
+    def test_old_private_scan_schema_migrates_without_losing_rows(self):
+        path=self.root/"paper_scan_history.sqlite3"
+        with sqlite3.connect(path) as db:
+            db.execute("""CREATE TABLE paper_scans(
+                symbol TEXT NOT NULL, minute INTEGER NOT NULL, scanned_at TEXT NOT NULL,
+                state TEXT NOT NULL, reason TEXT NOT NULL, signal TEXT,
+                ai_state TEXT NOT NULL, priority INTEGER NOT NULL,
+                equity TEXT, cash TEXT, attempts INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY(symbol,minute))""")
+            minute=int(self.now.timestamp())//60*60-60
+            db.execute("""INSERT INTO paper_scans VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                ("BTCUSD",minute,self.now.isoformat(),"FILLED","OK","BUY",
+                 "PASS",5,"999","999",1))
+        path.chmod(0o600)
+        new=self.report(symbol="ETHUSD",state="BLOCKED",signal="BUY",
+            ai="PASS")
+        new["fee_shadow"]={"state":"SHADOW_PASS_PAST_RESISTANCE_ROOM",
+            "changed_execution":False,"live_order_authorized":False}
+        capture_scan(self.root,new)
+        with sqlite3.connect(path) as db:
+            columns=[r[1] for r in db.execute("PRAGMA table_info(paper_scans)")]
+            original=db.execute("SELECT state,signal,fee_shadow_state FROM paper_scans WHERE symbol='BTCUSD'").fetchone()
+            new_state=db.execute("SELECT fee_shadow_state FROM paper_scans WHERE symbol='ETHUSD'").fetchone()[0]
+        self.assertIn("fee_shadow_state",columns)
+        self.assertEqual(original,("FILLED","BUY",None))
+        self.assertEqual(new_state,"SHADOW_PASS_PAST_RESISTANCE_ROOM")
+
+    def test_invalid_or_authorizing_fee_evidence_is_never_counted_as_pass(self):
+        row=self.report(state="BLOCKED",signal="BUY",ai="PASS")
+        row["fee_shadow"]={"state":"SHADOW_PASS_PAST_RESISTANCE_ROOM",
+            "changed_execution":True,"live_order_authorized":True}
+        capture_scan(self.root,row)
+        with sqlite3.connect(self.root/"paper_scan_history.sqlite3") as db:
+            state=db.execute("SELECT fee_shadow_state FROM paper_scans").fetchone()[0]
+        self.assertEqual(state,"EVIDENCE_UNAVAILABLE")
+
     def test_different_minutes_and_account_isolation(self):
         capture_scan(self.root,self.report())
         capture_scan(self.root,self.report(symbol="ETHUSD",state="DATA_UNAVAILABLE"))
