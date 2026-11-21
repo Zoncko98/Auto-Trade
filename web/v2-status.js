@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const target=document.getElementById("v2-foundation-status");
   const health=document.getElementById("v2-adapter-health");
   if(!target)return;
-  function showAdapters(rows,market){
+  function showAdapters(rows,market,diagnostics){
     if(!health)return;
     health.replaceChildren();
     if(!Array.isArray(rows)||!rows.length){
@@ -12,6 +12,9 @@ document.addEventListener("DOMContentLoaded",()=>{
     }
     const display={schwab:"Schwab stocks",webull:"Webull stocks",
       robinhood_crypto:"Robinhood crypto",paper:"Paper trading"};
+    const explanations=new Map(
+      (Array.isArray(diagnostics)?diagnostics:[]).filter(d=>
+        d&&typeof d.broker==="string").map(d=>[d.broker,d]));
     for(const row of rows){
       if(!row || typeof row!=="object")continue;
       const line=document.createElement("div");
@@ -41,6 +44,17 @@ document.addEventListener("DOMContentLoaded",()=>{
         (values?" · "+values:" · Values unavailable")+
         " · Market: "+quote+" (read-only)"+userAction;
       line.append(body);
+      const issue=explanations.get(row.broker);
+      if(issue && issue.execution_path==="V2_READ_ONLY_NO_ORDER_AUTHORITY"){
+        const note=document.createElement("small");
+        note.className="muted";
+        const code=String(issue.first_issue||"NOT_VERIFIED");
+        const action=String(issue.user_action||"Check Diagnostics");
+        note.textContent="V2 why no trade: "+code+
+          " · Next: "+action+
+          " · V2 signal, AI, risk and order reconciliation are not verified";
+        line.append(note);
+      }
       health.append(line);
     }
   }
@@ -60,7 +74,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Event store: "+store+
         " · Persisted intents: "+Number(data.intents||0)+
         " · Unresolved: "+Number(data.unresolved||0);
-      showAdapters(data.broker_adapters,data.market_sources);
+      showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
     }catch(_error){
       target.textContent="V2 status unavailable. V1 broker operation is unchanged.";
       if(health)health.textContent="Read-only broker adapter evidence unavailable.";

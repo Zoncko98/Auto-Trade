@@ -1,3 +1,9 @@
+## v1.3.6 — Explain unknown and blocked V2 trading gates without inventing signals
+
+The existing authenticated Trading operations panel now displays one read-only diagnostic explanation per Schwab, Webull, Robinhood Crypto and Paper account, including the first known blocker, next action and unverified signal/AI/risk/order gates. V2 version is 2.0.0-alpha.4; paper/shadow libraries are not armed and the original V1 broker execution paths remain unchanged.
+
+No new live broker authority is enabled. This is readiness transparency, not verified live broker trading or completed four-dashboard unification. See CHANGELOG.md for regression coverage and limitations.
+
 ## v1.3.5 — Unified-image regression portability fix
 
 Portability update for a source/UI regression that located web/index.html incorrectly inside the built Docker image. No application runtime logic or broker permissions change from v1.3.4. The release retains the verified Schwab OAuth REAUTH_REQUIRED state and separated entry/exit caps.

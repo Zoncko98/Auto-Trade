@@ -1,3 +1,11 @@
+## v1.3.6 — Read-only V2 why-no-trade diagnostics (2026-11-21)
+
+- Added a typed, bounded, broker-agnostic diagnostic reducer for Schwab, Webull, Robinhood Crypto and Paper accounts. Each account reports verified vs unknown authentication, worker, account observation, operator permission, read-only market data, strategy signal, AI, risk and order reconciliation gates.
+- Shows the first known blocker and specific user action in the EXISTING collapsed Trading operations account-readiness panel; no new dashboard, account permissions, broker SDK calls or order endpoints were introduced.
+- Explicitly refuses to call a broker ONLINE or an external public Coinbase quote sufficient evidence for live V2 market execution; never labels a missing V2 scan NO_SIGNAL, and never confuses V1 configured permission with actual working broker readiness.
+- Added seven reducer regressions, API integration coverage through existing suites, and browser UI contract checks. V2 live order authority and feature flag remain OFF; legacy V1 broker workers, risk limits, journals, and credentials remain unchanged.
+- A connected account still requires genuine V2 strategy/AI/risk/order reconciliation, real market data, and account-specific broker write-adapter validation before live cutover. Schwab remains REAUTH_REQUIRED until authorized OAuth reconnection.
+
 ## v1.3.5 — Portable post-deployment UI regression path (2026-11-21)
 
 - Corrected a Schwab Risk & Start test fixture to locate existing web assets both from a repository checkout and the flattened unified Docker image. The production 1.3.4 post-deployment test had failed only because its assertion looked in /web instead of /app/web.

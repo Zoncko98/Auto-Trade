@@ -42,3 +42,17 @@ test("Authenticated V2 readiness reports broker observations, not live broker pe
   const route=server.indexOf('if UNIFIED_APP and path == "/api/v2/status"');
   assert.ok(auth>=0 && auth<route);
 });
+
+
+test("Unified Operations offers read-only V2 why-no-trade diagnostics",()=>{
+  const status=read("app/trader_v2/status.py");
+  const ui=read("web/v2-status.js");
+  const reducer=read("app/trader_v2/readiness.py");
+  assert.match(status,/readiness_diagnostics/);
+  assert.match(ui,/V2 why no trade/);
+  assert.match(ui,/V2_READ_ONLY_NO_ORDER_AUTHORITY/);
+  assert.match(ui,/document.createElement\("small"\)/);
+  assert.doesNotMatch(ui,/innerHTML|submit_order|place_order/);
+  assert.match(reducer,/order_reconciliation/);
+  assert.match(reducer,/NOT_VERIFIED/);
+});
