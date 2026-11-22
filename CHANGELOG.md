@@ -1,3 +1,11 @@
+## v1.3.60 ? Reconcile both sides of Robinhood V2 estimated quotes (2026-11-22)
+
+- Production GET-only Robinhood V2 estimated-price response initially reported SIGNED_ESTIMATE_IDENTITY_UNVERIFIED on both BTC-USD and ETH-USD; the single-result diagnostic was insufficient to tell absent data from the two bid/ask side rows that can be returned by a side=both request.
+- Updated signed quantity-specific estimated-price diagnostics to require exactly one matching side when a single row is present, or exactly one bid and one ask when two rows are present. Both rows must have the selected symbol, exact query quantity, fresh signed timestamps, finite nonnegative quoted fee, valid bid/ask, and acceptable spread. The aggregated bid and ask must also remain noncrossed, within original spread limits and within 1% between the two signed side observations. An ambiguous or crossed response remains blocked and is never replaced by synthetic prices.
+- Added precise, redacted states for no matching symbol, duplicate/ambiguous side, crossed prices within or across sides, excessive spread and timestamp/fee mismatch, so the existing Robinhood dashboard can show real broker evidence without leaking prices, IDs or credentials.
+- No changes to V2 live order permits or existing top-of-book and independent public trade verification. Estimates do NOT establish broker order executability, acceptance or fills; the original user-approved account-scoped handoff remains blocked when production signed quotes fail current V2 admission gates.
+- Added two-sided signed-response and cross-side regression tests; continue to use original TrueNAS single app with backed-up state, V1 broker writers and risk limits.
+
 ## v1.3.59 ? Signed V2 Robinhood quote diagnosis, bounded cutover attempts (2026-11-22)
 
 - Added authenticated read-only GET /api/v2/crypto/trading/estimated_price/ for allowlisted Robinhood BTC-USD and ETH-USD diagnostic quantities using the existing signed API credentials. This endpoint has explicit exchange timestamps, best bid/ask, and fee fields; recorded diagnostics are allowlisted reason codes ONLY, never account details, raw quotes, fees, credentials or order IDs.

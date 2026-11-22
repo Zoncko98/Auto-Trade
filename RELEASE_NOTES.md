@@ -1,3 +1,7 @@
+## v1.3.60 ? Read both sides of Robinhood signed estimates
+
+This release improves the prior GET-only diagnostic for real Robinhood V2 quantity-specific estimated-price responses: side=both can return separate bid and ask rows. The verifier now checks each side and cross-side consistency, signed timestamps, quantities, fees and price ordering, and reports distinct failure reasons. It never interprets that result as an order permit or relaxes the existing crossed-book block. The existing TrueNAS application and original broker writer safeguards remain unchanged.
+
 ## v1.3.59 ? Diagnose real Robinhood signed V2 estimated prices
 
 The user-approved V2 cutover request is installed on the original TrueNAS app; the actual attempt failed closed, with V1 retained, when the authentic Robinhood top-of-book response had crossed BTC and ETH prices. 1.3.59 adds Robinhood's separately authenticated, GET-only V2 quantity-specific estimated-price quote to compare that response with signed fee and timestamp evidence. It never passes an order gate on its own. The existing Trading Operations screen shows the sanitized results per pair. The V2 cutover controller is now bounded to three attempts per runtime, and all existing account risk, writer locks, broker order minimums, and provider constraints remain active.

@@ -35,6 +35,22 @@ class SignedV2EstimateTests(TestCase):
   bad=estimate();del bad["results"][0]["est_fee"]
   self.assertEqual(inspect(bad,"BTC-USD",D("0.0001"),now=NOW),
                    "SIGNED_ESTIMATE_FIELDS_OR_TIMESTAMP_UNVERIFIED")
+ def test_provider_both_side_rows_validate_together_not_first_only(self):
+  request=estimate()
+  first=dict(request["results"][0],side="bid")
+  second=dict(request["results"][0],side="ask")
+  two={"results":[first,second]}
+  self.assertEqual(inspect(two,"BTC-USD",D("0.0001"),now=NOW),
+                   "SIGNED_ESTIMATE_FRESH_NONCROSSED_GET_ONLY")
+  second["ask"]="99"
+  second["bid"]="98"
+  self.assertEqual(inspect(two,"BTC-USD",D("0.0001"),now=NOW),
+                   "SIGNED_ESTIMATE_CROSSED_ACROSS_SIDES")
+  second["ask"]="100.1";second["bid"]="100"
+  second["timestamp"]=(NOW-timedelta(minutes=10)).isoformat()
+  self.assertEqual(inspect(two,"BTC-USD",D("0.0001"),now=NOW),
+                   "SIGNED_ESTIMATE_FIELDS_OR_TIMESTAMP_UNVERIFIED")
+
  def test_native_json_numbers_are_observational_only(self):
   self.assertEqual(inspect(estimate(bid=100.0,ask=100.1,
       fee_ratio=0.005,est_fee=0.001,quantity=0.0001),
@@ -43,7 +59,7 @@ class SignedV2EstimateTests(TestCase):
  def test_duplicate_identity_and_unsupported_symbol_rejected(self):
   multi=estimate();multi["results"]=multi["results"]*2
   self.assertEqual(inspect(multi,"BTC-USD",D("0.0001"),now=NOW),
-                   "SIGNED_ESTIMATE_IDENTITY_UNVERIFIED")
+                   "SIGNED_ESTIMATE_SIDE_IDENTITY_UNVERIFIED")
   self.assertEqual(observed(object(),"DOGE-USD"),
                    "SIGNED_ESTIMATE_SYMBOL_NOT_ALLOWLISTED")
  def test_signed_gateway_issues_only_documented_get_route(self):
