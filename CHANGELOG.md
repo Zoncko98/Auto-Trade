@@ -1,3 +1,10 @@
+## v1.3.49 - Safely inherit legacy Robinhood signed order timestamps (2026-11-22)
+
+- Production V2 read-only migration observation identified a V1 journal timestamp compatibility problem: some older Robinhood order records omit a local created_at even though their broker-confirmed fill or durable terminal resolution timestamps exist.
+- The inherited order-count reader now uses original broker-confirmed filled_at for such FILLED and externally reconciled orders, or the preserved resolved_at for canceled/failed/rejected/expired orders. A filled order counted on its actual fill day can conservatively overcount yesterday's order, but never reset the current day's limits. It never substitutes an arbitrary updated_at or the current clock and blocks missing signed timestamps.
+- Redacted UI and supervisor statuses now distinguish a missing signed FILL timestamp from a missing terminal resolution timestamp. No V1 order history is modified, synthesized, or imported as a new broker fill.
+- Added regression cases for historical imported fills, terminal rejections, future/absent times and cross-date boundaries. Robinhood remains subject to its original user arm, approved risk, settlement, executable quotes and exact V1/V2 writer handoff.
+
 ## v1.3.48 - Stable V2 protective order identity and broker-verified V1 lots (2026-11-22)
 
 - Fixed a critical live-order idempotency hazard: a protective SELL's original V2 order-intent identity is now derived from an exact broker-reconciled bot-owned lot fingerprint (account scope, symbol, opened_at, quantity and weighted cost) instead of each fresh quote timestamp. Risk continues to enforce a current signed quote; a subsequent quote of the SAME lot returns the original persisted intent rather than creating another broker order. Changed signed lots require independent reconciliation and a new fingerprint.

@@ -27,6 +27,41 @@ class PureV1Counts(TestCase):
         self.assertEqual((result.entries_today,result.exits_today),(1,1))
         self.assertEqual(result.reentry_blocked_symbols,frozenset({"BTC-USD"}))
         self.assertFalse(result.all_buys_blocked)
+    def test_legacy_robinhood_filled_order_without_created_uses_signed_fill_day(self):
+        filled=(NOW-timedelta(minutes=12)).isoformat()
+        row={"account":"rh1","client_order_id":"old-import-1",
+             "side":"buy","status":"filled","symbol":"BTC-USD",
+             "filled_at":filled}
+        counted=inherit_records("robinhood_crypto","rh1",[row],now=NOW,
+             policy={"reentry_cooldown_minutes":30})
+        self.assertEqual(counted.entries_today,1)
+        # Yesterday's filled order cannot have been placed today.
+        older=inherit_records("robinhood_crypto","rh1",[row],
+             now=NOW+timedelta(days=1),
+             policy={"reentry_cooldown_minutes":30})
+        self.assertEqual(older.entries_today,0)
+
+    def test_legacy_robinhood_rejection_without_created_uses_resolution_day(self):
+        row={"account":"rh1","client_order_id":"old-reject-1",
+             "side":"buy","status":"rejected","symbol":"BTC-USD",
+             "resolved_at":(NOW-timedelta(minutes=2)).isoformat()}
+        counted=inherit_records("robinhood_crypto","rh1",[row],now=NOW,
+             policy={"reentry_cooldown_minutes":30})
+        self.assertEqual(counted.entries_today,1)
+        row.pop("resolved_at")
+        with self.assertRaises(V1InheritanceUnavailable):
+            inherit_records("robinhood_crypto","rh1",[row],now=NOW,
+               policy={"reentry_cooldown_minutes":30})
+
+    def test_legacy_robinhood_does_not_fabricate_timestamp_from_last_update(self):
+        row={"account":"rh1","client_order_id":"old-pending-1",
+             "side":"buy","status":"filled","symbol":"BTC-USD",
+             "updated_at":NOW.isoformat()}
+        with self.assertRaises(V1InheritanceUnavailable) as exc:
+            inherit_records("robinhood_crypto","rh1",[row],now=NOW,
+                policy={"reentry_cooldown_minutes":30})
+        self.assertEqual(exc.exception.code,"V1_ROBINHOOD_SIGNED_FILL_TIME_MISSING")
+
     def test_robinhood_no_default_cooldown_or_unknown_status(self):
         row={"account":"rh1","client_order_id":"1","side":"buy","status":"filled",
              "symbol":"BTC-USD","created_at":NOW.isoformat()}

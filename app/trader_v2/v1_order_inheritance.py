@@ -112,7 +112,26 @@ def inherit_records(broker,account,records,*,now,policy=None):
                  frozenset({"FILLED","CANCELED","REJECTED","EXPIRED","REPLACED"}))
         if status not in allowed:
             raise V1InheritanceUnavailable("V1_ORDER_NOT_TERMINAL")
-        entered=_stamp(row.get("created_at"),now)
+        created=row.get("created_at")
+        if (broker=="robinhood_crypto" and
+            (not isinstance(created,str) or not created.strip())):
+            # Some legacy V1 imported broker-confirmed orders predate the
+            # durable local intent timestamp. For FILLED orders, an actual
+            # signed fill date provides a conservative same-day count:
+            # a buy created yesterday but filled today is counted today,
+            # never omitted. For rejected/canceled intent, the saved
+            # resolution time similarly overcounts rather than resets caps.
+            # No unsigned general "updated_at" or current-time substitute.
+            if status in ("filled","externally_reconciled"):
+                created=row.get("filled_at")
+            elif status in ("canceled","cancelled","failed","rejected","expired"):
+                created=row.get("resolved_at")
+            if not isinstance(created,str) or not created.strip():
+                raise V1InheritanceUnavailable(
+                    "V1_ROBINHOOD_SIGNED_FILL_TIME_MISSING"
+                    if status in ("filled","externally_reconciled") else
+                    "V1_ROBINHOOD_TERMINAL_ORDER_TIME_MISSING")
+        entered=_stamp(created,now)
         side=row.get("action") if broker=="schwab" else row.get("side")
         if broker=="robinhood_crypto":
             if side=="external_reduction":

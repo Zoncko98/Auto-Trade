@@ -1,3 +1,9 @@
+## v1.3.49 - Robinhood legacy V1 order history compatibility
+
+V2 now counts older Robinhood broker-confirmed fills and terminal order resolutions conservatively when the original V1 journal lacks a local created_at timestamp. This preserves daily risk and symbol reentry cooldown limits without manufacturing timestamps or modifying any original order. Remaining unverified records still fail closed and appear as redacted diagnostic codes in the authenticated V2 Operations view.
+
+The existing V1 account writer remains authoritative. No live V2 order submission or writer cutover was performed. The in-place TrueNAS release retains its full rollback snapshot and existing account settings.
+
 ## v1.3.48 - Safe original-order identity, V1 managed inventory and local AI latency
 
 The V2 executor prevents the same broker-confirmed managed holding from generating a second live SELL order merely because a new market quote arrived. A quote remains mandatory for validation; order identity instead binds to the original signed position lot so duplicate scans reconcile one existing order across worker restarts. V2 now has read-only source-backed managed-lot and per-account exit-policy loaders for Robinhood and Webull. Schwab historical cost basis remains unverified, so automatic V2 adoption is blocked.
