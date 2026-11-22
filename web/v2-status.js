@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · account "+(item.account_verified?"verified":"not verified");
       section.textContent=titles[item.broker]+" · "+state+
         " · V2 live cutover: NOT READY · First blocker: "+
-        String(item.first_blocker||"NOT_VERIFIED")+
+        String((launchChecks.get(item.broker)||{}).first_blocker||item.first_blocker||"NOT_VERIFIED")+
         " · Orders: "+String(journal.state||"UNVERIFIED")+
         (journal.unresolved==null?"":" · Local unresolved: "+Number(journal.unresolved))+
         (item.broker==="webull"||item.broker==="robinhood_crypto"
@@ -121,6 +121,11 @@ document.addEventListener("DOMContentLoaded",()=>{
             " · Signed historical fills checked: "+Number(robinhoodProbe.historical_fills_checked):"")+
           ((robinhoodProbe||{}).report_fresh===false?
             " · Read-only observation STALE":""):"")+
+        (item.broker==="schwab"?
+          " · Signed Schwab V2 read-only preflight: "+
+            (launchChecks.get("schwab")?.signed_observation_fresh===true?
+              "FRESH":"STALE / NOT VERIFIED"):
+          "")+
         " · Market: "+String(item.source_state||"UNVERIFIED")+
         " · Session: "+String((item.market_session||{}).state||"NOT_VERIFIED")+
         " (broker hours not certified)" +

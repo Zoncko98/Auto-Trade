@@ -1,3 +1,10 @@
+## v1.3.43 ? Signed Schwab account migration preflight without dual OAuth writers (2026-11-21)
+
+- Added a read-only signed Schwab V2 preflight invoked periodically using the already-authenticated V1 Schwab worker client; it does not create a second token refresher, broker POST, or live order writer. The probe checks independently signed account/holdings/cash, complete bounded order history, local journal matching, explicit settled-cash evidence, current market hours, and signed fresh executable quotes.
+- Published owner-only redacted Schwab migration evidence and connected source-specific launch acceptance checks to the existing Trading Operations view. The UI now prioritizes the V2 first blocker rather than an unrelated legacy readiness reason.
+- Historical order discrepancies, pending orders, absent settled funding, closed market sessions, stale quotes and missing permissions remain fail-closed; no migration automatically stops V1 or grants V2 order authority.
+- Added nine Python Schwab preflight regression tests plus JavaScript UI contract checks, included in GitHub CI, with no new app or broker credentials.
+
 ## v1.3.42 - Fresh signed Webull settlement contract after upgrade (2026-11-21)
 
 - Versioned the read-only signed Webull migration preflight settlement contract so upgraded workers cannot treat a cached pre-upgrade report as current validation evidence.

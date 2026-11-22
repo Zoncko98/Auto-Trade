@@ -1,3 +1,9 @@
+## v1.3.43 ? Signed Schwab V2 migration evidence
+
+The active Schwab V1 worker now periodically observes authenticated account and order data using its existing signed client, then emits a private, redacted Schwab V2 migration preflight. It records current market-session and funding evidence only when independently established. Trading Operations lists Schwab beside Robinhood and Webull for the same fifteen launch acceptance gates.
+
+No V2 live account handoff has occurred. V1 remains the only broker writer and this release does not modify account risk settings, tokens, broker authorization, or journals. A closed stock market and any unverified settled cash continue to block Schwab V2 cutover. The existing TrueNAS app is updated in place with rollback preserved.
+
 ## v1.3.42 - Webull signed preflight freshness across deployment
 
 After upgrading, the supervised Webull migration preflight now rejects a report produced by earlier funding-validation rules, even if the report is younger than 20 minutes. The read-only signed GET check can then refresh evidence immediately. No old report can authorize an account and the V2 live broker writer remains unarmed. This is a same-app TrueNAS update, retaining all existing trading state and broker permissions.

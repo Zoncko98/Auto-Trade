@@ -41,7 +41,8 @@ def launch_status(state_dir,broker,*,now=None):
     root=Path(state_dir)
     probe=private_json(root/"v2"/"broker_migration"/(broker+".json"),maximum=16000)
     expected_mode=({"robinhood_crypto":"AUTHENTICATED_SIGNED_READ_ONLY",
-                    "webull":"AUTHENTICATED_WEBULL_READ_ONLY"}.get(broker))
+                    "webull":"AUTHENTICATED_WEBULL_READ_ONLY",
+                    "schwab":"AUTHENTICATED_SCHWAB_READ_ONLY"}.get(broker))
     fresh=bool(expected_mode and _observed(probe,now) and
                probe.get("broker")==broker and probe.get("mode")==expected_mode
                and (broker!="webull" or probe.get("settlement_contract_version")==1))
@@ -68,10 +69,17 @@ def launch_status(state_dir,broker,*,now=None):
         unresolved=signed.get("local_unresolved_count")
         pair_ok=False
     else:
-        # Schwab has no equivalent signed account migration probe yet.
-        account_ok=holdings=history=quote=pair_ok=False
-        open_orders=unresolved=None
-    signed_settlement=(broker=="webull" and _true(signed.get("settled_cash_verified")))
+        account_ok=_true(signed.get("account_verified"))
+        holdings=_true(signed.get("holdings_verified"))
+        history=(_true(signed.get("broker_history_verified")) and
+                 _true(signed.get("local_journal_matched")))
+        quote=(type(signed.get("quote_timestamp_verified_symbols")) is int and
+               signed["quote_timestamp_verified_symbols"]>0)
+        pair_ok=_true(signed.get("broker_product_verified"))
+        open_orders=signed.get("broker_open_order_count")
+        unresolved=signed.get("local_unresolved_count")
+    signed_settlement=((broker=="webull" and _true(signed.get("settled_cash_verified")))
+                        or (broker=="schwab" and _true(signed.get("signed_settled_cash_verified"))))
     orders_ok=(type(open_orders) is int and open_orders==0 and
                type(unresolved) is int and unresolved==0)
     gates=[
@@ -85,7 +93,9 @@ def launch_status(state_dir,broker,*,now=None):
         _check("V1_SAVED_NUMERIC_RISK",risk.get("state")=="SAVED_V1_NUMERIC_LIMITS_VALIDATED",
                "V1_RISK_SETTINGS_INCOMPATIBLE_OR_MISSING"),
         _check("SIGNED_SETTLED_FUNDING",signed_settlement,"SIGNED_SETTLEMENT_NOT_CERTIFIED"),
-        _check("SIGNED_MARKET_SESSION",False,"BROKER_SESSION_ENTITLEMENT_NOT_CERTIFIED"),
+        _check("SIGNED_MARKET_SESSION",broker=="schwab" and
+               _true(signed.get("broker_session_verified")),
+               "BROKER_SESSION_ENTITLEMENT_NOT_CERTIFIED"),
         _check("V1_AI_AND_EXIT_PARITY",False,"V2_AI_EXIT_AND_COOLDOWN_POLICY_INCOMPLETE"),
         _check("V1_WORKER_STOPPED",False,"ACCOUNT_SCOPED_V1_WORKER_STOP_NOT_VERIFIED"),
         _check("V2_SUPERVISOR_AND_RECONCILIATION",False,"LIVE_V2_WORKER_NOT_REGISTERED"),

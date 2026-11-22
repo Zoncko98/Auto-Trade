@@ -791,6 +791,7 @@ def main():
             return
         ledger=OrderLedger.open(JOURNAL)
         last_paused_refresh=0.0
+        last_v2_schwab_probe=0.0
         broker_snapshot_verified=True
         while True:
             cycle_blocked=False
@@ -836,6 +837,22 @@ def main():
                 print("Recoverable Schwab pre-order block; monitoring will retry "
                       "on the next normal scan without submitting an order.",
                       file=sys.stderr,flush=True)
+            # Publish Schwab's signed migration observations with the
+            # already-authenticated V1 client. This never stops V1, never
+            # mutates its journal, and cannot grant a V2 order writer.
+            if args.run and (last_v2_schwab_probe==0.0 or
+                 time.monotonic()-last_v2_schwab_probe>=900):
+                last_v2_schwab_probe=time.monotonic()
+                try:
+                    from trader_v2.schwab_migration_probe import run_once
+                    diagnostic=run_once(STATE_DIR.parent,client,account_hash)
+                    print("V2 Schwab signed preflight:",
+                          diagnostic["first_blocker"],flush=True)
+                except Exception:
+                    # A diagnostic outage must never interrupt or alter a V1
+                    # order, token, risk limit, or autonomous worker.
+                    print("V2 Schwab signed preflight unavailable; no V2 cutover.",
+                          file=sys.stderr,flush=True)
             if not args.run:
                 return
             # Refresh heartbeat every 10 seconds, scan at most every 5 minutes.
