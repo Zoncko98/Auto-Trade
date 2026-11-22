@@ -26,7 +26,8 @@ class LiveScanUnavailable(ValueError):
         super().__init__(code)
 
 def accepted_bars(candles,symbol,asset_class,now):
-    if not isinstance(candles,list) or len(candles)<9 or len(candles)>240:
+    required=9 if asset_class is AssetClass.CRYPTO else 6
+    if not isinstance(candles,list) or len(candles)<required or len(candles)>240:
         raise LiveScanUnavailable("V2_COMPLETED_MARKET_BARS_UNAVAILABLE")
     if asset_class not in (AssetClass.CRYPTO,AssetClass.STOCK):
         raise LiveScanUnavailable("V2_ASSET_CLASS_UNSUPPORTED")
@@ -116,7 +117,7 @@ class AutonomousLiveScan:
     def _status(self,state,reason,*,checked=0,signals=0,order_key=None):
         return {"broker":self.broker.provider_id,
             "checked_at":utc(self.clock()).isoformat(),
-            "mode":"EXCLUSIVE_V2_PRODUCTION_ACCOUNT",
+            "mode":"V2_LIVE_EXECUTION_GATED",
             "state":state,"reason":reason,
             "symbols_scanned":checked,"candidate_count":signals,
             "last_order_key":order_key,

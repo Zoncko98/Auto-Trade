@@ -78,6 +78,12 @@ class AutonomousLiveScanTests(TestCase):
    "account_digest":digest,"owner":"V2","generation":"generation-123"}))
   rec.chmod(0o600)
   return rec
+ def test_stock_six_real_completed_bars_are_eligible(self):
+  at=self.now-timedelta(seconds=120)
+  vals=[D('10')]*5+[D('11')]
+  rows=[Candle('F',at-timedelta(minutes=5*(5-i)),v,closed=True)
+        for i,v in enumerate(vals)]
+  self.assertEqual(len(accepted_bars(rows,'F',AssetClass.STOCK,self.now)),6)
  def test_v1_owned_never_creates_new_live_journal_or_posts(self):
   out=self.engine().run_once()
   self.assertEqual(out["state"],"V2_OWNER_PROOF_UNAVAILABLE")
