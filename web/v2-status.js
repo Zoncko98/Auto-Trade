@@ -134,6 +134,10 @@ document.addEventListener("DOMContentLoaded",()=>{
             "VERIFIED (maintenance may apply)":"NOT VERIFIED")+
           " · Signed quote timestamps: "+Number((robinhoodProbe||{}).quote_timestamp_verified_symbols||0)+
           " · Independent venue-timed trade crosschecks: "+Number((robinhoodProbe||{}).independent_trade_crosscheck_symbols||0)+
+          " ? Broker V2 quantity-estimate GET (diagnostic only): "+
+            ["BTC-USD","ETH-USD"].filter(symbol=>
+              (robinhoodProbe?.signed_v2_estimate_diagnostics||{})[symbol]).map(symbol=>
+              symbol+" "+String(robinhoodProbe.signed_v2_estimate_diagnostics[symbol])).join(", ")+
           (Object.keys((robinhoodProbe||{}).quote_validation_failures||{}).length
              ? " · Quote blockers: "+["BTC-USD","ETH-USD"].filter(
                    symbol=>(robinhoodProbe.quote_validation_failures||{})[symbol]).map(

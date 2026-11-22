@@ -180,6 +180,7 @@ def main():
     v2_supervisor_last_spawn=0.0
     v2_executor_last_spawn=0.0
     robinhood_cutover_last_attempt=0.0
+    robinhood_cutover_attempts=0
     webull_last_spawn=0.0
     webull_feed_last_spawn=0.0
     while not _STOP:
@@ -244,9 +245,11 @@ def main():
                     "AUTO_TRADER_V2_ROBINHOOD_CUTOVER")=="approved")
                 current_monotonic=time.monotonic()
                 if (rh_ready and cutover_requested and rh_v1.v1_scopes>0
+                    and robinhood_cutover_attempts<3
                     and (robinhood_cutover_last_attempt==0 or
                          current_monotonic-robinhood_cutover_last_attempt>=90)):
                     robinhood_cutover_last_attempt=current_monotonic
+                    robinhood_cutover_attempts+=1
                     from trader_v2.cutover_robinhood import attempt
                     executor=CHILDREN.get("v2-live-executor")
                     v2_ready=(executor is not None and executor.poll() is None)

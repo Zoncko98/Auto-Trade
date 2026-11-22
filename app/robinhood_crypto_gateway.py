@@ -146,6 +146,29 @@ class RobinhoodCryptoAdapter:
             raise ValueError("Invalid symbol")
         return self._get("/api/v2/crypto/marketdata/best_bid_ask/", {"symbol": symbol})
 
+    def estimated_price(self, symbol, side, quantity):
+        """Authenticated GET-only V2 quantity-specific execution estimate.
+
+        This is independently signed read-only diagnostics. It never accepts
+        an order and is not a substitute for a healthy broker order book.
+        """
+        from decimal import Decimal,InvalidOperation
+        if not isinstance(symbol,str) or not PAIR.fullmatch(symbol):
+            raise ValueError("Invalid estimated price symbol")
+        if side not in ("bid","ask","both"):
+            raise ValueError("Invalid estimated price side")
+        if (not isinstance(quantity,(str,int,Decimal)) or
+                isinstance(quantity,bool)):
+            raise ValueError("Invalid estimated quantity")
+        try:q=Decimal(str(quantity))
+        except (InvalidOperation,ValueError,TypeError):
+            raise ValueError("Invalid estimated quantity") from None
+        if (not q.is_finite() or q<=0 or q.adjusted()>12 or
+                q.as_tuple().exponent< -12):
+            raise ValueError("Invalid estimated quantity")
+        return self._get("/api/v2/crypto/trading/estimated_price/",
+                         {"symbol":symbol,"side":side,"quantity":str(q)})
+
     def orders(self, account_ref):
         self.balances(account_ref)
         # The historic journal contains over 1,000 orders. The 50-page

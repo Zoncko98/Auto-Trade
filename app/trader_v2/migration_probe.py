@@ -285,6 +285,13 @@ def _probe(state,client,policy,*,now=None,public_feed=None):
     report["independent_trade_crosscheck_symbols"]=independent_count
     # Structured allowlisted failure codes, never credentials, prices or IDs.
     report["quote_validation_failures"]=quote_failures
+    # Independent broker-signed V2 quantity-specific estimate diagnostics.
+    # This CAN identify crossed top-of-book versus an estimate, but cannot
+    # substitute its quote or fee for execution/risk or unlock launch gates.
+    from .robinhood_estimate_diagnostics import observed as estimate_observed
+    report["signed_v2_estimate_diagnostics"]={
+       symbol:estimate_observed(client,symbol)
+       for symbol in ("BTC-USD","ETH-USD") if symbol in verified}
     if quote_count==0 and independent_count==0:
         report["first_blocker"]="BROKER_QUOTE_TIMESTAMP_OR_LAST_TRADE_UNVERIFIED"
         return report

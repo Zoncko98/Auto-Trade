@@ -15,6 +15,11 @@ test("approved Robinhood cutover is account-scoped and parent-only",()=>{
  assert.match(handoff,/transfer_writer\(/);
  assert.match(handoff,/CUTOVER_APPROVED_ACCOUNT_NOT_SELECTED/);
  assert.match(handoff,/LEGACY_MANAGED_LOTS_REQUIRE_ADOPTION/);
+ assert.match(runtime,/robinhood_cutover_attempts<3/);
+ const diagnostic=read("app/trader_v2/robinhood_estimate_diagnostics.py");
+ assert.match(diagnostic,/SIGNED_ESTIMATE_CROSSED/);
+ const frontend=read("web/v2-status.js");
+ assert.match(frontend,/Broker V2 quantity-estimate GET/);
 });
 test("existing broker UI shows verified owner count and actual engine outcome",()=>{
  const ui=read("web/v2-status.js");

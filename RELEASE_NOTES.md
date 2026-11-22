@@ -1,3 +1,7 @@
+## v1.3.59 ? Diagnose real Robinhood signed V2 estimated prices
+
+The user-approved V2 cutover request is installed on the original TrueNAS app; the actual attempt failed closed, with V1 retained, when the authentic Robinhood top-of-book response had crossed BTC and ETH prices. 1.3.59 adds Robinhood's separately authenticated, GET-only V2 quantity-specific estimated-price quote to compare that response with signed fee and timestamp evidence. It never passes an order gate on its own. The existing Trading Operations screen shows the sanitized results per pair. The V2 cutover controller is now bounded to three attempts per runtime, and all existing account risk, writer locks, broker order minimums, and provider constraints remain active.
+
 ## v1.3.58 ? Controlled Robinhood V2 account cutover and authentic runtime reporting
 
 Adds a dedicated, user-approved production cutover action inside the existing TrueNAS Auto Trader application. The request is bound to the selected Robinhood account digest. After independent, fresh brokerage read-only preflights and original policy parity, the parent drains the exclusive V1 order lock, stops the Robinhood V1 process, repeats broker/order checks and transfers the account owner generation atomically to the existing V2 execution coordinator. Any failed pretransfer requirement preserves V1 ownership and normal V1 recovery. No safeguards are bypassed to induce a test fill.

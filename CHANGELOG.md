@@ -1,3 +1,12 @@
+## v1.3.59 ? Signed V2 Robinhood quote diagnosis, bounded cutover attempts (2026-11-22)
+
+- Added authenticated read-only GET /api/v2/crypto/trading/estimated_price/ for allowlisted Robinhood BTC-USD and ETH-USD diagnostic quantities using the existing signed API credentials. This endpoint has explicit exchange timestamps, best bid/ask, and fee fields; recorded diagnostics are allowlisted reason codes ONLY, never account details, raw quotes, fees, credentials or order IDs.
+- Probe compares each signed quantity-specific price estimate's verified timestamp, side, identity, bid/ask ordering, spread and fee presence without relaxing the existing best-bid-ask and independent Coinbase live order gates. An estimate does not authorize a V2 order, establish a fill, or substitute a Coinbase quote for the broker book.
+- Robinhood's production signed best-bid-ask currently returns crossed bid/ask for BTC and ETH while the Coinbase real minute-candle source is fresh. Cutover attempt correctly failed before stopping V1 with NO_REAL_SIGNED_QUOTE_AND_CLOSED_BARS. This release adds independent authenticated GET diagnostics to identify whether broker estimated quotes share that defect.
+- Limits operator-approved Robinhood cutover attempts to a maximum of 3 per runtime; failed checks preserve original V1 writer and risk controls. Each attempt remains account-digest scoped and has a 90-second backoff.
+- Adds pure read-only signed estimate tests, signer/URL/quantity-boundary tests, stale/crossed/fee/missing/duplicate tests and independent probe nonauthorization checks. Dashboard shows sanitized per-pair broker GET-only diagnosis in the existing account section, not a new dashboard.
+- No live V2 ownership transfer or broker-accepted order is claimed by a diagnostic or by this release alone.
+
 ## v1.3.58 ? User-approved atomic Robinhood V1-to-V2 live writer cutover (2026-11-22)
 
 - Installed an account-scoped cutover controller in the ORIGINAL TrueNAS unified application, with a private compose environment approval bound to the SHA-256 digest of the exact selected Robinhood Crypto account (no raw account identifiers in config or status). This does not authorize a future replacement account.
