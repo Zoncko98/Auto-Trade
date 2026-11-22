@@ -14,7 +14,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.32","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.33","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
@@ -87,6 +87,23 @@ def summary(state_dir)->dict:
     status["cutover_preflight"]=preflight(
         state_dir,status["broker_adapters"],status["market_sources"])
     status["v2_live_launch"]=all_launch_status(state_dir)
+    recovery=private_json(Path(state_dir)/"v2"/"live_reconciliation"/
+                          "robinhood_crypto.json",maximum=8000)
+    if isinstance(recovery,dict):
+        try:
+            stamp=datetime.fromisoformat(str(recovery["checked_at"]).replace("Z","+00:00"))
+            delta=(datetime.now(timezone.utc)-stamp.astimezone(timezone.utc)).total_seconds()
+            if not 0<=delta<=420:raise ValueError("stale")
+            status["v2_live_reconciliation"]={key:recovery.get(key) for key in (
+                "state","checked_at","pending_before","review_only",
+                "signed_receipts_checked","reconciled_terminal","still_unresolved",
+                "first_blocker","orders_submitted","live_v2_order_authority")}
+        except (KeyError,ValueError,AttributeError,TypeError):
+            status["v2_live_reconciliation"]={"state":"STALE_OR_UNAVAILABLE",
+                                            "live_v2_order_authority":False}
+    else:
+        status["v2_live_reconciliation"]={"state":"NOT_STARTED",
+                                        "live_v2_order_authority":False}
     if not enabled():return status
     path=Path(state_dir)/"v2"/"events.sqlite3"
     if not path.is_file():return status

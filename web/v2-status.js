@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
   if(!target)return;
   void refreshWebullProbe();
-  function showCutover(report,robinhoodProbe,launch){
+  function showCutover(report,robinhoodProbe,launch,recovery){
     if(!cutover)return;
     cutover.replaceChildren();
     const intro=document.createElement("strong");
@@ -92,6 +92,11 @@ document.addEventListener("DOMContentLoaded",()=>{
           " · Broker account: "+((robinhoodProbe||{}).account_verified===true?"signed":"unverified")+
           " · Holdings: "+((robinhoodProbe||{}).holdings_verified===true?"signed":"unverified")+
           " · Complete broker order history: "+((robinhoodProbe||{}).broker_history_verified===true?"verified":"unverified")+
+          " · V2 signed order recovery: "+String((recovery||{}).state||"NOT_STARTED")+
+          " · V2 original receipts checked: "+Number((recovery||{}).signed_receipts_checked||0)+
+          ((recovery||{}).still_unresolved==null?"": " · V2 pending: "+
+            Number(recovery.still_unresolved))+
+          " (GET-only, no new orders)" +
           " · Signed quote timestamps: "+Number((robinhoodProbe||{}).quote_timestamp_verified_symbols||0)+
           " · Independent venue-timed trade crosschecks: "+Number((robinhoodProbe||{}).independent_trade_crosscheck_symbols||0)+
           (Object.keys((robinhoodProbe||{}).quote_validation_failures||{}).length
@@ -217,7 +222,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
       showCutover(data.cutover_preflight,data.robinhood_signed_migration_probe,
-                  data.v2_live_launch);
+                  data.v2_live_launch,data.v2_live_reconciliation);
       void readStockShadowStatus();
       void readFreshPaperStatus();
       void readRecordedReplay();

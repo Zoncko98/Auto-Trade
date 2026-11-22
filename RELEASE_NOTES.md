@@ -1,3 +1,9 @@
+## v1.3.37 — V2 can safely recover original Robinhood order receipts after restart
+
+The existing TrueNAS app now contains a supervised read-only Robinhood V2 order recovery stage. If a real V2 event journal later contains submitted or uncertain intents, the worker can independently look up their original deterministic client IDs at the broker and reconcile fills/status without posting again. Unknown or unreconciled results remain blocked; never infer a missing order was canceled.
+
+Trading Operations displays this stage. This is necessary plumbing toward a live migration, but no live V2 broker executor, new position exits or V1-to-V2 account transfer has been authorized by this release. Signed funding, market-session and V1 risk/AI/exit parity are still acceptance requirements.
+
 ## v1.3.36 — Why live V2 has not launched
 
 Trading Operations now shows the specific signed evidence and execution-worker acceptance gates that must pass before any account changes ownership. It distinguishes broker account/order/quote observations from live authorizations and reports the missing settled-funding, AI/exit, supervisor and exclusive handoff paths instead of displaying a vague 'not ready'.

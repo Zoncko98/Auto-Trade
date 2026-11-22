@@ -1,3 +1,12 @@
+## v1.3.37 — Supervised signed GET-only V2 Robinhood order recovery (2026-11-21)
+
+- Added an isolated Robinhood V2 order reconciler that is invoked by the existing unified supervisor only if a real canonical V2 order journal already exists and the configured Robinhood connection is present. It uses a two-minute minimum restart interval and hard limits each GET-only batch to six original V2 order intents.
+- For every submitted or uncertain V2 intent, validates exact persisted identity/fingerprint and account selection, authenticates the account with signed broker GET, then uses the existing strict V2 receipt validator and transactional SQLite state machine to reconcile broker order statuses and fills. Missing broker orders, incomplete fee evidence, wrong accounts, tampered intents or API failures remain unresolved; no order is retried.
+- Original intents that were never submitted are NOT sent or automatically promoted. The recovery worker contains no broker order-write operation, does not activate V2 live order authority, and cannot overwrite or replace the V1 broker order journal.
+- Exposes a bounded redacted recovery status on the existing authenticated Trading Operations screen, including checked receipts, reconciled terminals and remaining pending intents. Production V2 order activation remains blocked until independent funding/session/AI/exit parity and exclusive single-writer handoff checks are accepted.
+- Added eight offline signed broker reconciliation tests including signed completed fill, unknown result, duplicate retry suppression, wrong or ambiguous account, incomplete fee, unchanged pre-submit intent and cryptographic fingerprint tamper detection. JavaScript UI contracts protect worker lifecycle and no-POST behavior.
+- V1 autonomous broker workers, financial records, risk settings and order ownership remain unchanged.
+
 ## v1.3.36 — Broker-by-broker live V2 launch acceptance gates (2026-11-21)
 
 - Added a read-only, redacted launch acceptance matrix across the three live brokers, distinguishing signed account auth, holdings, order history, pending intents, tradable symbols, market quotes, saved V1 risk, settled funding, market-session entitlement, V1 AI/exit parity, V1 worker shutdown, V2 executor startup/reconciliation, exclusive ownership and actual broker acceptance.
