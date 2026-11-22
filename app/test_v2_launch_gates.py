@@ -23,7 +23,7 @@ class LaunchGateTests(TestCase):
             "account_verified":True,"holdings_verified":True,
             "broker_history_verified":True,"local_journal_matched":True,
             "broker_open_order_count":0,"local_unresolved_count":0,
-            "pairs_checked":2,"quote_timestamp_verified_symbols":1,
+            "pairs_checked":2,"quote_timestamp_verified_symbols":1,"signed_last_trade_verified_symbols":1,
             "independent_trade_crosscheck_symbols":1,
             "broker_account_verified":True,"broker_positions_verified":False,
             "settlement_contract_version":2,
@@ -114,6 +114,25 @@ class LaunchGateTests(TestCase):
         self.assertIn("SIGNED_PORTFOLIO_RECONCILIATION_REQUIRED",row["blockers"])
         self.assertIn("SIGNED_EXECUTABLE_QUOTE_NOT_VERIFIED",row["blockers"])
         self.assertFalse(row["live_v2_order_authority"])
+
+    @patch("trader_v2.launch_gates.mapping")
+    def test_timestamp_alone_cannot_authorize_execution(self,mapping):
+        mapping.return_value={"state":"SAVED_V1_NUMERIC_LIMITS_VALIDATED"}
+        self.save("robinhood_crypto",
+                  quote_timestamp_verified_symbols=2,
+                  signed_last_trade_verified_symbols=0,
+                  independent_trade_crosscheck_symbols=0)
+        row=launch_status(self.root,"robinhood_crypto",now=NOW)
+        gates={g["name"]:g["verified"] for g in row["gates"]}
+        self.assertFalse(gates["EXECUTABLE_BROKER_QUOTE"])
+        self.assertIn("SIGNED_EXECUTABLE_QUOTE_NOT_VERIFIED",row["blockers"])
+        self.save("robinhood_crypto",
+                  quote_timestamp_verified_symbols=2,
+                  signed_last_trade_verified_symbols=1,
+                  independent_trade_crosscheck_symbols=0)
+        row=launch_status(self.root,"robinhood_crypto",now=NOW)
+        gates={g["name"]:g["verified"] for g in row["gates"]}
+        self.assertTrue(gates["EXECUTABLE_BROKER_QUOTE"])
 
     def test_unreadable_or_unknown_source_stays_blocked(self):
         bad=self.save("robinhood_crypto")

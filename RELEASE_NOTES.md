@@ -1,3 +1,9 @@
+## v1.3.57 ? Real Robinhood V2 execution callback integration
+
+Production now has a signed Robinhood Crypto V2 execution service inside the existing single TrueNAS V2 coordinator. It uses authentic broker GET/POST implementations and the original V2 shared strategy, bounded Ollama advisory review, deterministic account risk, idempotent event journal, reconciliation, and broker-specific exit conditions. It cannot start an order without operator arming, exclusive physical account ownership, a stopped V1 worker, verified signed funding/history/holdings/quotes and a current generation-matched grant.
+
+Protection tightened: a merely timestamped but invalid signed quote no longer passes the V2 launch gate. Legacy bot-managed lots need an independently certified V2 adoption baseline before takeover; they cannot be guessed from total broker holdings. The original V1 workers retain order control today. Release activation is not a live trading cutover or evidence of broker acceptance/fills.
+
 ## v1.3.56 ? Provenance for V2 managed lots and realized P&L
 
 The durable V2 event projection now reports the first signed-fill reconciliation time of each open lot and fee-adjusted realized results grouped by reconciliation day. It remains distinct from a broker-native execution timestamp. Completely closed lots are reset; a new buy never inherits a prior entry time or cost basis.

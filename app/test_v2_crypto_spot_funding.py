@@ -42,7 +42,7 @@ class SpotFundingProofTests(TestCase):
        "account_verified":True,"holdings_verified":True,
        "broker_history_verified":True,"local_journal_matched":True,
        "broker_open_order_count":0,"local_unresolved_count":0,
-       "pairs_checked":1,"quote_timestamp_verified_symbols":1,
+       "pairs_checked":1,"quote_timestamp_verified_symbols":1,"signed_last_trade_verified_symbols":1,
        "spot_buying_power_verified":True,
        "crypto_24x7_access_verified":True,
        "settled_cash_verified":False,"signed_settled_cash_verified":False,

@@ -48,6 +48,7 @@ def account_cycle(root,broker,*,now=None,grant_provider=None,scanner_factory=Non
                   strategy_parity=None):
     """The only point where a V2 signed scanner may be invoked."""
     if broker not in BROKERS:raise ValueError("Unknown broker")
+    explicit_clock=now is not None
     now=utc(now or datetime.now(timezone.utc))
     root=Path(root)
     try:
@@ -73,8 +74,11 @@ def account_cycle(root,broker,*,now=None,grant_provider=None,scanner_factory=Non
         canonical=(__import__("trader_v2.schwab_stock_live_adapter",
                    fromlist=["account_alias"]).account_alias(account)
                    if broker=="schwab" else account)
+        # A fresh signed GET / parity pass may take >2 seconds. Evaluate a
+        # new broker handoff at the real wall clock, not the snapshot start.
+        proof_at=now if explicit_clock else utc(datetime.now(timezone.utc))
         if (not isinstance(proof,WriterHandoff) or
-            not proof.verified(broker,canonical,now) or
+            not proof.verified(broker,canonical,proof_at) or
             proof.generation!=owner.get("generation")):
             return _blocked(broker,"V2_HANDOFF_PROOF_INVALID")
         scan=scanner_factory(broker,account,proof)
@@ -140,6 +144,14 @@ def public_status(root,*,now=None):
                 "registered":True,"checked_at":doc["checked_at"],"accounts":clean}
     except Exception:return offline
 
+def production_callbacks(root):
+    """Actual production service callbacks, still gated by V1/V2 owner."""
+    from .trusted_crypto_live import (signed_robinhood_grant,
+         verified_robinhood_parity,scanner_factory as crypto_scanner)
+    return (lambda broker,account:signed_robinhood_grant(root,broker,account),
+            lambda broker,account,proof:crypto_scanner(root,broker,account,proof),
+            lambda broker,account:verified_robinhood_parity(root,broker,account))
+
 def _stop(*_):
     global STOP
     STOP=True
@@ -162,8 +174,17 @@ def main():
         if not stat.S_ISREG(os.fstat(f).st_mode) or os.fstat(f).st_mode&0o077:
             raise PermissionError("EXECUTOR_LOCK_UNSAFE")
         fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        # The authenticated signed execution wiring is installed in the
+        # existing single process; no separate broker order worker is
+        # spawned. Account ownership, signed gates and strategy parity still
+        # decide permission during every cycle. Non-Robinhood providers
+        # deliberately remain unwired until their adapters are certified.
+        broker_grant,scan_adapter,strategy_parity=production_callbacks(
+            args.state_dir)
         while not STOP:
-            try:write_status(args.state_dir)
+            try:
+                write_status(args.state_dir,grant_provider=broker_grant,
+                    scanner_factory=scan_adapter,strategy_parity=strategy_parity)
             except Exception:print("V2_EXECUTOR_STATUS_UNAVAILABLE",flush=True)
             for _ in range(20):
                 if STOP:break

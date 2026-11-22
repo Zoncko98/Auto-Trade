@@ -52,7 +52,11 @@ def launch_status(state_dir,broker,*,now=None):
         account_ok=_true(signed.get("account_verified"))
         holdings=_true(signed.get("holdings_verified"))
         history=_true(signed.get("broker_history_verified")) and _true(signed.get("local_journal_matched"))
-        quote=(type(signed.get("quote_timestamp_verified_symbols")) is int and signed["quote_timestamp_verified_symbols"]>0) or (
+        # A timestamped signed bid/ask can still be too wide, stale, or
+        # missing LAST. Only a fully validated native signed LAST or a
+        # successful independently timestamped signed-book crosscheck counts.
+        quote=(type(signed.get("signed_last_trade_verified_symbols")) is int and
+               signed["signed_last_trade_verified_symbols"]>0) or (
             type(signed.get("independent_trade_crosscheck_symbols")) is int and signed["independent_trade_crosscheck_symbols"]>0)
         open_orders=signed.get("broker_open_order_count")
         unresolved=signed.get("local_unresolved_count")

@@ -243,8 +243,9 @@ def _probe(state,client,policy,*,now=None,public_feed=None):
             quote=robinhood_market_quote(raw,symbol,now=completed)
             signed_timestamps_verified+=1
             signed_age=(completed-quote.observed_at).total_seconds()
-            if (quote.last is not None and -2<=signed_age<=20 and
-                    quote.bid>0 and quote.ask>=quote.bid and
+            if (quote.last is not None and quote.source_tradable and
+                    -2<=signed_age<=20 and quote.bid>0 and
+                    quote.ask>=quote.bid and
                     (quote.ask-quote.bid)/quote.ask<=Decimal("0.015")):
                 quote_count+=1
                 continue
