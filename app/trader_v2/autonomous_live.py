@@ -219,12 +219,15 @@ class AutonomousLiveScan:
             # Schwab V1 additionally limits ALL order actions in a day.
             # Neither the shared V2 entry counter nor the exit counter
             # alone represents this separate saved user safety ceiling.
+            schwab_daily_new_entry_cap_hit=False
             if self.broker.provider_id=="schwab":
                 if inherited.max_daily_total_orders is None:
                     raise ValueError("Schwab all-order cap not verified")
-                if entries+exits>=inherited.max_daily_total_orders:
-                    return self._status("V1_DAILY_TOTAL_ORDER_LIMIT",
-                        "Schwab V1 total daily order cap already reached")
+                # V2 fixes the original V1 defect: total daily order caps
+                # prohibit extra BUY activity but do NOT skip evaluating
+                # separately budgeted and broker-authorized protective SELLs.
+                schwab_daily_new_entry_cap_hit=(
+                    entries+exits>=inherited.max_daily_total_orders)
         except Exception:
             return self._status("V2_V1_ACTIVITY_UNVERIFIED",
                 "Signed V1 trade counts, settlement and symbol cooldowns required")
@@ -294,6 +297,7 @@ class AutonomousLiveScan:
                     continue
                 elif candidate.side is OrderSide.BUY:
                     if (held>0 or inherited.all_buys_blocked or
+                        schwab_daily_new_entry_cap_hit or
                         symbol in inherited.reentry_blocked_symbols):
                         continue
                     prioritized.append(candidate)
@@ -304,6 +308,8 @@ class AutonomousLiveScan:
         if not prioritized:
             blocker=("V1_BUY_SETTLEMENT_COOLDOWN_ACTIVE"
                      if inherited.all_buys_blocked else
+                     "V1_SCHWAB_TOTAL_ORDER_NEW_ENTRY_CAP_REACHED"
+                     if schwab_daily_new_entry_cap_hit else
                      "No eligible closed-bar crossover or entry cooldown")
             return self._status("NO_VALIDATED_V2_SIGNAL",first_error or blocker,
                                 checked=checked,signals=0)

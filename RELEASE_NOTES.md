@@ -1,6 +1,6 @@
 ## v1.3.47 - V1 daily risk inheritance for V2 account cutover
 
-V2 preserves the selected original broker account's historical order counts, pending-order safety, daily exit limit, specific Robinhood reentry cooldown and Schwab's separate total-day order ceiling. A fresh signed broker account and fully reconciled V1 order-history preflight are required before any inherited count is accepted. Unknown data does not default to zero.
+V2 preserves the selected original broker account's historical order counts, pending-order safety, daily exit limit, specific Robinhood reentry cooldown and Schwab's separate total-day new-entry ceiling without starving independently authorized protective exits. A fresh signed broker account and fully reconciled V1 order-history preflight are required before any inherited count is accepted. Unknown data does not default to zero.
 
 Authenticated Trading Operations shows whether V1 trade-day limitations were inherited alongside existing read-only signed migration gates. All broker order-writing remains under V1 by default. The V2 production execution worker is still awaiting full per-account strategy/exit parity, market/funding acceptance and a single-writer transfer, and there have been no live V2 orders.
 
