@@ -177,9 +177,9 @@ class AutonomousLiveScan:
                 policy=self.policy_provider(account)
             if not isinstance(policy,RiskPolicy):
                 raise ValueError
-            # Required AI must be available for any new long entry.
-            if policy.ai_mode!="REQUIRED":
-                raise ValueError
+            # Entry AI policy is evaluated after signal classification:
+            # protective SELLs must not be prevented by an entry-only
+            # model-policy setting. All account/funding/loss checks remain.
             if not callable(self.realized_loss_provider):
                 raise ValueError
             loss=self.realized_loss_provider(account)
@@ -213,9 +213,10 @@ class AutonomousLiveScan:
                                 checked=checked,signals=0)
         for candidate in prioritized:
             try:
-                if candidate.side is OrderSide.BUY and self.reviewer is None:
+                if candidate.side is OrderSide.BUY and (
+                        policy.ai_mode!="REQUIRED" or self.reviewer is None):
                     return self._status("V2_RISK_POLICY_UNVERIFIED",
-                        "Required validated model not available for an entry",
+                        "Required validated model or entry AI policy not available",
                         checked=checked,signals=eligible)
                 quote=self.quote_feed(candidate.symbol)
                 if (not isinstance(quote,MarketSnapshot) or

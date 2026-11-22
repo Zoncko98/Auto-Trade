@@ -1,3 +1,9 @@
+## v1.3.45 ? V2 protective exits are independent of entry-only AI policy (2026-11-22)
+
+- Fixed the shared autonomous V2 live scanner so the REQUIRED AI entry policy is checked only for BUY candidates. Validated risk-reducing SELL candidates can proceed without an entry model when AI mode is OFF, while still requiring an authenticated account, authorized writer proof, exact V1 exit/cooldown parity, validated broker-executable quote, risk limits, account inventory and original-order reconciliation.
+- New-entry BUYs remain blocked unless the signed account policy explicitly requires validated AI and the reviewer is available. Unknown daily loss, unsettled funds, unverified holdings, stale quotes, missing V1/V2 ownership or AI/exit parity continue to fail closed.
+- Added regression cases demonstrating a broker-mock validated protective exit with AI OFF and rejection of a new entry with AI OFF. No brokerage order was submitted and V1 account authorization is unchanged.
+
 ## v1.3.44 ? Supervised read-only V2 broker migration coordinator (2026-11-22)
 
 - Added an independently supervised V2 migration heartbeat for Schwab, Webull, and Robinhood in the existing TrueNAS application. The child observes signed preflight freshness, all fifteen broker launch gates, V1 worker heartbeat recency, and cutover blockers, without receiving broker credentials or touching broker order APIs.

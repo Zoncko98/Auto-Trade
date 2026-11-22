@@ -1,3 +1,9 @@
+## v1.3.45 ? Protective sell reliability in V2 execution coordinator
+
+V2 no longer evaluates an entry-only AI requirement before classifying protective SELL signals. This resolves a potential failure to manage validated holdings when the AI entry model is unavailable or disabled. BUY orders still require the account's validated AI policy and model. Existing per-account broker sessions, risk and order-reconciliation safeguards are unchanged.
+
+This update does not enable live V2 trading or hand over any V1 broker account. Production cutover still requires a broker-authenticated current session/funds/quote, complete V1 strategy parity, a mutually exclusive writer handoff, and signed broker order verification.
+
 ## v1.3.44 ? Account-scoped V2 migration supervisor, read-only standby
 
 The existing TrueNAS Auto Trader supervisor now starts and monitors a V2 account migration observer (no brokerage credentials, no ability to submit or cancel broker orders). The worker continuously reports all three broker's signed prerequisites and V1 telemetry while keeping V1 account order writers authoritative. Trading Operations explicitly differentiates a healthy V2 standby coordinator from a live execution worker.

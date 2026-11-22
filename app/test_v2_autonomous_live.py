@@ -131,6 +131,26 @@ class AutonomousLiveScanTests(TestCase):
   out=self.engine().run_once()
   self.assertEqual(out["state"],"BLOCKED")
   self.assertEqual(self.broker.posts,0)
+ def test_protective_sell_does_not_require_entry_only_ai_mode(self):
+  self.own_v2()
+  self.broker.held={"BTC-USD":D("1")}
+  self.policy=RiskPolicy(max_order_notional=D("15"),
+    max_total_exposure=D("75"),max_position_fraction=D(".5"),
+    max_entries_per_day=2,max_exit_orders_per_day=3,ai_mode="OFF")
+  eng=self.engine(direction="SELL");eng.reviewer=None
+  out=eng.run_once()
+  self.assertEqual(out["state"],"FILLED")
+  self.assertEqual(self.broker.posts,1)
+
+ def test_buy_never_uses_entry_ai_off_shortcut(self):
+  self.own_v2()
+  self.policy=RiskPolicy(max_order_notional=D("15"),
+    max_total_exposure=D("75"),max_position_fraction=D(".5"),
+    max_entries_per_day=2,max_exit_orders_per_day=3,ai_mode="OFF")
+  out=self.engine(direction="BUY").run_once()
+  self.assertEqual(out["state"],"V2_RISK_POLICY_UNVERIFIED")
+  self.assertEqual(self.broker.posts,0)
+
  def test_valid_protective_sell_without_model_while_daily_entry_limit_spent(self):
   self.own_v2()
   self.broker.held={"BTC-USD":D("1")}
