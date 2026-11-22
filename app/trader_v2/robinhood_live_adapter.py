@@ -125,32 +125,84 @@ class RobinhoodLiveAdapter:
         return self._validated_quote(self.symbol,now)
 
     def _signed_holding_ask(self,symbol):
-        """Conservative exposure-only mark for every held asset.
+        """Conservative exposure-only valuation with original signed prices.
 
-        A fresh signed broker quote with both bid and ask is sufficient to
-        measure gross holdings exposure; an external LAST is only required
-        for entry/exit signal and order price crosschecks. This method never
-        provides executable permission or bypasses unsupported holdings.
+        Robinhood V2 best-price top-of-book normally has no venue timestamp or
+        last trade. A timestamp requirement here previously made ANY existing
+        external holding unmarkable, even when the broker signed a valid book.
+        GET timing and a fresh, independent venue LAST are mandatory. For a
+        narrowly crossed aggregate book, choose the HIGHER signed price for
+        risk exposure; do not invert, normalize or approve either price as
+        executable. An order still needs the separate STRICT quote gate.
         """
-        begin=datetime.now(timezone.utc)
+        from .market_sources import _sourced_time
+        expected={"BTC-USD":"BTCUSD","ETH-USD":"ETHUSD"}.get(symbol)
+        external=None
+        if expected is not None and callable(self.public_trade_feed):
+            try:external=self.public_trade_feed(expected)
+            except Exception:pass
+        started=datetime.now(timezone.utc)
         try:
             payload=self.client.quote(symbol)
         except Exception:
             raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_QUOTE_UNAVAILABLE") from None
-        end=datetime.now(timezone.utc)
-        if not 0<=(end-begin).total_seconds()<=3:
+        completed=datetime.now(timezone.utc)
+        if not 0<=(completed-started).total_seconds()<=3:
             raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_QUOTE_TIMEOUT")
+        # Original fully timestamped broker-native quote is sufficient to
+        # mark exposure for *any* selected holding, including a coin without
+        # a Coinbase ticker. This is the original signed source and remains
+        # strict about provider venue time and NONCROSSED bid/ask.
         try:
-            quote=robinhood_market_quote(payload,symbol,now=end)
+            native=robinhood_market_quote(payload,symbol,now=completed)
+            native_age=(completed-native.observed_at).total_seconds()
+            if (native.source_tradable and -2<=native_age<=20 and
+                native.bid>0 and native.ask>=native.bid and
+                (native.ask-native.bid)/native.ask<=Decimal("0.015")):
+                return native.ask
         except (MarketSourceError,ValueError,TypeError):
-            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_TIME_OR_PRICE_UNVERIFIED") from None
-        age=(end-quote.observed_at).total_seconds()
-        if not -2<=age<=20 or not quote.source_tradable:
-            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_MARK_STALE_OR_UNTRADABLE")
-        if quote.bid<=0 or quote.ask<quote.bid or (
-                quote.ask-quote.bid)/quote.ask>Decimal("0.015"):
+            pass
+        # The newer V2 three-field response normally has no broker venue
+        # timestamp; use conservative signed bid/ask plus independently
+        # timed public LAST for exposure ONLY. Unsupported, unmarked coins
+        # fail closed instead of disappearing from portfolio risk.
+        if expected is None or external is None:
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_EXTERNAL_CHECK_UNAVAILABLE")
+        if (not isinstance(payload,dict) or
+            not isinstance(payload.get("results"),list)):
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_SCHEMA_UNVERIFIED")
+        matches=[row for row in payload["results"] if isinstance(row,dict)
+                 and row.get("symbol")==symbol]
+        if len(matches)!=1:
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_SYMBOL_UNVERIFIED")
+        row=matches[0]
+        try:
+            bid=signed_holding_quantity(row.get("bid"))
+            ask=signed_holding_quantity(row.get("ask"))
+            if bid<=0 or ask<=0:raise ValueError
+            signed_at=next((row[k] for k in
+                ("quote_timestamp","timestamp","updated_at") if k in row),None)
+            if signed_at is not None:
+                _sourced_time(signed_at,completed,ttl=20)
+        except Exception:
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_PRICE_UNVERIFIED") from None
+        high=max(bid,ask);low=min(bid,ask)
+        if (high-low)/high>Decimal("0.015"):
             raise BrokerEvidenceUnavailable("SIGNED_HOLDING_MARK_SPREAD_UNVERIFIED")
-        return quote.ask
+        if (not isinstance(external,MarketSnapshot) or
+            external.symbol!=expected or
+            external.source!="coinbase_public_paper" or
+            external.asset_class is not AssetClass.CRYPTO or
+            external.market_open is not True or external.last is None):
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_EXTERNAL_LAST_UNVERIFIED")
+        if (not -2<=(completed-external.observed_at).total_seconds()<=20 or
+            not -2<=(completed-external.received_at).total_seconds()<=20):
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_EXTERNAL_LAST_STALE")
+        if abs(high-external.last)/external.last>Decimal("0.015"):
+            raise BrokerEvidenceUnavailable("SIGNED_HOLDING_BROKER_PUBLIC_PRICE_DIFFERENCE")
+        # HIGHER of the TWO signed broker prices increases counted exposure.
+        # This cannot be used as a trade quote and never creates sell rights.
+        return high
 
     def account(self,account_id):
         if account_id!=self.account_id:

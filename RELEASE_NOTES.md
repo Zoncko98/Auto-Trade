@@ -1,3 +1,7 @@
+## v1.3.61 ? Fix authenticated Robinhood held-asset exposure preflight
+
+The signed Robinhood Crypto V2 best-bid-ask endpoint can omit venue timestamps. That previously prevented the V2 account adapter from conservatively valuing any externally held asset for account risk. This change validates fresh independent Coinbase trade time alongside authenticated signed broker bid/ask and counts the higher original signed price in total exposure, including a narrowly crossed aggregate book ONLY for exposure marking. It never allows a crossed quote to execute a buy or sell, create a synthetic price, authorize an external position sale, or replace a broker receipt. The original operator-approved account-specific cutover and all V1 safeguards remain active.
+
 ## v1.3.60 ? Read both sides of Robinhood signed estimates
 
 This release improves the prior GET-only diagnostic for real Robinhood V2 quantity-specific estimated-price responses: side=both can return separate bid and ask rows. The verifier now checks each side and cross-side consistency, signed timestamps, quantities, fees and price ordering, and reports distinct failure reasons. It never interprets that result as an order permit or relaxes the existing crossed-book block. The existing TrueNAS application and original broker writer safeguards remain unchanged.

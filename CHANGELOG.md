@@ -1,3 +1,12 @@
+## v1.3.61 ? Source-faithful Robinhood v2 held-asset exposure marks (2026-11-22)
+
+- Fixed the Robinhood V2 signed account portfolio valuation preflight: API v2 best_bid_ask normally has no venue timestamp or last trade. The original exposure-only signed holdings mark incorrectly demanded a broker venue timestamp, which could prevent ALL held crypto assets being included in authenticated account risk, even if the independent venue-timed trade and signed broker bid/ask were otherwise fresh.
+- For EXISTING holdings exposure estimation ONLY, fetch the actual independently venue-timestamped Coinbase trade BEFORE an authenticated Robinhood signed quote GET. Enforce no more than 3 seconds for the signed GET, allowlisted exact asset identity, positive signed broker prices, a maximum 1.5% absolute bid/ask price span, current signed venue timestamp when supplied, fresh public trade observed/received within 20 seconds, and no more than a 1.5% price difference from the independent last. Fail closed on missing or unsupported asset information.
+- Use the HIGHER of the two ORIGINAL signed broker prices to count gross holdings exposure and round it UP as before. This is a conservative gross-value risk mark, not a newly certified executable quote, not bot-held sell capacity, not an inferred fill, and never new buying power. Do not swap, synthesize, or re-label broker prices.
+- The actual BUY/SELL quote path still rejects crossed provider order books and requires its existing separate authenticated signed bid/ask plus independent live venue trade crosscheck. All per-account risk, duplicate order locks, fees, and exit safeguards remain unchanged.
+- Added eight offline regression tests for conservative external-holding exposure, crossed entry quote rejection, unacceptable crossed/wide prices, public price divergence, stale public last, signed venue timestamp rejection, missing independent feed, and unsupported assets.
+- This update uses the one original TrueNAS application and retains all installed broker workers and the previous ZFS rollback state until the independently verified V2 account handoff completes.
+
 ## v1.3.60 ? Reconcile both sides of Robinhood V2 estimated quotes (2026-11-22)
 
 - Production GET-only Robinhood V2 estimated-price response initially reported SIGNED_ESTIMATE_IDENTITY_UNVERIFIED on both BTC-USD and ETH-USD; the single-result diagnostic was insufficient to tell absent data from the two bid/ask side rows that can be returned by a side=both request.
