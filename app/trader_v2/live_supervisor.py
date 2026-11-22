@@ -16,6 +16,7 @@ from .readonly_adapters import private_json
 from .recorded_replay import _atomic_json
 from .v1_order_inheritance import read_inherited, V1InheritanceUnavailable
 from .worker_placement import v1_worker_placement
+from .live_executor import public_status as executor_status
 
 _STOP=False
 POLL_SECONDS=30
@@ -101,6 +102,7 @@ def assess(root,*,now=None):
     """Read only broker migration evidence, no owner-state change."""
     now=utc(now or datetime.now(timezone.utc))
     root=Path(root)
+    executor=executor_status(root,now=now)
     accounts=[]
     for broker in BROKERS:
         launch=launch_status(root,broker,now=now)
@@ -122,7 +124,8 @@ def assess(root,*,now=None):
         "schema":1,"checked_at":now.isoformat(),
         "supervisor_state":"READ_ONLY_STANDBY",
         "supervisor_registered":True,
-        "replacement_live_worker_registered":False,
+        "replacement_live_worker_registered":executor.get("registered") is True,
+        "v2_executor_state":executor.get("state"),
         "v2_live_order_authority":False,
         "v2_orders_submitted":0,
         "cutover_accounts":0,
@@ -204,7 +207,10 @@ def public_status(state_dir,*,now=None):
                      "v1_telemetry_recent":isinstance(worker,dict) and
                           worker.get("recent") is True,
                      "first_blocker":str(row.get("first_blocker") or "NOT_VERIFIED")[:100]})
+    exec_status=executor_status(state_dir,now=now)
     return {"state":"READ_ONLY_STANDBY","checked_at":doc["checked_at"],
+            "replacement_live_worker_registered":exec_status.get("registered") is True,
+            "v2_executor_accounts":exec_status.get("accounts",[]),
             "v2_live_order_authority":False,"cutover_accounts":0,"accounts":safe}
 
 def _terminate(_sig,_frame):

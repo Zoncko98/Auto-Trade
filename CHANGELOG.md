@@ -1,3 +1,12 @@
+## v1.3.52 ? Register V2 execution coordinator inside original TrueNAS app (2026-11-22)
+
+- Added the dedicated, single-instance V2 account execution coordinator as a supervised original application child, with private redacted health and an exclusive filesystem lock. V1 continues holding every account broker writer lock until an independently attested transfer.
+- V2 per-account admission now verifies the original account's armed selection, exact durable V2 owner generation, fresh signed account/holdings/orders/product/quote/funding/session gates, complete inherited V1 order limits and account-specific V1 strategy/exit parity. Only a trusted broker integration can supply the short-lived independently generated handoff and canonical AutonomousLiveScan. There is deliberately no default broker grant or synthetic readiness.
+- The authenticated Trading Operations view distinguishes a registered but gated replacement process from live brokerage writer authority, including a redacted admission blocker for each account. No raw account identifiers or credentials are exposed in the worker read model.
+- Parent runtime supervises/exits/restarts the replacement process separately with bounded backoff and cleanup, keeping the existing broker workspaces and V1 strategy workers intact. An existing V1 owner or missing signed acceptance remains a hard execution block.
+- Added deterministic account-level tests for rejected V1 ownership, disarmed policy, missing broker settlement/quote, missing V1 history, missing strategy parity, wrong grant generation, unchanged original worker activity, health staleness and tainted status, plus a CI-checked frontend contract.
+- This release registers the real execution coordinator; it does NOT transfer any live broker to V2, fabricate broker acceptance, supply trading adapter authorization, or submit live V2 orders. Broker session, settled cash, quote and parity blockers remain independently enforceable.
+
 ## v1.3.51 ? Authenticated management of stale Robinhood bot-owned GTC BUY orders (2026-11-22)
 
 - Investigated production: one original Robinhood Crypto BUY intent remains locally submitted_unconfirmed and broker-confirmed OPEN for over six hours; this GTC limit buy blocks follow-on autonomous trades and can prevent subsequent exits while unresolved. No assumption of cancellation/fill is made from its age.

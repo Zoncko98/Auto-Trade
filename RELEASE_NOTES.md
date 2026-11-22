@@ -1,3 +1,9 @@
+## v1.3.52 ? V2 account execution coordinator and admission telemetry
+
+The same original TrueNAS app now supervises a dedicated, single-instance V2 execution coordinator. Account-specific V2 execution is blocked until signed brokerage data, validated V1 strategy/exit policy parity, inherited history, an exclusive V2 ownership record and an independent short-lived broker handoff have all passed. The new process has no default privileged broker factory and cannot mint permission from a dashboard checkbox or a worker heartbeat.
+
+The existing four broker/paper dashboards remain in place. Authenticated Trading Operations distinguishes the live coordinator's registered health from actual trading authority, and shows redacted per-broker blocker codes. V1 accounts remain the only order writers until accepted staged cutovers; no V2 fills or broker live acceptance are claimed by this release.
+
 ## v1.3.51 ? Robinhood stale GTC bot-entry reconciliation
 
 An old open original Auto Trader buy can block all autonomous orders. This release provides account-configurable (default two-hour) automatic cancellation only of an independently confirmed, entirely unfilled, original bot-created Robinhood GTC buy, under the existing authorized account's writer lock. The attempted broker cancellation is journaled exactly once before the request. A canceled state is shown only when later confirmed by Robinhood. Partial fills, missing broker proof and uncertain network requests remain blocked, and no new buy or sell orders are submitted by this feature.

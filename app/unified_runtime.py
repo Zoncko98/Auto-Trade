@@ -178,6 +178,7 @@ def main():
     v2_robinhood_reconcile_last_spawn=0.0
     v2_webull_probe_last_spawn=0.0
     v2_supervisor_last_spawn=0.0
+    v2_executor_last_spawn=0.0
     webull_last_spawn=0.0
     webull_feed_last_spawn=0.0
     while not _STOP:
@@ -214,6 +215,20 @@ def main():
                         "STATE_DIR":str(STATE),"PYTHONPATH":"/app"}
                     spawn("v2-live-supervisor",
                           ["-m","trader_v2.live_supervisor",
+                           "--state-dir",str(STATE)],minimal_env)
+                # The real V2 account coordinator has its own single-instance
+                # file lock. Without broker-backed grants and signed parity it
+                # remains fail-closed; a process heartbeat is not a trade permit.
+                v2_exec=CHILDREN.get("v2-live-executor")
+                if ((v2_exec is None or v2_exec.poll() is not None) and
+                    (v2_executor_last_spawn==0 or
+                     time.monotonic()-v2_executor_last_spawn>=120)):
+                    v2_executor_last_spawn=time.monotonic()
+                    minimal_env={"PATH":os.environ.get("PATH","/usr/bin:/bin"),
+                         "HOME":os.environ.get("HOME","/app"),
+                         "STATE_DIR":str(STATE),"PYTHONPATH":"/app"}
+                    spawn("v2-live-executor",
+                          ["-m","trader_v2.live_executor",
                            "--state-dir",str(STATE)],minimal_env)
                 rh_ready=(STATE/"config"/"robinhood_crypto.json").is_file()
                 rh_v1=v1_worker_placement(STATE,"robinhood_crypto")
@@ -394,15 +409,15 @@ def main():
                     live_recovery_attempts=[]
             except (OSError,ValueError,TypeError,KeyError) as exc:
                 print("Invalid stored app settings; optional workers stopped.",flush=True)
-                for name in ("v2-live-supervisor","v2-stock-shadow","v2-paper","v2-robinhood-probe",
+                for name in ("v2-live-executor","v2-live-supervisor","v2-stock-shadow","v2-paper","v2-robinhood-probe",
                              "v2-robinhood-recovery","v2-webull-probe","paper",
                              "market","live"):stop_process(name)
         else:
-            for name in ("v2-live-supervisor","v2-stock-shadow","v2-paper","v2-robinhood-probe",
+            for name in ("v2-live-executor","v2-live-supervisor","v2-stock-shadow","v2-paper","v2-robinhood-probe",
                          "v2-robinhood-recovery","v2-webull-probe",
                          "paper","market","live"):stop_process(name)
         time.sleep(4)
-    for name in ("v2-live-supervisor","webull-feed","webull","robinhood","v2-robinhood-probe",
+    for name in ("v2-live-executor","v2-live-supervisor","webull-feed","webull","robinhood","v2-robinhood-probe",
                  "v2-robinhood-recovery","v2-webull-probe","live","market",
                  "v2-stock-shadow","v2-paper","paper","dashboard"):stop_process(name)
     return 0

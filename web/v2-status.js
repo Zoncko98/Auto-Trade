@@ -56,7 +56,9 @@ document.addEventListener("DOMContentLoaded",()=>{
     intro.textContent="V2 live-account migration preflight · read-only · no automatic cutover";
     cutover.append(intro);
     const s=document.createElement("p");
-    s.textContent="V2 account coordinator: "+(supervisor?.state==="READ_ONLY_STANDBY"?"SUPERVISED READ-ONLY STANDBY":"OFFLINE / STALE")+" | V2 live writer: NOT ACTIVE | Migrated brokers: 0/3";
+    s.textContent="V2 account coordinator: "+(supervisor?.state==="READ_ONLY_STANDBY"?"SUPERVISED READ-ONLY STANDBY":"OFFLINE / STALE")+
+      " | Replacement execution process: "+(supervisor?.replacement_live_worker_registered===true?"REGISTERED (GATED)":"NOT VERIFIED")+
+      " | V2 live writer: NOT ACTIVE | Migrated brokers: 0/3";
     cutover.append(s);
     if(!report||report.live_order_authority!==false||
        report.automatic_cutover_allowed!==false||!Array.isArray(report.accounts)){
@@ -70,6 +72,10 @@ document.addEventListener("DOMContentLoaded",()=>{
       (Array.isArray(launch?.accounts)?launch.accounts:[]).filter(
         item=>item&&typeof item.broker==="string").map(
         item=>[item.broker,item]));
+    const executorAccounts=new Map(
+      (Array.isArray(supervisor?.v2_executor_accounts)?supervisor.v2_executor_accounts:[])
+       .filter(item=>item&&typeof item.broker==="string")
+       .map(item=>[item.broker,item]));
     const supervisedAccounts=new Map(
       (Array.isArray(supervisor?.accounts)?supervisor.accounts:[]).filter(
         item=>item&&typeof item.broker==="string").map(
@@ -149,6 +155,8 @@ document.addEventListener("DOMContentLoaded",()=>{
           String(envelope.preliminary_budget_usd))+
         (envelope.buying_power_preliminary_ceiling_usd==null?"":" · Buying-power-only ceiling $"+
           String(envelope.buying_power_preliminary_ceiling_usd))+
+        " ? V2 execution admission: "+String(
+          executorAccounts.get(item.broker)?.reason||"EXECUTOR_NOT_VERIFIED")+
         " ? V1 account writer lifecycle: "+
           String(supervisedAccounts.get(item.broker)?.v1_worker_owner_state||
             "V1_WRITER_PLACEMENT_UNVERIFIED")+
