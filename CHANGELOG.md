@@ -1,3 +1,10 @@
+## v1.3.41 - Signed Webull settled USD funding gate (2026-11-21)
+
+- Added read-only, strict Webull USD settled-cash evidence requiring one signed USD balance record and explicit settled, held, and frozen fields. Missing or contradictory fields, margin usage or cash restrictions remain unverified instead of converting buying power into settled cash.
+- V2 Webull BUY sizing is additionally capped by independently signed spendable settled cash, never total cash alone. Existing holdings and sell authorization still require broker and managed-inventory proof; this is not an automatic account handoff.
+- Exposed authenticated, redacted settled-funding and external-holdings preflight status in Trading Operations. The V2 launch checker can mark this single Webull settlement prerequisite verified only from a fresh signed report while continuing to block absent session, V1 worker stop, parity, supervisor, writer transfer and broker order acceptance.
+- Added malformed, missing reserve, duplicate USD, used-margin and positive settled-funding regression tests. V1 live trading and all broker-writer ownership remain unchanged.
+
 ## v1.3.40 - Webull signed position reconciliation and honest V2 migration status (2026-11-21)
 
 - Webull V2 signed read-only preflight now checks every broker-held equity position for unambiguous symbol, nonnegative whole-share quantity, unsupported/short positions and duplicate symbols, then verifies bot-owned net fill inventory against the signed holdings after checking historical signed receipts.

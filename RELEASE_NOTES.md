@@ -1,3 +1,9 @@
+## v1.3.41 - Webull settled funding and migration evidence
+
+A signed Webull USD cash record containing explicit settled-cash and reserve/holdback fields now yields a conservative read-only funding verification. Missing entries or contradictory totals never become synthetic cash. The V2 Webull live adapter caps potential buys to this budget. Trading Operations reports verified holdings and funding separately from live authority.
+
+No V2 broker execution has been enabled. Robinhood still requires a verified executable broker spread/session/funding and single-writer cutover, while Schwab still lacks a signed V2 migration preflight. V1 brokerage execution remains authoritative; no live orders were submitted for this change.
+
 ## v1.3.40 - Webull signed portfolio inventory preflight
 
 This release adds a signed GET-only Webull position audit and compares the current broker inventory with broker-confirmed historical bot fills before considering holdings reconciled. Invalid symbols, duplicate/fractional/short holdings and inventory deficits stay blocked. Trading Operations now accurately labels verified read-only order history and does not represent it as live V2 activation.

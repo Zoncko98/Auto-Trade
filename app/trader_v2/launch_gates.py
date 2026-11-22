@@ -70,6 +70,7 @@ def launch_status(state_dir,broker,*,now=None):
         # Schwab has no equivalent signed account migration probe yet.
         account_ok=holdings=history=quote=pair_ok=False
         open_orders=unresolved=None
+    signed_settlement=(broker=="webull" and _true(signed.get("settled_cash_verified")))
     orders_ok=(type(open_orders) is int and open_orders==0 and
                type(unresolved) is int and unresolved==0)
     gates=[
@@ -82,7 +83,7 @@ def launch_status(state_dir,broker,*,now=None):
         _check("EXECUTABLE_BROKER_QUOTE",quote,"SIGNED_EXECUTABLE_QUOTE_NOT_VERIFIED"),
         _check("V1_SAVED_NUMERIC_RISK",risk.get("state")=="SAVED_V1_NUMERIC_LIMITS_VALIDATED",
                "V1_RISK_SETTINGS_INCOMPATIBLE_OR_MISSING"),
-        _check("SIGNED_SETTLED_FUNDING",False,"SIGNED_SETTLEMENT_NOT_CERTIFIED"),
+        _check("SIGNED_SETTLED_FUNDING",signed_settlement,"SIGNED_SETTLEMENT_NOT_CERTIFIED"),
         _check("SIGNED_MARKET_SESSION",False,"BROKER_SESSION_ENTITLEMENT_NOT_CERTIFIED"),
         _check("V1_AI_AND_EXIT_PARITY",False,"V2_AI_EXIT_AND_COOLDOWN_POLICY_INCOMPLETE"),
         _check("V1_WORKER_STOPPED",False,"ACCOUNT_SCOPED_V1_WORKER_STOP_NOT_VERIFIED"),

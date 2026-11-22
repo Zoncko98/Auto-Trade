@@ -31,7 +31,7 @@ class FakeSignedWebull:
    "total_market_value":"0",
    "total_cash_balance":self.cash,"total_day_profit_loss":"1",
    "account_currency_assets":[{"currency":"USD","cash_balance":self.cash,
-                                "settled_cash":self.cash}],
+                                "settled_cash":self.cash,"held_amount":"0","frozen_amount":"0"}],
    "used_margin":"0"}
  def positions(self,account):
   self.verify_account(account)
@@ -79,6 +79,20 @@ class WebullV2CashStockTests(TestCase):
   self.assertEqual(acct.positions,{})
   self.assertEqual(acct.market_exposure,D("0"))
   self.assertFalse(acct.capability.fractional)
+ def test_missing_reserve_evidence_never_funds_a_v2_buy(self):
+  from unittest.mock import patch
+  old=self.signed.balance
+  def uncertain(account):
+   row=old(account)
+   row["account_currency_assets"][0].pop("frozen_amount")
+   return row
+  self.signed.balance=uncertain
+  self.assertEqual(self.adapter.account("acct001").cash,D("0"))
+  with patch("webull_signals.core_stock_session",return_value=True):
+   with self.assertRaises(LiveMigrationRejected):
+    self.adapter.submit(self.intent())
+  self.assertEqual(self.signed.posts,[])
+
  def test_signed_quote_only_inside_core_session(self):
   from unittest.mock import patch
   # The broker session may be closed when tests run; inject validated gate

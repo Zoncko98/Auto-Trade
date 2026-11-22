@@ -134,6 +134,18 @@ class WebullPreflightTests(TestCase):
         self.assertFalse(report["v1_writer_handoff_verified"])
         self.assertEqual(report["live_v2_orders_submitted"],0)
         self.assertEqual(path.stat().st_mtime_ns,mtime)
+    def test_signed_settled_cash_is_verified_but_not_handoff(self):
+        self.journal([])
+        bal={"total_asset_currency":"USD","total_cash_balance":"100",
+             "total_net_liquidation_value":"100","total_market_value":"0",
+             "account_currency_assets":[{"currency":"USD","cash_balance":"100",
+                 "settled_cash":"50","held_amount":"5","frozen_amount":"0"}]}
+        report=probe_webull(self.root,SignedWebull(balance=bal),self.policy)
+        self.assertTrue(report["settled_cash_verified"])
+        self.assertFalse(report["cutover_ready"])
+        self.assertEqual(report["first_blocker"],
+                         "WEBULL_SESSION_AND_SINGLE_WRITER_HANDOFF_REQUIRED")
+
     def test_structural_signed_positions_do_not_prove_funding_or_handoff(self):
         self.journal([])
         b=SignedWebull(positions=[{"instrument_type":"EQUITY","symbol":"AAPL","quantity":"5"}])

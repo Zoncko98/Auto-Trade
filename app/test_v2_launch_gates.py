@@ -73,6 +73,20 @@ class LaunchGateTests(TestCase):
         self.assertFalse(wrong["signed_observation_fresh"])
 
     @patch("trader_v2.launch_gates.mapping")
+    def test_webull_verified_settled_cash_never_grants_writer_handoff(self,mapping):
+        mapping.return_value={"state":"SAVED_V1_NUMERIC_LIMITS_VALIDATED"}
+        self.save("webull",broker_positions_verified=True,
+                  broker_position_inventory_reconciled=True,
+                  settled_cash_verified=True)
+        result=launch_status(self.root,"webull",now=NOW)
+        checks={row["name"]:row["verified"] for row in result["gates"]}
+        self.assertTrue(checks["SIGNED_SETTLED_FUNDING"])
+        self.assertFalse(checks["SIGNED_MARKET_SESSION"])
+        self.assertFalse(checks["EXCLUSIVE_WRITER_OWNERSHIP"])
+        self.assertFalse(result["live_v2_order_authority"])
+        self.assertEqual(result["state"],"BLOCKED")
+
+    @patch("trader_v2.launch_gates.mapping")
     def test_webull_structural_positions_without_inventory_match_stay_blocked(self,mapping):
         mapping.return_value={"state":"SAVED_V1_NUMERIC_LIMITS_VALIDATED"}
         self.save("webull",broker_positions_verified=True,

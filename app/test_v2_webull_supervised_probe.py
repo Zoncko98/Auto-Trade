@@ -33,7 +33,7 @@ class AutoWebullProbeTests(TestCase):
         signed=SignedWebull()
         first=run_once(self.root,signed_broker=signed,now=self.now)
         self.assertEqual(first["first_blocker"],
-          "WEBULL_POSITIONS_SETTLEMENT_AND_SINGLE_WRITER_HANDOFF_REQUIRED")
+          "WEBULL_SETTLEMENT_AND_SINGLE_WRITER_HANDOFF_REQUIRED")
         self.assertTrue(first["broker_account_verified"])
         self.assertTrue(first["broker_open_orders_verified"])
         self.assertFalse(first["settled_cash_verified"])

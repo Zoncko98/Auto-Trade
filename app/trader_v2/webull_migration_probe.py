@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import sqlite3
 import re
+from .webull_settlement import signed_settled_cash_budget
 from .webull_signed_receipts import (
     WebullReceiptUnverified, client_order_id, normalize_webull_order,
 )
@@ -150,8 +151,12 @@ def probe_webull(root, broker, policy, *, now=None):
         if cash > equity or market > equity + Decimal("0.01"):
             raise WebullReceiptUnverified("WEBULL_BALANCE_CONTRADICTORY")
         out["funding_verified"]=True
-        # Report *verification class* only; do not expose account ID/balances.
-        out["funding_source"]="SIGNED_WEBULL_TOTAL_CASH_NOT_SETTLED_CASH"
+        # No amounts or account identifiers are persisted in the migration
+        # report. A missing optional settled-cash field remains unverified.
+        verified_budget=signed_settled_cash_budget(balances)
+        out["settled_cash_verified"]=(verified_budget is not None and verified_budget>0)
+        out["funding_source"]=("SIGNED_VERIFIED_SETTLED_USD" if out["settled_cash_verified"]
+            else "SIGNED_TOTAL_CASH_SETTLEMENT_NOT_VERIFIED")
     except Exception:
         out["first_blocker"]="WEBULL_SIGNED_CASH_OR_EQUITY_UNVERIFIED"
         return out
@@ -229,5 +234,7 @@ def probe_webull(root, broker, policy, *, now=None):
     # broker executable quote/session and the durable V1/V2 writer handoff.
     out["first_blocker"]=(
         "WEBULL_OPERATOR_NOT_ARMED" if not armed
-        else "WEBULL_POSITIONS_SETTLEMENT_AND_SINGLE_WRITER_HANDOFF_REQUIRED")
+        else "WEBULL_SESSION_AND_SINGLE_WRITER_HANDOFF_REQUIRED"
+             if out["settled_cash_verified"]
+        else "WEBULL_SETTLEMENT_AND_SINGLE_WRITER_HANDOFF_REQUIRED")
     return out

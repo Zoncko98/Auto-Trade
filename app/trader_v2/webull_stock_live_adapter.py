@@ -9,6 +9,7 @@ from datetime import datetime,timezone
 from decimal import Decimal
 from .models import (Account,Capability,AssetClass,AuthState,MarketSnapshot,
                      OrderSide,OrderIntent,amount,utc)
+from .webull_settlement import signed_settled_cash_budget
 from .webull_signed_receipts import (
     WebullReadOnlyReceiptAdapter,client_order_id,WebullReceiptUnverified)
 from .live_pipeline import LiveMigrationRejected
@@ -58,6 +59,10 @@ class WebullStockLiveAdapter:
             equity,cash,day_pnl=_funds(balance)
             if "MARGIN" in _account_class(selected):
                 cash=min(cash,verify_margin_cash_funding(balance))
+            # Never size a V2 BUY from total cash or day buying power when
+            # signed USD settled/reserved cash is absent or contradictory.
+            settled=signed_settled_cash_budget(balance)
+            cash=min(cash,settled if settled is not None else Decimal("0"))
             exposure=amount(balance.get("total_market_value"),"broker gross exposure")
             if exposure>equity+Decimal("0.01") or cash>equity+Decimal("0.01"):
                 raise ValueError

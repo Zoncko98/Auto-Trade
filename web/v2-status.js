@@ -20,7 +20,10 @@ document.addEventListener("DOMContentLoaded",()=>{
           "not verified":Number(doc.broker_open_order_count))+
         " · Local unresolved: "+(doc.local_unresolved_count==null?
           "not verified":Number(doc.local_unresolved_count))+
-        " · V2 live authority: OFF";
+        " | Signed holdings reconciled: "+(doc.broker_position_inventory_reconciled===true?"YES":"NO")+
+        " | Settled funding verified: "+(doc.settled_cash_verified===true?"YES":"NO")+
+        " | External holding symbols: "+Number(doc.broker_external_position_symbols||0)+
+        " | V2 live authority: OFF";
     }catch(_err){webullReport.textContent="Webull signed migration status unavailable; V2 live authority remains OFF";}
   }
   webullProbe?.addEventListener("click",async()=>{
