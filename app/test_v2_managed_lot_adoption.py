@@ -66,6 +66,27 @@ class ManagedLotAdoptionTests(TestCase):
                           another,now=NOW)
         self.assertEqual(ctx.exception.code,"V1_MANAGED_SIGNED_ACCOUNT_UNVERIFIED")
 
+    def test_robinhood_signed_fee_missing_cannot_be_imputed_as_zero(self):
+        self.buy()
+        file=self.state/"robinhood/order_intents.json"
+        data=json.loads(file.read_text())
+        data["orders"][0].pop("fee_charged")
+        file.write_text(json.dumps(data))
+        with self.assertRaises(V1LotUnavailable) as exc:
+            managed_v1_lot(self.state,"robinhood_crypto","rh1","BTC-USD",
+                           self.account("robinhood_crypto"),now=NOW)
+        self.assertEqual(exc.exception.code,"V1_ROBINHOOD_BROKER_CONFIRMED_LOT_UNVERIFIED")
+
+    def test_robinhood_explicit_fee_unverified_rejects_managed_lot(self):
+        self.buy()
+        file=self.state/"robinhood/order_intents.json"
+        data=json.loads(file.read_text())
+        data["orders"][0]["fee_verified"]=False
+        file.write_text(json.dumps(data))
+        with self.assertRaises(V1LotUnavailable):
+            managed_v1_lot(self.state,"robinhood_crypto","rh1","BTC-USD",
+                           self.account("robinhood_crypto"),now=NOW)
+
     def test_signed_quantity_mismatch_cannot_sell_external_inventory(self):
         self.buy()
         with self.assertRaises(V1LotUnavailable) as ctx:

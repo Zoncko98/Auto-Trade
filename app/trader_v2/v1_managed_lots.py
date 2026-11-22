@@ -102,6 +102,20 @@ def managed_v1_lot(state_dir,broker,raw_account,symbol,account:Account,*,now=Non
             from robinhood_order_journal import OrderJournal
             from robinhood_exit_tracker import ExitTracker
             journal=OrderJournal(root)
+            # The V1 cost-basis projection treats an absent historical
+            # broker fee as zero for its own diagnostics. V2 cannot inherit
+            # that assumption when certifying a live managed lot.
+            history=journal.load()
+            for receipt in history.get("orders",[]):
+                if not isinstance(receipt,dict):
+                    raise ValueError("Historical order record malformed")
+                if (receipt.get("account")==raw_account and
+                    receipt.get("symbol")==symbol and
+                    receipt.get("status")=="filled" and
+                    receipt.get("side") in ("buy","sell")):
+                    if (receipt.get("fee_charged") is None or
+                        receipt.get("fee_verified") is False):
+                        raise ValueError("Original signed fill fee not verified")
             records=journal.positions(raw_account)
             row=records.get(symbol)
             if not isinstance(row,dict) or row.get("cost_basis_verified") is not True:
