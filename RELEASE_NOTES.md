@@ -1,3 +1,9 @@
+## v1.3.56 ? Provenance for V2 managed lots and realized P&L
+
+The durable V2 event projection now reports the first signed-fill reconciliation time of each open lot and fee-adjusted realized results grouped by reconciliation day. It remains distinct from a broker-native execution timestamp. Completely closed lots are reset; a new buy never inherits a prior entry time or cost basis.
+
+All existing V1 order execution, account risk settings, signed broker verification, exclusive-writer restrictions and rollback state remain unchanged. This source improvement does not constitute a live V2 cutover.
+
 ## v1.3.55 ? Live V2 pre-POST recovery and broker source parity
 
 A V2 signal that loses its handoff before broker submission now records a definitive pre-POST rejection instead of permanently blocking the account with an unresolved intent. If durability cannot be confirmed, the account remains blocked for reconciliation. Uncertain real brokerage submissions still retain their original idempotency locks.

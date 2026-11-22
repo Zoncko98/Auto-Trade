@@ -57,6 +57,32 @@ class PositionProjectionTests(TestCase):
   self.assertEqual(D(row["realized_net_usd"]),D("1.75"))
   self.assertEqual(row["sell_fills"],1)
   self.assertFalse(row["live_order_authority"])
+ def test_signed_fill_opened_at_and_daily_net_provenance(self):
+  self.intent("buy_1",OrderSide.BUY,"2")
+  self.fill("buy_1",OrderState.FILLED,"2","10","0.1")
+  entry=self.view()["verified_v2_inventory"]["BTC-USD"]
+  stamp=datetime.fromisoformat(entry["opened_at"])
+  self.assertIsNotNone(stamp.utcoffset())
+  self.intent("sell_1",OrderSide.SELL,"1")
+  self.fill("sell_1",OrderState.FILLED,"1","12","0.2")
+  result=self.view()
+  self.assertEqual(result["realized_net_by_reconciled_utc_day"][self.now.date().isoformat()],"1.75")
+  self.assertEqual(result["verified_v2_inventory"]["BTC-USD"]["opened_at"],entry["opened_at"])
+  self.assertEqual(result["unresolved_intents"],0)
+
+ def test_closed_position_does_not_reuse_prior_lot_open_time(self):
+  self.intent("buy_first",OrderSide.BUY,"1")
+  self.fill("buy_first",OrderState.FILLED,"1","10","0.01")
+  first=self.view()["verified_v2_inventory"]["BTC-USD"]["opened_at"]
+  self.intent("sell_first",OrderSide.SELL,"1")
+  self.fill("sell_first",OrderState.FILLED,"1","10","0.01")
+  self.assertEqual(self.view()["verified_v2_inventory"],{})
+  self.intent("buy_second",OrderSide.BUY,"1")
+  self.fill("buy_second",OrderState.FILLED,"1","10","0.01")
+  second=self.view()["verified_v2_inventory"]["BTC-USD"]["opened_at"]
+  self.assertTrue(second>=first)
+  self.assertEqual(self.view()["unresolved_intents"],0)
+
  def test_cancelled_partial_retains_actual_filled_quantity(self):
   self.intent("buy_1",OrderSide.BUY,"2")
   self.fill("buy_1",OrderState.PARTIALLY_FILLED,"0.5","10","0")

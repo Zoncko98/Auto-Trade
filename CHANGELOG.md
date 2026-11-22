@@ -1,3 +1,11 @@
+## v1.3.56 ? Preserve confirmed V2 lot opening and realized-net accounting (2026-11-22)
+
+- Extended the original append-only V2 signed receipt projection to expose a managed position's conservative first verified local fill-confirmation time. Fully closed lots reset the timestamp when a new independently filled position is opened; the old lot's cost, time and trailing context cannot leak into it.
+- Persisted fee-adjusted realized P&L grouped by UTC reconciliation date. The field explicitly names the reconciliation date, NOT the broker's original execution timestamp, which may differ after a delayed signed GET. This conservative provenance prevents treating quote poll time or an invented broker execution time as proof of a current lot's minimum holding period.
+- All quantities, partial fills, average-cost allocations, sale fees and realized gain/loss still originate in independently reconciled V2 order receipts and the original durable intent fingerprint, not ACKs, unsigned quotes or paper fills.
+- Verified via tests that a completely sold position clears its opening time and a new buy creates a new lot, signed partial fills are not double-counted, and original account journal tampering or over-selling remains blocked.
+- This release prepares the remaining V1-to-V2 managed inventory adoption and signed exit parity implementation; it does not transfer V1 holdings, enable any V2 live broker writer or claim order acceptance.
+
 ## v1.3.55 ? V2 pre-submission recovery and Robinhood native quote parity (2026-11-22)
 
 - Closed an execution deadlock: a V2 order with a freshly persisted intent may lose exclusive account handoff or its broker quote before any POST. The original code returned BLOCKED but left INTENT_PERSISTED permanently unresolved. Now it persists a terminal REJECTED original-intent event with explicit broker_post_attempted=False, allowing later valid independent candidates without resubmitting the rejected idempotency key.

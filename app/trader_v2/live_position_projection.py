@@ -69,6 +69,7 @@ def reconstruct(state_dir,account):
     total_buys=0
     total_sells=0
     realized=Decimal("0")
+    realized_by_day={}
     for key,account_id,hashval,raw,state,created in rows:
         try:
             document=json.loads(raw)
@@ -109,12 +110,25 @@ def reconstruct(state_dir,account):
             raise PortfolioEvidenceError("V2_ORIGINAL_ORDER_OR_RECEIPT_UNVERIFIED") from None
     if set(events).difference(row[0] for row in rows):
         raise PortfolioEvidenceError("V2_ORPHAN_OR_FOREIGN_ORDER_EVENT")
-    for _,created,key,symbol,side,asset,qty,price,fees in sorted(lots):
+    for at,created,key,symbol,side,asset,qty,price,fees in sorted(lots):
+        # The timestamp is the durable local confirmation of the signed
+        # receipt, NOT necessarily the broker's original execution time.
+        # It is conservative for minimum-hold timing; daily P&L is explicitly
+        # categorized by reconciliation day, not inferred broker-fill day.
+        try:
+            closed_at=datetime.fromisoformat(at.replace("Z","+00:00"))
+            if closed_at.tzinfo is None:
+                raise ValueError
+            closed_at=closed_at.astimezone(timezone.utc)
+        except (ValueError,TypeError,AttributeError):
+            raise PortfolioEvidenceError("V2_SIGNED_FILL_EVENT_TIME_UNVERIFIED") from None
         identity=(symbol,asset)
         row=positions.setdefault(identity,{"quantity":Decimal("0"),
-                                            "cost":Decimal("0")})
+                                            "cost":Decimal("0"),"opened_at":None})
         if side=="BUY":
             total_buys+=1
+            if row["quantity"]==0:
+                row["opened_at"]=closed_at
             row["cost"]+=qty*price+fees
             row["quantity"]+=qty
         else:
@@ -123,13 +137,19 @@ def reconstruct(state_dir,account):
                 raise PortfolioEvidenceError("V2_SELL_EXCEEDS_VERIFIED_INVENTORY")
             unit_cost=row["cost"]/row["quantity"]
             allocated=unit_cost*qty
-            realized+=qty*price-allocated-fees
+            gain=qty*price-allocated-fees
+            realized+=gain
+            day=closed_at.date().isoformat()
+            realized_by_day[day]=realized_by_day.get(day,Decimal("0"))+gain
             row["quantity"]-=qty
             row["cost"]-=allocated
-            if row["quantity"]==0:row["cost"]=Decimal("0")
+            if row["quantity"]==0:
+                row["cost"]=Decimal("0")
+                row["opened_at"]=None
     # Do not disclose account identifier or arbitrary original order keys.
     inventory={sym:{"asset_class":asset,"quantity":str(row["quantity"]),
-                    "cost_basis":str(row["cost"]/row["quantity"])}
+                    "cost_basis":str(row["cost"]/row["quantity"]),
+                    "opened_at":row["opened_at"].isoformat()}
         for (sym,asset),row in positions.items() if row["quantity"]>0}
     return {"state":"RECONCILIATION_REQUIRED" if uncertain else "RECONCILED",
             "account_identity_verified":False,
@@ -138,5 +158,6 @@ def reconstruct(state_dir,account):
             "buy_fills":total_buys,"sell_fills":total_sells,
             "unresolved_intents":len(uncertain),
             "realized_net_usd":str(realized),
+            "realized_net_by_reconciled_utc_day":{d:str(v) for d,v in sorted(realized_by_day.items())},
             "verified_v2_inventory":inventory,
             "live_order_authority":False}
