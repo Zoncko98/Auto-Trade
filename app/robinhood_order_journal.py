@@ -73,6 +73,30 @@ class OrderJournal:
         row["status"]="submitted_unconfirmed"
         self._save(doc)
 
+    def mark_cancel_requested(self,account,client_id,broker_order_id,*,now=None):
+        """Persist original cancel attempt before POST; never claim fill/cancel."""
+        from uuid import UUID
+        now=now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            raise UnreconciledOrder("Cancellation timestamp invalid")
+        try:
+            original=str(UUID(client_id))
+            broker_order=str(UUID(broker_order_id))
+        except (ValueError,TypeError,AttributeError):
+            raise UnreconciledOrder("Original broker order identity unverified") from None
+        doc=self.load()
+        matches=[row for row in doc["orders"] if isinstance(row,dict)
+                 and row.get("account")==account
+                 and row.get("client_order_id")==original]
+        if (len(matches)!=1 or matches[0].get("status")!="submitted_unconfirmed"
+            or matches[0].get("side")!="buy"
+            or matches[0].get("broker_order_id")!=broker_order):
+            raise UnreconciledOrder("Original stale bot order not cancel eligible")
+        matches[0]["status"]="cancel_requested"
+        matches[0]["cancel_requested_at"]=now.astimezone(timezone.utc).isoformat()
+        matches[0]["cancel_reason"]="STALE_BOT_GTC_BUY"
+        self._save(doc)
+
     def mark_submission_rejected(self,client_id,reason):
         doc=self.load()
         rows=[row for row in doc["orders"] if row.get("client_order_id")==client_id]

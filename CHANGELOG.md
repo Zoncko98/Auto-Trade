@@ -1,3 +1,12 @@
+## v1.3.51 ? Authenticated management of stale Robinhood bot-owned GTC BUY orders (2026-11-22)
+
+- Investigated production: one original Robinhood Crypto BUY intent remains locally submitted_unconfirmed and broker-confirmed OPEN for over six hours; this GTC limit buy blocks follow-on autonomous trades and can prevent subsequent exits while unresolved. No assumption of cancellation/fill is made from its age.
+- Implemented configurable stale-entry cancellation policy (default 120 minutes; 0 disables; bound 0?1440). Original user authorization remains mandatory. A candidate must be one uniquely matching original journal BUY, with its own signed broker UUID, client UUID, source-timed local intent and a fresh signed Robinhood order row confirming identical account, original IDs, side=BUY, state=OPEN and explicit ZERO filled quantity/executions.
+- Actual cancellation uses Robinhood's authenticated existing cancel endpoint under the SAME V1/V2 account writer ownership lock. The local original order is atomically marked cancel_requested before the broker POST, and a timeout or unknown outcome never triggers a second cancellation request. The journal remains nonterminal until a subsequent signed Robinhood broker GET returns a final order state.
+- The worker continues to reconcile complete broker history every cycle before evaluating any new order, never treats a partial fill or unsigned quote as cancelable and preserves the exact original intent, opening fills and risk controls.
+- Account-specific Robinhood risk settings now display and save the auto-cancel TTL; the existing dashboard reports current stale-order management state rather than conflating an open GTC order with AI or strategy failure.
+- Added exact-client identity/UUID, no-partial-fill, age threshold, owner scope, timeout/no-retry, canceled reconciliation, disabled policy and UI contract tests. Does not enable V2 writer ownership or submit new trading orders. The legacy V1 broker remains active until an independently verified V2 handoff.
+
 ## v1.3.50 ? Exclusive account owner-aware V1 process lifecycle (2026-11-22)
 
 - Wired the original unified TrueNAS process supervisor to independently inspect each selected broker account's durable V1/V2 writer ownership before spawning or restarting the existing Schwab, Webull or Robinhood worker. If a selected account has a signed local V2 ownership record, its V1 worker will not be restarted; existing V1 account order locks remain in place at the actual broker POST boundary.

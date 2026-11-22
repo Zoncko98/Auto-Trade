@@ -1,3 +1,9 @@
+## v1.3.51 ? Robinhood stale GTC bot-entry reconciliation
+
+An old open original Auto Trader buy can block all autonomous orders. This release provides account-configurable (default two-hour) automatic cancellation only of an independently confirmed, entirely unfilled, original bot-created Robinhood GTC buy, under the existing authorized account's writer lock. The attempted broker cancellation is journaled exactly once before the request. A canceled state is shown only when later confirmed by Robinhood. Partial fills, missing broker proof and uncertain network requests remain blocked, and no new buy or sell orders are submitted by this feature.
+
+The Robinhood account Risk settings include a 0-minute OFF option and expose current cancellation/reconciliation state. Other V1 brokers and all V2 ownership gates remain unchanged. TrueNAS app updates in place with original rollback and preserved journals.
+
 ## v1.3.50 ? V1 worker lifecycle observes exclusive V2 ownership
 
 The existing TrueNAS supervisor now checks the durable account-specific V1/V2 ownership record before launching or restarting Schwab, Webull or Robinhood's original execution workers. This closes a restart race in the eventual V2 account handoff. Mixed-account Webull processing remains restricted by the already-existing per-account POST lock. Unknown account ownership fails closed.

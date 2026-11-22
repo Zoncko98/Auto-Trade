@@ -799,6 +799,7 @@ async function loadRobinhoodRisk(){
   $("robinhood-risk-stop").value=policy.stop_loss_pct||"2";
   $("robinhood-risk-fee-buffer").value=policy.fee_buffer_pct||"0.25";
   $("robinhood-risk-cooldown").value=policy.reentry_cooldown_minutes??30;
+  $("robinhood-risk-stale-entry").value=policy.stale_entry_cancel_minutes??120;
   $("robinhood-risk-minimum").textContent=
     Number(policy.verified_broker_minimum_usd)>0?
     money(Number(policy.verified_broker_minimum_usd)):"Not verified";
@@ -806,7 +807,10 @@ async function loadRobinhoodRisk(){
   $("robinhood-risk-activate").checked=policy.enabled===true;
   const effective=robinhoodEffective(broker);
   $("robinhood-risk-feedback").textContent=effective.label+" · "+effective.detail+" · "+
-    (policy.configured?"Saved risk settings loaded":"No risk policy saved");
+    (policy.configured?"Saved risk settings loaded":"No risk policy saved")+
+    " ? Stale bot buy auto-cancel: "+(
+      Number(policy.stale_entry_cancel_minutes||0)>0?
+      Number(policy.stale_entry_cancel_minutes)+" min":"OFF");
   $("robinhood-risk-form").dataset.effectiveState=effective.state;
   $("robinhood-risk-form").dataset.savedPolicyEnabled=policy.enabled===true?"true":"false";
   window.AutoTraderAudit?.roRisk();
@@ -831,6 +835,7 @@ async function saveRobinhoodRisk(event){
       stop_loss_pct:$("robinhood-risk-stop").value,
       fee_buffer_pct:$("robinhood-risk-fee-buffer").value,
       reentry_cooldown_minutes:Number($("robinhood-risk-cooldown").value),
+      stale_entry_cancel_minutes:Number($("robinhood-risk-stale-entry").value),
       verified_broker_minimum_usd:"0",enabled:$("robinhood-risk-activate").checked};
     if(payload.enabled&&!window.confirm("Enable REAL-MONEY autonomous Robinhood crypto orders under these limits?"))return;
     await request("/api/robinhood/risk",{method:"POST",body:JSON.stringify(payload)});
@@ -1063,6 +1068,7 @@ async function loadRobinhoodWorkspace(){
       " · Worker status: "+(worker.execution_status==="NOT_ARMED"&&result.policy_enabled===true?
         "ARMED_WAITING_QUALIFIED_SIGNAL":worker.execution_status||"unavailable")+
       " · Risk: "+(worker.risk_check||"unavailable")+
+      " ? Stale bot entry: "+String(worker.stale_entry_order_management?.state||"NOT_CHECKED")+
       " · Bot positions: "+(worker.bot_open_positions??"unavailable")+
       " · Daily realized P/L: "+(worker.daily_realized_pnl_usd==null?"unavailable":money(Number(worker.daily_realized_pnl_usd)))+
       " · Why: "+(worker.execution_reason||"Not yet recorded");

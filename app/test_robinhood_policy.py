@@ -17,6 +17,19 @@ class PolicyTests(unittest.TestCase):
    self.assertEqual(policy["min_hold_minutes"],15)
    self.assertEqual(policy["stop_loss_pct"],"2.0")
    self.assertEqual(policy["max_open_positions"],3)
+ def test_stale_buy_cancel_interval_defaults_and_persists_opt_out(self):
+  with tempfile.TemporaryDirectory() as d:
+   first=save_policy(d,{"account":"test-123","enabled":True,
+               "max_order_usd":"5"},self.accounts,self.pairs)
+   self.assertEqual(first["stale_entry_cancel_minutes"],120)
+   saved=save_policy(d,{"account":"test-123","enabled":True,
+               "stale_entry_cancel_minutes":0},self.accounts,self.pairs)
+   self.assertEqual(saved["stale_entry_cancel_minutes"],0)
+   self.assertEqual(read_policy(d)["stale_entry_cancel_minutes"],0)
+   with self.assertRaises(PolicyError):
+    save_policy(d,{"account":"test-123","enabled":True,
+          "stale_entry_cancel_minutes":1441},self.accounts,self.pairs)
+
  def test_arm_after_verified_pair_and_cash(self):
   with tempfile.TemporaryDirectory() as d:
    result=save_policy(d,{"account":"test-123","enabled":True,"max_order_usd":"5",

@@ -246,6 +246,8 @@ def run_once(state,client,feed=None):
                       if isinstance(row,dict) and isinstance(row.get("account"),str)}
     authorized={a.get("account_number") for a in account_rows if isinstance(a,dict)}
     external_updates=[]
+    stale_entry_management={"state":"SIGNED_ORDER_HISTORY_NOT_READY",
+                            "cancel_submitted":False}
     broker_history_verified=True
     history_unavailable_accounts=0
     for account_ref in journal_accounts & authorized:
@@ -273,6 +275,19 @@ def run_once(state,client,feed=None):
             except (OSError,ValueError,TypeError,RobinhoodUnavailable):
                 pass
         journal.reconcile(account_ref,broker_rows)
+        # Manage only exact original unfilled bot BUYs that are past the
+        # account's saved age limit. The journal remains pending until Robinhood
+        # confirms the cancel or a terminal fill; never re-POST an uncertain cancel.
+        try:
+            from robinhood_stale_entry import reconcile_stale_entry
+            from robinhood_policy import read_policy
+            selected_policy=read_policy(state)
+            if selected_policy.get("account")==account_ref:
+                stale_entry_management=reconcile_stale_entry(
+                    state,journal,selected_policy,account_ref,broker_rows)
+        except Exception:
+            stale_entry_management={"state":"STALE_BUY_MANAGEMENT_UNAVAILABLE",
+                                    "cancel_submitted":False}
         # A broker-confirmed external sell can close holdings acquired by this
         # bot without appearing among the bot's own client order identifiers.
         # Reconcile only when full broker holdings AND actual filled external
@@ -286,6 +301,7 @@ def run_once(state,client,feed=None):
             external_updates.append({"status":"BROKER_RECONCILIATION_UNAVAILABLE",
                                      "reason":type(exc).__name__,"adjustments":[]})
     result["external_holding_reconciliation"]=external_updates
+    result["stale_entry_order_management"]=stale_entry_management
     result["broker_order_history_status"]=(
         "VERIFIED" if broker_history_verified else "UNAVAILABLE")
     result["broker_history_unverified_accounts"]=history_unavailable_accounts

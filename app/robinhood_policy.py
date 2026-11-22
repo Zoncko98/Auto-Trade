@@ -20,6 +20,9 @@ DEFAULTS={
  "stop_loss_pct":"2.0",
  "fee_buffer_pct":"0.25",
  "reentry_cooldown_minutes":30,
+ # Autonomous order management: cancel an original unfilled GTC bot BUY
+ # after this bounded age. 0 disables all automatic cancellations.
+ "stale_entry_cancel_minutes":120,
 }
 
 def _amount(x,low,high):
@@ -51,6 +54,7 @@ def _policy_view(doc,configured=True):
             "stop_loss_pct":str(doc.get("stop_loss_pct",DEFAULTS["stop_loss_pct"])),
             "fee_buffer_pct":str(doc.get("fee_buffer_pct",DEFAULTS["fee_buffer_pct"])),
             "reentry_cooldown_minutes":int(doc.get("reentry_cooldown_minutes",DEFAULTS["reentry_cooldown_minutes"])),
+            "stale_entry_cancel_minutes":int(doc.get("stale_entry_cancel_minutes",DEFAULTS["stale_entry_cancel_minutes"])),
             "verified_broker_minimum_usd":str(doc.get("verified_broker_minimum_usd","0")),
             "account":doc.get("account")}
 
@@ -93,6 +97,7 @@ def save_policy(root,payload,accounts,pairs):
     stop_loss=_amount(payload.get("stop_loss_pct",current["stop_loss_pct"]),Decimal("0.50"),Decimal("15"))
     fee_buffer=_amount(payload.get("fee_buffer_pct",current["fee_buffer_pct"]),Decimal("0"),Decimal("2"))
     cooldown=_integer(payload.get("reentry_cooldown_minutes",current["reentry_cooldown_minutes"]),0,1440,"Re-entry cooldown")
+    stale_cancel=_integer(payload.get("stale_entry_cancel_minutes",current["stale_entry_cancel_minutes"]),0,1440,"Stale bot buy cancellation")
     enabled=payload.get("enabled")
     if type(enabled) is not bool:raise PolicyError("Explicit trading permission required")
     if not isinstance(pairs,list):raise PolicyError("Broker trading pairs unavailable")
@@ -119,6 +124,7 @@ def save_policy(root,payload,accounts,pairs):
          "trailing_activation_pct":str(trailing_activation),
          "trailing_drawdown_pct":str(trailing_drawdown),"stop_loss_pct":str(stop_loss),
          "fee_buffer_pct":str(fee_buffer),"reentry_cooldown_minutes":cooldown,
+         "stale_entry_cancel_minutes":stale_cancel,
          "verified_broker_minimum_usd":str(broker_min)}
     path=Path(root)/"robinhood"/"risk_policy.json"
     path.parent.mkdir(parents=True,exist_ok=True)
