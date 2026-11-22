@@ -2,6 +2,8 @@ from decimal import Decimal as D
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase, main
+from unittest.mock import patch
+from datetime import datetime,timezone
 import sqlite3
 
 from trader_v2.webull_migration_probe import probe_webull
@@ -27,6 +29,10 @@ class SignedWebull:
     def open_orders(self,account):
         self.reads.append("open_orders")
         return self.opens
+    def quote(self,symbol,asset):
+        self.reads.append("quote")
+        return {"symbol":symbol,"quote_time":"2026-11-23T16:00:00+00:00",
+            "bid":"100","ask":"100.1","last":"100.05"}
     def order_detail(self,account,client_id):
         self.reads.append("order_detail")
         return {"orders":[{
@@ -170,6 +176,46 @@ class WebullPreflightTests(TestCase):
         self.assertEqual(report["first_blocker"],"WEBULL_BOT_INVENTORY_EXCEEDS_SIGNED_HOLDINGS")
         self.assertFalse(report["broker_position_inventory_reconciled"])
         self.assertFalse(report["cutover_ready"])
+
+    def test_signed_stock_permission_and_quote_are_independent_gates(self):
+        self.journal([])
+        b=SignedWebull()
+        now=datetime(2026,11,23,16,0,2,tzinfo=timezone.utc)
+        with patch("webull_worker._can_trade_account",return_value=True),patch(
+             "webull_signals.core_stock_session",return_value=True):
+            report=probe_webull(self.root,b,self.policy,now=now)
+        self.assertTrue(report["broker_product_verified"])
+        self.assertEqual(report["broker_quote_timestamp_verified_symbols"],1)
+        self.assertTrue(report["core_stock_session_observed"])
+        self.assertFalse(report["cutover_ready"])
+        self.assertIn("quote",b.reads)
+
+    def test_quote_without_last_never_proves_executable_signed_price(self):
+        self.journal([])
+        b=SignedWebull()
+        def no_last(sym,asset):
+            raw=SignedWebull.quote(b,sym,asset)
+            raw.pop("last")
+            return raw
+        b.quote=no_last
+        now=datetime(2026,11,23,16,0,2,tzinfo=timezone.utc)
+        with patch("webull_worker._can_trade_account",return_value=True),patch(
+             "webull_signals.core_stock_session",return_value=True):
+            report=probe_webull(self.root,b,self.policy,now=now)
+        self.assertTrue(report["broker_product_verified"])
+        self.assertEqual(report["broker_quote_timestamp_verified_symbols"],0)
+        self.assertFalse(report["cutover_ready"])
+
+    def test_market_window_closed_skips_market_quote_but_does_not_forge_permission(self):
+        self.journal([])
+        b=SignedWebull()
+        with patch("webull_worker._can_trade_account",return_value=True),patch(
+             "webull_signals.core_stock_session",return_value=False):
+            report=probe_webull(self.root,b,self.policy)
+        self.assertTrue(report["broker_product_verified"])
+        self.assertFalse(report["core_stock_session_observed"])
+        self.assertEqual(report["broker_quote_timestamp_verified_symbols"],0)
+        self.assertNotIn("quote",b.reads)
 
     def test_webull_invalid_signed_fill_economics_fail_closed(self):
         self.journal([self.record()])

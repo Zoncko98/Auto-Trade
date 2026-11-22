@@ -104,13 +104,16 @@ def probe_webull(root, broker, policy, *, now=None):
         raise ValueError("Time must be timezone-aware")
     out = {
         "schema":1, "broker":"webull",
-        "settlement_contract_version":1,
+        "settlement_contract_version":2,
         "checked_at":now.astimezone(timezone.utc).isoformat(),
         "mode":"AUTHENTICATED_WEBULL_READ_ONLY",
         "live_order_authority":False, "cutover_ready":False,
         "broker_account_verified":False, "funding_verified":False,
         "settled_cash_verified":False, "broker_positions_verified":False,
         "broker_position_inventory_reconciled":False,
+        "broker_product_verified":False,
+        "broker_quote_timestamp_verified_symbols":0,
+        "core_stock_session_observed":False,
         "broker_open_orders_verified":False, "broker_open_order_count":None,
         "local_order_count":None, "local_unresolved_count":None,
         "signed_historical_fills_verified":False,
@@ -231,8 +234,35 @@ def probe_webull(root, broker, policy, *, now=None):
     except Exception:
         out["first_blocker"]="WEBULL_HISTORICAL_ORDER_READ_UNVERIFIED"
         return out
-    # V2 still requires precise position inventory, settled funding,
-    # broker executable quote/session and the durable V1/V2 writer handoff.
+    # Evaluate the signed stock-account permission independently from price.
+    # Never claim executable quotes outside the conservative core session,
+    # and never confuse local clock windows with exchange entitlements.
+    if policy.get("trade_stocks") is True and policy.get("stock_account")==account:
+        try:
+            from webull_worker import _can_trade_account
+            out["broker_product_verified"]=_can_trade_account(
+                details,"EQUITY",False) is True
+        except Exception:
+            out["broker_product_verified"]=False
+        try:
+            from webull_signals import core_stock_session
+            window=core_stock_session(now) is True
+            out["core_stock_session_observed"]=window
+            if window and out["broker_product_verified"]:
+                from .market_sources import webull_market_quote
+                # One GET-only signed executable quote, never a synthetic
+                # price from midpoint, WebSocket or another exchange.
+                raw=broker.quote("AAPL","EQUITY")
+                quote=webull_market_quote(raw,"AAPL",now=now)
+                if quote.source_tradable is not True or quote.last is None:
+                    raise ValueError("Signed venue-timed last price absent")
+                if (quote.ask-quote.bid)/quote.ask>Decimal("0.005"):
+                    raise ValueError("Signed quote spread too wide")
+                out["broker_quote_timestamp_verified_symbols"]=1
+        except Exception:
+            out["broker_quote_timestamp_verified_symbols"]=0
+    # Still no V2 account writer, no broker order acceptance and no
+    # signed proof of settlement unless independently verified above.
     out["first_blocker"]=(
         "WEBULL_OPERATOR_NOT_ARMED" if not armed
         else "WEBULL_SESSION_AND_SINGLE_WRITER_HANDOFF_REQUIRED"

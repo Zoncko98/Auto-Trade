@@ -34,7 +34,7 @@ class AutoWebullProbeTests(TestCase):
         first=run_once(self.root,signed_broker=signed,now=self.now)
         self.assertEqual(first["first_blocker"],
           "WEBULL_SETTLEMENT_AND_SINGLE_WRITER_HANDOFF_REQUIRED")
-        self.assertEqual(first["settlement_contract_version"],1)
+        self.assertEqual(first["settlement_contract_version"],2)
         self.assertTrue(first["broker_account_verified"])
         self.assertTrue(first["broker_open_orders_verified"])
         self.assertFalse(first["settled_cash_verified"])
@@ -65,7 +65,7 @@ class AutoWebullProbeTests(TestCase):
                          "SIGNED_WEBULL_PREFLIGHT_SCHEMA_REFRESH_REQUIRED")
         self.assertFalse(cached["live_order_authority"])
         fresh=run_once(self.root,signed_broker=signed,now=self.now)
-        self.assertEqual(fresh["settlement_contract_version"],1)
+        self.assertEqual(fresh["settlement_contract_version"],2)
         self.assertFalse(fresh["cutover_ready"])
 
     def test_expired_observation_never_claims_current_authorization(self):

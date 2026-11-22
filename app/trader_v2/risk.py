@@ -56,7 +56,15 @@ def evaluate_risk(account:Account,candidate:Candidate,quote:MarketSnapshot,
         price=((quote.bid*Decimal("0.995"))/tick).to_integral_value(
             rounding=ROUND_DOWN)*tick
         quantity=held
-        if quantity*price<account.capability.min_notional:
+        if account.broker=="robinhood_crypto":
+            # Existing Robinhood V1 sell rules apply max_order_usd to each
+            # broker order, including protective exits. A single exit may
+            # require multiple *independently reconciled* future intents.
+            cap=policy.max_order_notional/quote.bid
+            inc=account.capability.quantity_increment
+            quantity=(min(held,cap)/inc).to_integral_value(
+                rounding=ROUND_DOWN)*inc
+        if quantity<=0 or quantity*price<account.capability.min_notional:
             return blocked("BROKER_MINIMUM_EXIT_NOTIONAL")
         return RiskDecision("PASS","RISK_REDUCING_EXIT",quantity,price,account.cash)
 

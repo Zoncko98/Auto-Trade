@@ -75,6 +75,21 @@ class StrategyContracts(unittest.TestCase):
         invalid=self.sequence([10,10,9,8,8,14])
         invalid[-1]=Candle("DEMO",invalid[-1].observed_at,invalid[-1].close,False)
         self.assertIsNone(ctrl.candidate("paper-a",invalid))
+    def test_v2_live_stock_continuation_matches_v1_moderate_m5_trend(self):
+        controller=StockController(include_continuation=True)
+        rows=self.sequence([D("10"),D("10"),D("10"),
+                            D("10.02"),D("10.06"),D("10.12")])
+        # No completed 3/5 upward crossover is required for this separate
+        # confirmed V1 continuation rule.
+        result=controller.candidate("paper-a",rows)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.side,OrderSide.BUY)
+        self.assertEqual(result.evidence["indicator"],"M5_TREND_CONTINUATION")
+        self.assertIsNone(StockController().candidate("paper-a",rows))
+        steep=self.sequence([D("10"),D("10"),D("10"),
+                             D("10.2"),D("10.5"),D("10.8")])
+        self.assertIsNone(controller.candidate("paper-a",steep))
+
     def test_crypto_controller_is_separate_from_stock_periods(self):
         c=CryptoController()
         result=c.candidate("paper-crypto",self.sequence([10]*8+[20],"BTC-USD"))
@@ -119,6 +134,22 @@ class RiskContracts(V2Fixture):
         exhausted=evaluate_risk(self.sim.account("paper-a"),sell,self.market,policy,
                 now=self.now,entries_today=100,exits_today=2,daily_realized_loss=D("999"))
         self.assertEqual(exhausted.reason,"EXIT_ORDER_LIMIT")
+    def test_robinhood_exit_respects_original_per_order_notional(self):
+        from trader_v2.models import Capability
+        cap=Capability(frozenset({AssetClass.CRYPTO}),fractional=True,
+            min_notional=D("1"),quantity_increment=D("0.001"))
+        account=Account("rh-a","robinhood_crypto",cap,D("0"),D("100"),
+            {"BTC-USD":D("4")},AuthState.CONNECTED,True,D("40"))
+        quote=MarketSnapshot("BTC-USD",AssetClass.CRYPTO,
+            "robinhood_signed",self.now,self.now,D("10"),D("10.01"),D("10"),True)
+        sell=Candidate("crypto_exit","compat-1","rh-a","BTC-USD",AssetClass.CRYPTO,
+            OrderSide.SELL,self.now,{"reason":"STOP_LOSS"})
+        policy=RiskPolicy(max_order_notional=D("15"),max_total_exposure=D("100"))
+        result=evaluate_risk(account,sell,quote,policy,now=self.now)
+        self.assertEqual(result.code,"PASS")
+        self.assertEqual(result.quantity,D("1.5"))
+        self.assertLessEqual(result.quantity*quote.bid,policy.max_order_notional)
+
     def test_no_holdings_cannot_short(self):
         sell=Candidate("stock_sma","1","paper-a","DEMO",AssetClass.STOCK,
             OrderSide.SELL,self.now,{"indicator":"confirmed-cross-down"})

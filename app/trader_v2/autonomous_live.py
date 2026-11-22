@@ -19,6 +19,9 @@ from .store import EventStore
 from .live_pipeline import LivePipeline,WriterHandoff
 from .writer_ownership import inspect_ownership,WriterOwnershipError
 from .contracts import TradingBroker
+from .account_exit_rules import (
+    ManagedExitLot, ExitPolicy, exit_trigger, ExitParityUnavailable,
+)
 
 class LiveScanUnavailable(ValueError):
     def __init__(self,code):
@@ -70,7 +73,8 @@ class AutonomousLiveScan:
     def __init__(self,broker:TradingBroker,account_id:str,*,state_dir,
                  symbols,asset_class:AssetClass,candle_feed,quote_feed,
                  gate,reviewer=None,clock=None,policy_provider=None,
-                 realized_loss_provider=None,strategy_parity_provider=None):
+                 realized_loss_provider=None,strategy_parity_provider=None,
+                 exit_evidence_provider=None,exit_policy_provider=None):
         if not isinstance(broker,TradingBroker) or broker.provider_id not in (
                 "schwab","webull","robinhood_crypto"):
             raise TypeError("Canonical signed live broker required")
@@ -97,8 +101,13 @@ class AutonomousLiveScan:
         # Full V1→V2 per-account exit/cooldown and adopted inventory checks.
         # A valid WriterHandoff by itself is NOT strategy equivalence.
         self.strategy_parity_provider=strategy_parity_provider
+        # Exit metadata must come from signed reconciled V1/V2 broker lots,
+        # NEVER the whole account position list or estimated entry fills.
+        self.exit_evidence_provider=exit_evidence_provider
+        self.exit_policy_provider=exit_policy_provider
         self.controller=(
-            StockController() if asset_class is AssetClass.STOCK else CryptoController())
+            StockController(include_continuation=True)
+            if asset_class is AssetClass.STOCK else CryptoController())
         self.writer_scope=getattr(broker,"writer_scope_account",None) or account_id
 
     def _authority(self,now):
@@ -191,6 +200,58 @@ class AutonomousLiveScan:
             return self._status("V2_RISK_POLICY_UNVERIFIED",
                 "Signed account risk or validated AI entry configuration unavailable")
         checked=0;eligible=0;first_error=None;prioritized=[]
+        verified_exit_quotes={}
+        # Every bot-managed holding must first be checked for V1-compatible
+        # stop/profit/held-time protection BEFORE evaluating any fresh buys.
+        # Missing cost basis, signed availability or quote provenance blocks
+        # new entries as well as exits, rather than silently skipping a hold.
+        managed=[sym for sym,qty in sorted(account.positions.items()) if qty>0]
+        if managed and (not callable(self.exit_evidence_provider) or
+                        not callable(self.exit_policy_provider)):
+            return self._status("V2_EXIT_EVIDENCE_UNVERIFIED",
+                "Broker-confirmed managed lot and original V1 exit policy required")
+        for symbol in managed:
+            try:
+                reading=self.quote_feed(symbol)
+                if not isinstance(reading,MarketSnapshot):
+                    raise ExitParityUnavailable("SIGNED_EXIT_QUOTE_MISSING")
+                evidence=self.exit_evidence_provider(symbol,account)
+                exit_policy=self.exit_policy_provider(account)
+                if not isinstance(evidence,ManagedExitLot) or not isinstance(exit_policy,ExitPolicy):
+                    raise ExitParityUnavailable("V2_MANAGED_EXIT_PROVIDERS_UNVERIFIED")
+                if (evidence.quantity!=account.positions[symbol] or
+                    evidence.symbol!=symbol):
+                    raise ExitParityUnavailable("V2_MANAGED_EXIT_QUANTITY_MISMATCH")
+                technical=False
+                try:
+                    recent=accepted_bars(self.candle_feed(symbol),symbol,self.asset_class,now)
+                    signal=self.controller.candidate(self.account_id,recent)
+                    technical=bool(signal is not None and signal.side is OrderSide.SELL)
+                except (LiveScanUnavailable,TypeError,ValueError):
+                    if self.broker.provider_id=="schwab":
+                        raise ExitParityUnavailable("V2_SCHWAB_HELD_CANDLES_UNVERIFIED")
+                mode=exit_trigger(self.broker.provider_id,evidence,reading,
+                    exit_policy,now=now,technical_reversal=technical)
+                verified_exit_quotes[symbol]=reading
+                if mode!="HOLD":
+                    eligible+=1
+                    prioritized.append(Candidate(
+                        strategy="v1_exit_protection",version="compat-1",
+                        account_id=self.account_id,symbol=symbol,
+                        asset_class=self.asset_class,side=OrderSide.SELL,
+                        signal_at=reading.observed_at,
+                        evidence={"reason":mode,
+                                  "broker_exit_rules":"SIGNED_BOT_LOT_AND_BID",
+                                  "asset":self.asset_class.value}))
+            except Exception:
+                return self._status("V2_EXIT_EVIDENCE_UNVERIFIED",
+                    "Held-position exit rules or signed broker bid not verified",
+                    checked=checked,signals=eligible)
+        # Protect risk-reducing exits before all new-entry candidates.
+        prioritized.sort(key=lambda x:{
+            "STOP_LOSS":0,"TAKE_PROFIT":1,"TRAILING_PROFIT":2,
+            "PROFIT_REVERSAL":3,"V1_SCHWAB_BEARISH_CROSS":4
+        }.get(x.evidence.get("reason"),9))
         for symbol in self.symbols:
             checked+=1
             try:
@@ -199,8 +260,9 @@ class AutonomousLiveScan:
                 if candidate is None:continue
                 held=account.positions.get(symbol,Decimal("0"))
                 if candidate.side is OrderSide.SELL:
-                    if held<=0:continue
-                    prioritized.insert(0,candidate)
+                    # A generic down-cross never overrides the broker's
+                    # verified cost/hold/stop/peak exit policy above.
+                    continue
                 elif candidate.side is OrderSide.BUY:
                     if held>0:continue
                     prioritized.append(candidate)
@@ -218,7 +280,8 @@ class AutonomousLiveScan:
                     return self._status("V2_RISK_POLICY_UNVERIFIED",
                         "Required validated model or entry AI policy not available",
                         checked=checked,signals=eligible)
-                quote=self.quote_feed(candidate.symbol)
+                quote=verified_exit_quotes.get(candidate.symbol)
+                if quote is None:quote=self.quote_feed(candidate.symbol)
                 if (not isinstance(quote,MarketSnapshot) or
                     quote.symbol!=candidate.symbol or
                     quote.asset_class!=candidate.asset_class or not quote.market_open):

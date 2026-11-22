@@ -14,7 +14,7 @@ def result_status(state, *, now=None):
     doc=private_json(path,maximum=16000)
     # Cache from a previous schema must not satisfy new signed settlement
     # verification rules. A first supervised run refreshes it using GETs.
-    if not isinstance(doc,dict) or doc.get("settlement_contract_version")!=1:
+    if not isinstance(doc,dict) or doc.get("settlement_contract_version")!=2:
         return {"state":"NOT_YET_VERIFIED_OR_STALE","broker":"webull",
                 "live_order_authority":False,"cutover_ready":False,
                 "first_blocker":"SIGNED_WEBULL_PREFLIGHT_SCHEMA_REFRESH_REQUIRED"}
@@ -38,6 +38,9 @@ def result_status(state, *, now=None):
             "broker_account_verified","funding_verified",
             "settled_cash_verified","broker_positions_verified","broker_position_inventory_reconciled",
             "broker_external_position_symbols",
+            "broker_product_verified",
+            "broker_quote_timestamp_verified_symbols",
+            "core_stock_session_observed",
             "broker_open_orders_verified","broker_open_order_count",
             "local_order_count","local_unresolved_count",
             "signed_historical_fill_count","signed_historical_fills_verified",
@@ -60,7 +63,7 @@ def run_once(state, signed_broker=None, *, now=None):
     target.mkdir(mode=0o700,parents=True,exist_ok=True)
     if target.stat().st_mode&0o077:
         raise PermissionError("Migration journal permissions invalid")
-    result={"schema":1,"settlement_contract_version":1,
+    result={"schema":1,"settlement_contract_version":2,
             "broker":"webull","mode":"AUTHENTICATED_WEBULL_READ_ONLY",
             "checked_at":now.isoformat(),"live_order_authority":False,
             "cutover_ready":False,"first_blocker":"SIGNED_WEBULL_PREFLIGHT_UNAVAILABLE",

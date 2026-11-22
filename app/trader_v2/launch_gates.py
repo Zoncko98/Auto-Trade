@@ -45,7 +45,7 @@ def launch_status(state_dir,broker,*,now=None):
                     "schwab":"AUTHENTICATED_SCHWAB_READ_ONLY"}.get(broker))
     fresh=bool(expected_mode and _observed(probe,now) and
                probe.get("broker")==broker and probe.get("mode")==expected_mode
-               and (broker!="webull" or probe.get("settlement_contract_version")==1))
+               and (broker!="webull" or probe.get("settlement_contract_version")==2))
     signed=probe if fresh else {}
     risk=mapping(root,broker)
     if broker=="robinhood_crypto":
@@ -64,10 +64,13 @@ def launch_status(state_dir,broker,*,now=None):
         holdings=(_true(signed.get("broker_positions_verified")) and
                   _true(signed.get("broker_position_inventory_reconciled")))
         history=_true(signed.get("signed_historical_fills_verified"))
+        # Signed GET market observations are explicitly not broker execution
+        # authority. This gate requires the order adapter's current quote
+        # attestation during the eventual exclusive-writer handoff.
         quote=False
         open_orders=signed.get("broker_open_order_count")
         unresolved=signed.get("local_unresolved_count")
-        pair_ok=False
+        pair_ok=_true(signed.get("broker_product_verified"))
     else:
         account_ok=_true(signed.get("account_verified"))
         holdings=_true(signed.get("holdings_verified"))

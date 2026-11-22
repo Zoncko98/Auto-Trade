@@ -1,3 +1,13 @@
+## v1.3.46 - Signed bot-lot protective exits and V1 stock continuation (2026-11-22)
+
+- Added deterministic, broker-specific V2 protective-exit rule evaluations for Schwab's confirmed 3/5-bar bearish crossover and same-day buy hold, Webull's cost/hold/stop/profit/high-water rules and Robinhood Crypto's separately estimated sell-fee and stop-reference costs. Unknown bot-owned cost basis, signed available quantity, opening time or historical receipts block both a SELL and fresh BUY for that account.
+- The shared V2 scanner checks eligible held-position protection before new entries. It never sells on an isolated generic downward cross without the verified broker-specific V1 exit condition. For Robinhood/Webull a verified stop-loss can be evaluated even if optional technical candle data is unavailable. All signed account, session, quote, exposure, exit-order limit, independent strategy parity and exclusive-writer checks remain.
+- Matched Robinhood's saved max_order_usd per-order SELL ceiling in V2 deterministic risk. New BUYs retain their separate daily-loss, fee, available-cash and AI approval requirements; valid protective SELLs remain independent of entry-only AI or daily entry caps.
+- Added moderate 0.4%-2% rising three-completed-bar M5 continuation to the V2 live STOCK controller, matching the existing Schwab/Webull V1 entry option while preserving the separate V2 paper baseline until exact paper/live parity is validated.
+- Extended the signed Webull read-only preflight with source-time validated stock bid/ask/last and signed stock-account class evidence during the conservative US core session. Those GET observations DO NOT verify an executable broker order, real exchange session entitlement or permission to transfer the V1 writer. Contract-version 2 prevents stale pre-upgrade verification from being reused.
+- The existing Trading Operations UI now distinguishes signed read-only market observations and source-tested exit rules from FULL V1 STRATEGY/AI/EXIT PARITY (still UNVERIFIED).
+- Added source comparison, missing-proof, spread/staleness and protective-exit boundary tests; kept all real broker order writers with V1.
+
 ## v1.3.45 ? V2 protective exits are independent of entry-only AI policy (2026-11-22)
 
 - Fixed the shared autonomous V2 live scanner so the REQUIRED AI entry policy is checked only for BUY candidates. Validated risk-reducing SELL candidates can proceed without an entry model when AI mode is OFF, while still requiring an authenticated account, authorized writer proof, exact V1 exit/cooldown parity, validated broker-executable quote, risk limits, account inventory and original-order reconciliation.

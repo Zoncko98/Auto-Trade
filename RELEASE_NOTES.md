@@ -1,3 +1,11 @@
+## v1.3.46 - V2 broker-specific exits, historical parity and read-only broker observation
+
+The V2 shared scanner now evaluates separately verified managed-lot cost basis, broker available quantity, account-specific stop, target, trailing and holding-time rules before issuing a SELL or considering another BUY with existing bot holdings. A generic bearish cross is not alone sufficient to liquidate a position. Robinhood per-order protective exit sizing remains bound to its saved max_order_usd; V2 live stock continuation can use the same moderate completed-bar signal as V1 Schwab and Webull.
+
+The Webull signed preflight may independently verify selected account stock permissions and a timestamped read-only signed stock market quote. It cannot establish settlement, broker order acceptance, exclusive V1-to-V2 writer handoff or full V1 strategy parity, so all such launch gates remain blocked until externally verified.
+
+This release does NOT arm any broker, transfer an account order writer, or submit live V2 brokerage orders. The existing TrueNAS application, V1 account permission/worker operation, original order journals and rollback path are preserved.
+
 ## v1.3.45 ? Protective sell reliability in V2 execution coordinator
 
 V2 no longer evaluates an entry-only AI requirement before classifying protective SELL signals. This resolves a potential failure to manage validated holdings when the AI entry model is unavailable or disabled. BUY orders still require the account's validated AI policy and model. Existing per-account broker sessions, risk and order-reconciliation safeguards are unchanged.

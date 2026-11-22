@@ -20,6 +20,8 @@ document.addEventListener("DOMContentLoaded",()=>{
           "not verified":Number(doc.broker_open_order_count))+
         " · Local unresolved: "+(doc.local_unresolved_count==null?
           "not verified":Number(doc.local_unresolved_count))+
+        " | Signed stock account permissions: "+(doc.broker_product_verified===true?"VERIFIED":"NOT VERIFIED")+
+        " | Broker market quote: "+(Number(doc.broker_quote_timestamp_verified_symbols||0)>0?"SIGNED READ-ONLY OBSERVATION":"NOT VERIFIED")+
         " | Signed holdings reconciled: "+(doc.broker_position_inventory_reconciled===true?"YES":"NO")+
         " | Settled funding verified: "+(doc.settled_cash_verified===true?"YES":"NO")+
         " | External holding symbols: "+Number(doc.broker_external_position_symbols||0)+
@@ -230,6 +232,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       const store=data.store||"Unavailable";
       target.textContent="V2 "+String(data.version||"experimental")+
         " · "+flag+" · Live broker authority: OFF"+
+        " · V2 protective exits: SOURCE-TESTED; FULL V1 PARITY NOT VERIFIED"+
         " · Event store: "+store+
         " · Persisted intents: "+Number(data.intents||0)+
         " · Unresolved: "+Number(data.unresolved||0)+
