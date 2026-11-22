@@ -1,3 +1,9 @@
+## v1.3.36 — Why live V2 has not launched
+
+Trading Operations now shows the specific signed evidence and execution-worker acceptance gates that must pass before any account changes ownership. It distinguishes broker account/order/quote observations from live authorizations and reports the missing settled-funding, AI/exit, supervisor and exclusive handoff paths instead of displaying a vague 'not ready'.
+
+A successful test build or signed quote still does not start V2 orders. V1 keeps current account ownership; no account permissions, financial records or risk limits have been changed.
+
 ## v1.3.35 — Price every Robinhood holding without requiring an unsupported Coinbase pair
 
 The V2 Robinhood account adapter can now value an externally held cryptocurrency using its fresh signed Robinhood bid/ask and timestamp, even when the V2 Coinbase signal feed does not support that asset. Missing or stale broker quotes still block account assessment. This is for accurate gross exposure only, not order permission or new-trade pricing.

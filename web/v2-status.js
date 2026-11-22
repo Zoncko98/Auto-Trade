@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
   if(!target)return;
   void refreshWebullProbe();
-  function showCutover(report,robinhoodProbe){
+  function showCutover(report,robinhoodProbe,launch){
     if(!cutover)return;
     cutover.replaceChildren();
     const intro=document.createElement("strong");
@@ -58,6 +58,10 @@ document.addEventListener("DOMContentLoaded",()=>{
     }
     const titles={schwab:"Schwab",webull:"Webull",
       robinhood_crypto:"Robinhood Crypto",paper:"Paper"};
+    const launchChecks=new Map(
+      (Array.isArray(launch?.accounts)?launch.accounts:[]).filter(
+        item=>item&&typeof item.broker==="string").map(
+        item=>[item.broker,item]));
     for(const item of report.accounts){
       if(!item||!Object.hasOwn(titles,item.broker))continue;
       const section=document.createElement("p");
@@ -122,6 +126,21 @@ document.addEventListener("DOMContentLoaded",()=>{
           String(envelope.buying_power_preliminary_ceiling_usd))+
         " · Does NOT authorize any V2 order";
       cutover.append(section);
+      const decision=launchChecks.get(item.broker);
+      if(decision&&Array.isArray(decision.gates)){
+        const details=document.createElement("details");
+        const heading=document.createElement("summary");
+        const complete=decision.gates.filter(g=>g&&g.verified===true).length;
+        heading.textContent="V2 launch acceptance: "+complete+" / "+
+          decision.gates.length+" verified · Not activated";
+        details.append(heading);
+        const blockers=document.createElement("p");
+        blockers.textContent="Outstanding acceptance gates: "+
+          (Array.isArray(decision.blockers)?decision.blockers:[]).slice(0,20)
+            .map(v=>String(v)).join(" · ");
+        details.append(blockers);
+        cutover.append(details);
+      }
     }
   }
   function showAdapters(rows,market,diagnostics){
@@ -197,7 +216,8 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Unresolved: "+Number(data.unresolved||0)+
         " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
-      showCutover(data.cutover_preflight,data.robinhood_signed_migration_probe);
+      showCutover(data.cutover_preflight,data.robinhood_signed_migration_probe,
+                  data.v2_live_launch);
       void readStockShadowStatus();
       void readFreshPaperStatus();
       void readRecordedReplay();

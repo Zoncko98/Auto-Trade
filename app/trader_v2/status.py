@@ -8,12 +8,13 @@ from .readonly_adapters import ReadOnlyBrokerRegistry,private_json
 from .market_sources import cached_market_status
 from .readiness import explain
 from .cutover_preflight import preflight
+from .launch_gates import all_launch_status
 
 def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.31","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.32","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
@@ -85,6 +86,7 @@ def summary(state_dir)->dict:
         status["broker_adapters"],status["market_sources"])
     status["cutover_preflight"]=preflight(
         state_dir,status["broker_adapters"],status["market_sources"])
+    status["v2_live_launch"]=all_launch_status(state_dir)
     if not enabled():return status
     path=Path(state_dir)/"v2"/"events.sqlite3"
     if not path.is_file():return status

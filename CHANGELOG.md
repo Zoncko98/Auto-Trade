@@ -1,3 +1,11 @@
+## v1.3.36 — Broker-by-broker live V2 launch acceptance gates (2026-11-21)
+
+- Added a read-only, redacted launch acceptance matrix across the three live brokers, distinguishing signed account auth, holdings, order history, pending intents, tradable symbols, market quotes, saved V1 risk, settled funding, market-session entitlement, V1 AI/exit parity, V1 worker shutdown, V2 executor startup/reconciliation, exclusive ownership and actual broker acceptance.
+- Rejects stale, wrongly scoped, malformed or world-readable signed probe files. Signed buying power and a valid bid/ask never masquerade as settled funds, session authorization or production order acceptance.
+- The authenticated existing Trading Operations dashboard displays each broker's complete acceptance blockers in collapsible detail without exposing account IDs, credentials or broker balances. No extra dashboards or duplicated account navigation were introduced.
+- No live V2 orders are enabled. The V2 implementation currently has no complete supervised live strategy/exit/reconciliation worker, and direct privileged production-account inspection was blocked by execution-tool policy. Existing V1 workers and journal ownership remain unchanged until true acceptance is possible.
+- Added fail-closed tests for source identity, age, immutable private data, numeric order counts, Webull unnormalized positions and incomplete handoff gates.
+
 ## v1.3.35 — Robinhood V2 signed broker valuation of all held inventory (2026-11-21)
 
 - Removed an unnecessary independent Coinbase last-trade requirement when pricing EXISTING signed Robinhood holdings for gross risk exposure. The signed Robinhood broker's actual bid/ask and reported timestamp must be validated for every nonzero holding, including assets not tracked by the BTC/ETH Coinbase signal feed.
