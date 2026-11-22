@@ -104,13 +104,18 @@ def assess(root,*,now=None):
     root=Path(root)
     executor=executor_status(root,now=now)
     accounts=[]
+    migrated=0
     for broker in BROKERS:
         launch=launch_status(root,broker,now=now)
         gates=launch["gates"]
+        owner=_v1_worker_owner(root,broker)
+        v2_owns=owner.get("v2_scopes",0)>0
+        migrated+=int(v2_owns)
         accounts.append({
             "broker":broker,
             "v1_worker":_worker_readonly(root,broker,now),
-            "v1_worker_owner":_v1_worker_owner(root,broker),
+            "v1_worker_owner":owner,
+            "v2_account_owner":v2_owns,
             "inherited_v1_limits":_inherited_activity(root,broker,now),
             "signed_preflight_fresh":launch["signed_observation_fresh"],
             "verified_gate_count":sum(g["verified"] is True for g in gates),
@@ -128,7 +133,7 @@ def assess(root,*,now=None):
         "v2_executor_state":executor.get("state"),
         "v2_live_order_authority":False,
         "v2_orders_submitted":0,
-        "cutover_accounts":0,
+        "cutover_accounts":migrated,
         "accounts":accounts,
     }
 
@@ -165,6 +170,7 @@ def public_status(state_dir,*,now=None):
         return {"state":"INVALID_REPORT","v2_live_order_authority":False,
                 "cutover_accounts":0,"accounts":[]}
     safe=[]
+    confirmed_owners=0
     for broker in BROKERS:
         found=[row for row in rows if isinstance(row,dict) and row.get("broker")==broker]
         if len(found)!=1:return {"state":"INVALID_REPORT",
@@ -189,6 +195,12 @@ def public_status(state_dir,*,now=None):
                      else "V1_WRITER_PLACEMENT_UNVERIFIED")
         if owner_state not in allowed_states:
             owner_state="V1_WRITER_PLACEMENT_UNVERIFIED"
+        v2_owned=(owner_state=="V2_ACCOUNT_OWNER_NO_V1_RESTART" or
+                  owner_state=="V1_OTHER_ACCOUNT_ONLY")
+        if row.get("v2_account_owner") is not v2_owned:
+            return {"state":"INVALID_REPORT","v2_live_order_authority":False,
+                    "cutover_accounts":0,"accounts":[]}
+        confirmed_owners+=int(v2_owned)
         activity=row.get("inherited_v1_limits")
         checked=isinstance(activity,dict) and activity.get("state")=="SIGNED_V1_LIMITS_INHERITED"
         if checked and any(type(activity.get(k)) is not int or
@@ -199,6 +211,7 @@ def public_status(state_dir,*,now=None):
                      "total_gates":total,
                      "v1_daily_limits_inherited":checked,
                      "v1_worker_owner_state":owner_state,
+                     "v2_account_owner":v2_owned,
                      "v1_inheritance_blocker":None if checked else str(
                           (activity or {}).get("first_blocker") or
                           "V1_SOURCE_INHERITANCE_UNAVAILABLE")[:90],
@@ -207,11 +220,14 @@ def public_status(state_dir,*,now=None):
                      "v1_telemetry_recent":isinstance(worker,dict) and
                           worker.get("recent") is True,
                      "first_blocker":str(row.get("first_blocker") or "NOT_VERIFIED")[:100]})
+    if doc.get("cutover_accounts")!=confirmed_owners:
+        return {"state":"INVALID_REPORT","v2_live_order_authority":False,
+                "cutover_accounts":0,"accounts":[]}
     exec_status=executor_status(state_dir,now=now)
     return {"state":"READ_ONLY_STANDBY","checked_at":doc["checked_at"],
             "replacement_live_worker_registered":exec_status.get("registered") is True,
             "v2_executor_accounts":exec_status.get("accounts",[]),
-            "v2_live_order_authority":False,"cutover_accounts":0,"accounts":safe}
+            "v2_live_order_authority":False,"cutover_accounts":confirmed_owners,"accounts":safe}
 
 def _terminate(_sig,_frame):
     global _STOP

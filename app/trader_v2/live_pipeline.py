@@ -150,6 +150,19 @@ class LivePipeline(PaperPipeline):
             return PipelineResult("BLOCKED","ACCOUNT_RECONCILIATION_PENDING",key)
         try:
             account=inspect_paper_adapter(self.broker,candidate.account_id)
+            # Multi-pair broker accounts must use the exact symbol's signed
+            # minimum notional and quantity increment. The generic account
+            # capability (typically the first pair) cannot authorize a
+            # different pair's precision or order minimum.
+            exact=getattr(self.broker,"account_for_symbol",None)
+            if exact is not None:
+                if not callable(exact):
+                    raise ValueError("INVALID_SYMBOL_ACCOUNT_PROVIDER")
+                account=exact(candidate.account_id,candidate.symbol)
+                if (not isinstance(account,Account) or
+                    account.broker!=self.broker.provider_id or
+                    account.account_id!=candidate.account_id):
+                    raise ValueError("SYMBOL_ACCOUNT_IDENTITY_UNVERIFIED")
         except Exception:
             return PipelineResult("BLOCKED","SIGNED_BROKER_ACCOUNT_UNAVAILABLE",key)
         risk=evaluate_risk(account,candidate,quote,policy,now=now,

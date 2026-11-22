@@ -1,3 +1,9 @@
+## v1.3.58 ? Controlled Robinhood V2 account cutover and authentic runtime reporting
+
+Adds a dedicated, user-approved production cutover action inside the existing TrueNAS Auto Trader application. The request is bound to the selected Robinhood account digest. After independent, fresh brokerage read-only preflights and original policy parity, the parent drains the exclusive V1 order lock, stops the Robinhood V1 process, repeats broker/order checks and transfers the account owner generation atomically to the existing V2 execution coordinator. Any failed pretransfer requirement preserves V1 ownership and normal V1 recovery. No safeguards are bypassed to induce a test fill.
+
+V2 real crypto execution now sizes orders to each signed pair's broker minimum and increment, and the existing Operations dashboard reports real account writer ownership plus the signed V2 engine's latest reason separately from broker receipt acceptance. V1-managed positions cannot be silently adopted. Other stock brokers remain on original workers pending separate verified cash/session/product readiness.
+
 ## v1.3.57 ? Real Robinhood V2 execution callback integration
 
 Production now has a signed Robinhood Crypto V2 execution service inside the existing single TrueNAS V2 coordinator. It uses authentic broker GET/POST implementations and the original V2 shared strategy, bounded Ollama advisory review, deterministic account risk, idempotent event journal, reconciliation, and broker-specific exit conditions. It cannot start an order without operator arming, exclusive physical account ownership, a stopped V1 worker, verified signed funding/history/holdings/quotes and a current generation-matched grant.

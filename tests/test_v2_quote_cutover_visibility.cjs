@@ -16,5 +16,5 @@ test("Robinhood quote cutover failures are visible without exposing broker paylo
  assert.match(preflight,/public_trade=public_feed/);
  assert.match(preflight,/raw=client\.quote\(symbol\)/);
  assert.ok(preflight.indexOf("public_trade=public_feed(") < preflight.indexOf("raw=client.quote(symbol)"));
- assert.match(frontend,/V2 live cutover: NOT READY/);
+ assert.match(frontend,/V2 live cutover:/);
 });

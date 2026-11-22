@@ -21,6 +21,6 @@ test("Trading Operations shows signed Schwab diagnostics without enabling live V
  const ui=read("web/v2-status.js");
  assert.match(ui,/Signed Schwab V2 read-only preflight/);
  assert.match(ui,/signed_observation_fresh===true/);
- assert.match(ui,/V2 live cutover: NOT READY/);
+ assert.match(ui,/V2 live cutover:/);
  assert.doesNotMatch(ui,/innerHTML|submit_order\(|place_order\(/);
 });

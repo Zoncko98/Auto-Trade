@@ -179,6 +179,7 @@ def main():
     v2_webull_probe_last_spawn=0.0
     v2_supervisor_last_spawn=0.0
     v2_executor_last_spawn=0.0
+    robinhood_cutover_last_attempt=0.0
     webull_last_spawn=0.0
     webull_feed_last_spawn=0.0
     while not _STOP:
@@ -233,6 +234,30 @@ def main():
                 rh_ready=(STATE/"config"/"robinhood_crypto.json").is_file()
                 rh_v1=v1_worker_placement(STATE,"robinhood_crypto")
                 rh=CHILDREN.get("robinhood")
+                # Explicit user-approved, account-scoped cutover. The parent
+                # is the only process that can quiesce its managed V1 child,
+                # so it cannot respawn V1 between the post-stop signed broker
+                # verification and atomic generation-matched owner transfer.
+                # A blocked attempt leaves the V1 owner unchanged and the
+                # normal V1 spawn rule below restores its worker.
+                cutover_requested=(os.getenv(
+                    "AUTO_TRADER_V2_ROBINHOOD_CUTOVER")=="approved")
+                current_monotonic=time.monotonic()
+                if (rh_ready and cutover_requested and rh_v1.v1_scopes>0
+                    and (robinhood_cutover_last_attempt==0 or
+                         current_monotonic-robinhood_cutover_last_attempt>=90)):
+                    robinhood_cutover_last_attempt=current_monotonic
+                    from trader_v2.cutover_robinhood import attempt
+                    executor=CHILDREN.get("v2-live-executor")
+                    v2_ready=(executor is not None and executor.poll() is None)
+                    report=attempt(STATE,stop_v1=lambda:stop_process("robinhood"),
+                        live_worker_ready=v2_ready,operator_approved=True,
+                        approved_account_digest=os.getenv(
+                            "AUTO_TRADER_V2_ROBINHOOD_ACCOUNT_DIGEST"))
+                    print("Robinhood V2 owner cutover: "+
+                          report["state"]+" / "+report["reason"],flush=True)
+                    rh_v1=v1_worker_placement(STATE,"robinhood_crypto")
+                    rh=CHILDREN.get("robinhood")
                 if rh_ready and rh_v1.may_run and (rh is None or rh.poll() is not None):
                     spawn("robinhood",["/app/robinhood_worker.py"],runtime_env)
                 if not rh_ready or not rh_v1.may_run:

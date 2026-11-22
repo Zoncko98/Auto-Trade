@@ -53,12 +53,18 @@ document.addEventListener("DOMContentLoaded",()=>{
     if(!cutover)return;
     cutover.replaceChildren();
     const intro=document.createElement("strong");
-    intro.textContent="V2 live-account migration preflight · read-only · no automatic cutover";
+    intro.textContent="V2 live-account migration: broker ownership and signed execution status";
     cutover.append(intro);
     const s=document.createElement("p");
+    const migrated=(supervisor?.state==="READ_ONLY_STANDBY"&&
+      Number.isInteger(supervisor?.cutover_accounts)&&
+      supervisor.cutover_accounts>=0&&supervisor.cutover_accounts<=3)?
+      supervisor.cutover_accounts:0;
     s.textContent="V2 account coordinator: "+(supervisor?.state==="READ_ONLY_STANDBY"?"SUPERVISED READ-ONLY STANDBY":"OFFLINE / STALE")+
       " | Replacement execution process: "+(supervisor?.replacement_live_worker_registered===true?"REGISTERED (GATED)":"NOT VERIFIED")+
-      " | V2 live writer: NOT ACTIVE | Migrated brokers: 0/3";
+      " | "+(migrated>0?"V2 live writer: OWNER TRANSFERRED (signed scan required)":
+                  "V2 live writer: NOT ACTIVE")+
+      " | Migrated brokers: "+migrated+"/3";
     cutover.append(s);
     if(!report||report.live_order_authority!==false||
        report.automatic_cutover_allowed!==false||!Array.isArray(report.accounts)){
@@ -94,7 +100,9 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · V1 worker "+(item.v1_writer_active?"active":"unverified/offline")+
         " · account "+(item.account_verified?"verified":"not verified");
       section.textContent=titles[item.broker]+" · "+state+
-        " · V2 live cutover: NOT READY · First blocker: "+
+        " | V2 live cutover: "+(supervisedAccounts.get(item.broker)?.v2_account_owner===true?
+             "OWNER TRANSFERRED (verify signed scans and receipts)":"NOT READY")+
+        " | First blocker: "+
         String((launchChecks.get(item.broker)||{}).first_blocker||item.first_blocker||"NOT_VERIFIED")+
         " · Orders: "+String(journal.state||"UNVERIFIED")+
         (journal.unresolved==null?"":" · Local unresolved: "+Number(journal.unresolved))+
@@ -163,6 +171,8 @@ document.addEventListener("DOMContentLoaded",()=>{
           String(envelope.buying_power_preliminary_ceiling_usd))+
         " ? V2 execution admission: "+String(
           executorAccounts.get(item.broker)?.reason||"EXECUTOR_NOT_VERIFIED")+
+        " ? Latest signed V2 scan result: "+String(
+          executorAccounts.get(item.broker)?.engine_state||"NOT_SCANNED")+
         " ? V1 account writer lifecycle: "+
           String(supervisedAccounts.get(item.broker)?.v1_worker_owner_state||
             "V1_WRITER_PLACEMENT_UNVERIFIED")+

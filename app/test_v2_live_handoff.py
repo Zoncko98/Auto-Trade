@@ -72,6 +72,20 @@ class TestLiveCutover(TestCase):
         return self.pipe.evaluate(self.candidate,self.quote,self.policy,
                 now=self.now,**kwargs)
 
+    def test_exact_symbol_broker_minimum_restricts_multi_pair_trade(self):
+        # BTC default account cap is permissive; ETH's signed minimum
+        # must take precedence, otherwise a fake BTC size can be posted.
+        self.broker.account_for_symbol=Mock(return_value=Account(
+            "crypto-account","robinhood_crypto",
+            Capability(frozenset({AssetClass.CRYPTO}),fractional=True,
+                       min_notional=D("50")),
+            D("100"),D("150"),{},AuthState.CONNECTED,True,D("0")))
+        result=self.evaluate()
+        self.broker.account_for_symbol.assert_called_once_with(
+            "crypto-account","BTC-USD")
+        self.assertEqual(self.broker.sends,0)
+        self.assertEqual(result.code,"BLOCKED")
+
     def test_v1_owned_account_cannot_submit_even_if_gate_claims_all_clear(self):
         import json
         doc=json.loads(self.ownership_file.read_text())

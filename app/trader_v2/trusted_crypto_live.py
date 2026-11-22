@@ -252,6 +252,10 @@ class SignedRobinhoodScan:
             provider_id="robinhood_crypto"
             def account(self,account_id):
                 return adapter("BTC-USD").account(account_id)
+            def account_for_symbol(self,account_id,symbol):
+                if symbol not in _SUPPORTED:
+                    raise ValueError("V2_UNSUPPORTED_CRYPTO_PAIR_CAPABILITY")
+                return adapter(symbol).account(account_id)
             def find_order(self,key):
                 return adapter("BTC-USD").find_order(key)
             def submit(self,intent):

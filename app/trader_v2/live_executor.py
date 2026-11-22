@@ -6,7 +6,7 @@ owner and a fresh account-specific broker handoff are ALL verified. Production
 defaults refuse any adapter absent those independent dependencies.
 """
 from __future__ import annotations
-import argparse,fcntl,os,signal,stat,time
+import argparse,fcntl,os,re,signal,stat,time
 from datetime import datetime,timezone
 from pathlib import Path
 from .launch_gates import BROKERS,launch_status
@@ -87,9 +87,13 @@ def account_cycle(root,broker,*,now=None,grant_provider=None,scanner_factory=Non
         out=scan.run_once()
         if not isinstance(out,dict) or out.get("broker")!=broker:
             return _blocked(broker,"V2_SCAN_RESPONSE_UNVERIFIED")
-        # Output is redacted; broker fills must be verified by a separate
-        # signed broker receipt, never from this generic worker heartbeat.
-        return {"broker":broker,"state":"SCANNED","reason":"SIGNED_SCAN_COMPLETED"}
+        result_code=out.get("state")
+        if (not isinstance(result_code,str) or
+            re.fullmatch(r"[A-Z][A-Z0-9_]{2,63}",result_code) is None):
+            return _blocked(broker,"V2_SCAN_RESPONSE_UNVERIFIED")
+        # This is engine diagnosis, NOT independent broker POST acceptance.
+        return {"broker":broker,"state":"SCANNED","reason":"SIGNED_SCAN_COMPLETED",
+                "engine_state":result_code}
     except Exception:
         return _blocked(broker,"ACCOUNT_EXECUTION_NOT_VERIFIED")
 
@@ -138,7 +142,14 @@ def public_status(root,*,now=None):
             if r.get("state")=="BLOCKED" and r.get("reason") in REASONS:
                 clean.append({"broker":broker,"state":"BLOCKED","reason":r["reason"]})
             elif r.get("state")=="SCANNED" and r.get("reason")=="SIGNED_SCAN_COMPLETED":
-                clean.append({"broker":broker,"state":"SCANNED","reason":"SIGNED_SCAN_COMPLETED"})
+                engine=r.get("engine_state")
+                if engine is not None and (
+                    not isinstance(engine,str) or
+                    re.fullmatch(r"[A-Z][A-Z0-9_]{2,63}",engine) is None):
+                    raise ValueError
+                clean.append({"broker":broker,"state":"SCANNED",
+                              "reason":"SIGNED_SCAN_COMPLETED",
+                              "engine_state":engine})
             else:raise ValueError
         return {"state":"REGISTERED_GATED_EXECUTION_COORDINATOR",
                 "registered":True,"checked_at":doc["checked_at"],"accounts":clean}

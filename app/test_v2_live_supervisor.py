@@ -81,6 +81,29 @@ class SupervisorTests(TestCase):
         self.assertNotIn("private-account-hash",str(visible))
         self.assertFalse(visible["v2_live_order_authority"])
 
+    def test_v2_owner_cutover_count_is_independently_verified(self):
+        def owner(root,broker):
+            if broker=="robinhood_crypto":
+                return {"state":"V2_ACCOUNT_OWNER_NO_V1_RESTART",
+                        "may_run":False,"v1_scopes":0,"v2_scopes":1}
+            return {"state":"V1_EXCLUSIVE_WRITER",
+                    "may_run":True,"v1_scopes":1,"v2_scopes":0}
+        with patch("trader_v2.live_supervisor._v1_worker_owner",
+                   side_effect=owner):
+            doc=write_status(self.root,now=NOW)
+            self.assertEqual(doc["cutover_accounts"],1)
+            public=public_status(self.root,now=NOW)
+            self.assertEqual(public["cutover_accounts"],1)
+            robinhood=next(x for x in public["accounts"]
+                           if x["broker"]=="robinhood_crypto")
+            self.assertTrue(robinhood["v2_account_owner"])
+            self.assertFalse(public["v2_live_order_authority"])
+            path=self.root/"v2/live_supervisor/health.json"
+            doc["cutover_accounts"]=2
+            path.write_text(json.dumps(doc))
+            self.assertEqual(public_status(self.root,now=NOW)["state"],
+                             "INVALID_REPORT")
+
     def test_no_broker_signed_proof_never_reports_positive_v1_counts(self):
         public=write_status(self.root,now=NOW)
         for item in public["accounts"]:

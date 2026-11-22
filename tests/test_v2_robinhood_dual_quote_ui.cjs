@@ -10,7 +10,7 @@ test("the Robinhood preflight labels signed native time separately from public t
   assert.match(ui,/Signed quote timestamps:/);
   assert.match(ui,/Independent venue-timed trade crosschecks:/);
   assert.match(ui,/Coinbase trade time remains separately sourced/);
-  assert.match(ui,/V2 live cutover: NOT READY/);
+  assert.match(ui,/V2 live cutover:/);
 });
 test("signed migration evidence stays behind authenticated read-only route",()=>{
   assert.match(server,/if UNIFIED_APP and path == "\/api\/v2\/status":/);
