@@ -1,3 +1,11 @@
+## v1.3.54 ? Production signed Robinhood quote diagnostics (2026-11-22)
+
+- Deployment troubleshooting found real BTC/ETH signed broker best-bid/ask sometimes fails executable quote validation even when authenticated account, V1 signed history and crypto technical signals work.
+- Split specific signed quote failures into SIGNED_BROKER_BOOK_CROSSED (broker bid exceeds ask), SIGNED_BROKER_SPREAD_TOO_WIDE (valid positive spread above existing 1.5% hard ceiling), and SIGNED_BROKER_BID_ASK_INVALID (zero or unusable signed prices).
+- The authenticated Trading Operations signed migration quote diagnostics already display each broker rejection code, without raw book prices or identifying account information.
+- Source tests cover crossed, excessive spread, zero/missing and validated independent last-price cases.
+- No broker spread tolerance, account risk, order permissions, duplicate prevention or V1 ownership restrictions were relaxed. This release changes diagnostics only and does not itself enable V2 trades.
+
 ## v1.3.53 ? Signed Robinhood spot funding and 24/7 product capability in V2 admission (2026-11-22)
 
 - Corrected the permanent Robinhood V2 admission mismatch between crypto spot execution and US-stock settlement hours. Robinhood's signed active API-tradable Crypto trading account reports USD buying_power as its spendable spot allowance; this is now an explicit verified spot-funding input. It is NOT reported as equity settled_cash.

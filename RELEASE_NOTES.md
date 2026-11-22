@@ -1,3 +1,7 @@
+## v1.3.54 ? Production Robinhood quote failures
+
+Now identify crossed signed broker books separately from wide spreads or missing prices. V2 continues to block unexecutable quotes; no limit, broker permission, AI/risk rule or account ownership rule changes. Existing V1 traders remain in control until an independently validated V2 migration.
+
 ## v1.3.53 ? Crypto funding/session proof without stock-market assumptions
 
 The V2 Robinhood Crypto migration preflight now models Robinhood's authenticated USD buying power and API-tradable 24/7 crypto product capability as distinct signed evidence. It never calls that balance stock settled cash, assumes open maintenance windows, or relaxes the separately verified broker spread and quote freshness. Schwab and Webull stock cash/session requirements are unchanged.

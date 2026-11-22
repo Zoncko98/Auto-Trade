@@ -75,8 +75,13 @@ def attest_quote(signed, public_trade: MarketSnapshot, symbol: str,
         ask=amount(rows[0].get("ask"),"signed ask",False)
     except (ValueError,TypeError):
         raise DualQuoteUnavailable("SIGNED_BROKER_BID_ASK_INVALID") from None
-    if ask<bid or (ask-bid)/ask>Decimal("0.015"):
-        raise DualQuoteUnavailable("SIGNED_BROKER_SPREAD_UNVERIFIED")
+    # A crossed signed book is not an excessive positive spread.
+    # Separate exact broker-side failures so production diagnoses identify
+    # the real problem without exposing live prices or relaxing risk limits.
+    if ask<bid:
+        raise DualQuoteUnavailable("SIGNED_BROKER_BOOK_CROSSED")
+    if (ask-bid)/ask>Decimal("0.015"):
+        raise DualQuoteUnavailable("SIGNED_BROKER_SPREAD_TOO_WIDE")
     if (not isinstance(public_trade,MarketSnapshot) or
         public_trade.asset_class is not AssetClass.CRYPTO or
         public_trade.symbol!=_ALLOWED[symbol] or

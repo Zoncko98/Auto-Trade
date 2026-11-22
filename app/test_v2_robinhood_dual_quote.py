@@ -1,4 +1,4 @@
-﻿"""Robinhood signed top-of-book + independently timestamped last (no network)."""
+"""Robinhood signed top-of-book + independently timestamped last (no network)."""
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal as D
 from unittest import TestCase, main
@@ -55,6 +55,21 @@ class RobinhoodDualQuoteTests(TestCase):
                     signed(bid="900"),signed(bid=990.0)):
             with self.subTest(row=row),self.assertRaises(DualQuoteUnavailable):
                 check(row)
+
+    def test_exact_production_quote_failure_code_for_crossed_book(self):
+        with self.assertRaises(DualQuoteUnavailable) as caught:
+            check(signed(bid="999",ask="990.5"))
+        self.assertEqual(caught.exception.code,"SIGNED_BROKER_BOOK_CROSSED")
+
+    def test_exact_production_quote_failure_code_for_wide_spread(self):
+        with self.assertRaises(DualQuoteUnavailable) as caught:
+            check(signed(bid="900",ask="990.5"))
+        self.assertEqual(caught.exception.code,"SIGNED_BROKER_SPREAD_TOO_WIDE")
+
+    def test_signed_invalid_bid_is_not_reclassified_as_wide_spread(self):
+        with self.assertRaises(DualQuoteUnavailable) as caught:
+            check(signed(bid="0",ask="990.5"))
+        self.assertEqual(caught.exception.code,"SIGNED_BROKER_BID_ASK_INVALID")
 
     def test_public_venue_identity_and_fresh_timestamp(self):
         for doc in (coinbase(age=21),coinbase(age=-3),
