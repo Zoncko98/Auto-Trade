@@ -14,7 +14,7 @@ class ReviewUnavailable(RuntimeError):
 
 class SharedAIReviewer:
     def __init__(self, transport: Callable[[str, float], str], *, model: str,
-                 timeout_seconds: float = 8, ttl_seconds: int = 60,
+                 timeout_seconds: float = 18, ttl_seconds: int = 60,
                  clock: Callable[[], datetime] | None = None):
         if not callable(transport) or not isinstance(model, str) or not 1 <= len(model) <= 96:
             raise ValueError("Invalid AI transport or model")

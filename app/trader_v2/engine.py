@@ -24,9 +24,21 @@ class PipelineResult:
     order_state:str|None=None
 
 def candidate_key(candidate:Candidate)->str:
+    if candidate.strategy=="v1_exit_protection":
+        # A fresh market quote MUST NOT create another broker order intent
+        # for the same verified bot-owned lot. Keep signal_at fresh for
+        # deterministic risk while binding idempotency to signed lot proof.
+        token=candidate.evidence.get("managed_lot_fingerprint")
+        if (candidate.side.value!="SELL" or
+            not isinstance(token,str) or
+            len(token)!=64 or any(ch not in "0123456789abcdef" for ch in token)):
+            raise ValueError("VERIFIED_MANAGED_LOT_FINGERPRINT_REQUIRED")
+        signal_identity=token
+    else:
+        signal_identity=candidate.signal_at.isoformat()
     identity="|".join([candidate.account_id,candidate.strategy,candidate.version,
          candidate.symbol,candidate.asset_class.value,candidate.side.value,
-         candidate.signal_at.isoformat()])
+         signal_identity])
     return "v2_"+hashlib.sha256(identity.encode()).hexdigest()[:32]
 
 class PaperPipeline:

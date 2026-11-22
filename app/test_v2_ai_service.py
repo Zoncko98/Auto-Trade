@@ -54,6 +54,14 @@ class SharedAIReviewerTests(unittest.TestCase):
         s=self.service()
         result=s.review(self.c,self.q)
         self.assertEqual(result.expires_at, self.now+timedelta(seconds=60))
+    def test_default_timeout_supports_verified_local_model_latency(self):
+        s=self.service()
+        self.assertGreaterEqual(s.timeout_seconds,15)
+        self.assertLessEqual(s.timeout_seconds,30)
+        result=s.review(self.c,self.q)
+        self.assertEqual(result.state,AIState.PASS)
+        self.assertEqual(self.calls[0][1],s.timeout_seconds)
+
     def test_timeout_and_ttl_are_bounded(self):
         with self.assertRaises(ValueError): self.service(timeout_seconds=200)
         with self.assertRaises(ValueError): self.service(ttl_seconds=600)

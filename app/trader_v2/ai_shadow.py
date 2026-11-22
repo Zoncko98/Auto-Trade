@@ -26,7 +26,7 @@ def shadow_review(candidate: Candidate,quote: MarketSnapshot,*,now=None,env=None
     try:
         transport=OllamaReviewTransport(endpoint,model)
         reviewer=SharedAIReviewer(transport,model=model,
-            timeout_seconds=6,ttl_seconds=50,
+            timeout_seconds=18,ttl_seconds=50,
             clock=lambda:datetime.now(timezone.utc))
         review=reviewer.review(candidate,quote)
         if review.state not in (AIState.PASS,AIState.VETO):

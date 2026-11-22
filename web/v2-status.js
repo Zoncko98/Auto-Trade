@@ -155,7 +155,9 @@ document.addEventListener("DOMContentLoaded",()=>{
             Number(supervisedAccounts.get(item.broker)?.v1_entries_today||0)+
             ", SELL intents "+
             Number(supervisedAccounts.get(item.broker)?.v1_exits_today||0):
-          "NOT VERIFIED")+
+          "NOT VERIFIED ["+
+            String(supervisedAccounts.get(item.broker)?.v1_inheritance_blocker||
+              "SIGNED_V1_COUNTERS_NOT_VERIFIED")+"]")+
         " · Does NOT authorize any V2 order";
       cutover.append(section);
       const decision=launchChecks.get(item.broker);

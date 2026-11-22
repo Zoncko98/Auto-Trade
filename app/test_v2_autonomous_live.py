@@ -53,6 +53,7 @@ class AutonomousLiveScanTests(TestCase):
   self.tmp=TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
   self.state=Path(self.tmp.name)
   self.now=datetime.now(timezone.utc).replace(microsecond=0)
+  self.opened_at=self.now-timedelta(minutes=30)
   self.broker=Broker()
   self.stock=False
   self.price=MarketSnapshot("BTC-USD",AssetClass.CRYPTO,"robinhood_signed",
@@ -70,7 +71,7 @@ class AutonomousLiveScanTests(TestCase):
         frozenset(),False,True,True)
   self.make_lot=lambda symbol,account:ManagedExitLot(
     symbol,account.positions[symbol],account.positions[symbol],D("12"),
-    self.now-timedelta(minutes=30),high_water_bid=D("11"),
+    self.opened_at,high_water_bid=D("11"),
     cost_basis_broker_verified=True,original_fills_reconciled=True)
   self.engine=lambda direction="BUY",gap=False,reviewer=None:AutonomousLiveScan(
     self.broker,"acct",state_dir=self.state,symbols=["BTC-USD"],
@@ -161,6 +162,66 @@ class AutonomousLiveScanTests(TestCase):
   out=self.engine(direction="BUY").run_once()
   self.assertEqual(out["state"],"V2_RISK_POLICY_UNVERIFIED")
   self.assertEqual(self.broker.posts,0)
+
+ def test_same_verified_protective_lot_never_reposts_on_new_quote(self):
+  self.own_v2()
+  self.broker.held={"BTC-USD":D("1")}
+  first=self.engine(direction="SELL").run_once()
+  self.assertEqual(first["state"],"FILLED")
+  self.assertEqual(self.broker.posts,1)
+  self.now=self.now+timedelta(seconds=6)
+  self.price=MarketSnapshot("BTC-USD",AssetClass.CRYPTO,"robinhood_signed",
+      self.now-timedelta(seconds=1),self.now,D("10"),D("10.01"),
+      D("10.005"),True)
+  second=self.engine(direction="SELL").run_once()
+  self.assertEqual(second["state"],"FILLED",second)
+  self.assertEqual(self.broker.posts,1)
+  self.assertEqual(second["last_order_key"],first["last_order_key"])
+
+ def test_live_scanner_reads_signed_original_v1_sources_by_default(self):
+  from unittest.mock import patch
+  self.own_v2()
+  self.broker.held={"BTC-USD":D("1")}
+  eng=self.engine(direction="SELL")
+  eng.exit_evidence_provider=None
+  eng.exit_policy_provider=None
+  eng.v1_activity_provider=None
+  with patch("trader_v2.autonomous_live.read_inherited",
+       return_value=self.legacy) as legacy,patch(
+       "trader_v2.autonomous_live.managed_v1_lot",
+       side_effect=lambda root,broker,scope,symbol,account,now:self.make_lot(symbol,account)
+       ) as lots,patch("trader_v2.autonomous_live.legacy_exit_policy",
+       return_value=ExitPolicy("robinhood_crypto")) as policy:
+    outcome=eng.run_once()
+  self.assertEqual(outcome["state"],"FILLED",outcome)
+  self.assertEqual(self.broker.posts,1)
+  self.assertEqual(legacy.call_count,1)
+  self.assertEqual(lots.call_count,1)
+  self.assertEqual(policy.call_count,1)
+
+ def test_live_scanner_never_defaults_to_unsigned_v1_order_counts(self):
+  self.own_v2()
+  eng=self.engine(direction="BUY")
+  eng.v1_activity_provider=None
+  result=eng.run_once()
+  self.assertEqual(result["state"],"V2_V1_ACTIVITY_UNVERIFIED")
+  self.assertEqual(self.broker.posts,0)
+
+ def test_same_lot_decimal_presentation_change_cannot_repost(self):
+  self.own_v2()
+  self.broker.held={"BTC-USD":D("1")}
+  first=self.engine(direction="SELL").run_once()
+  self.assertEqual(first["state"],"FILLED")
+  self.assertEqual(self.broker.posts,1)
+  original_lot=self.make_lot
+  self.make_lot=lambda sym,account:ManagedExitLot(
+    sym,D("1.000"),D("1.0"),D("12.000"),
+    self.opened_at,high_water_bid=D("11.00"),
+    cost_basis_broker_verified=True,original_fills_reconciled=True)
+  second=self.engine(direction="SELL").run_once()
+  self.assertEqual(second["state"],"FILLED")
+  self.assertEqual(self.broker.posts,1)
+  self.assertEqual(second["last_order_key"],first["last_order_key"])
 
  def test_signed_managed_cost_basis_required_before_sell_or_new_buy(self):
   self.own_v2()

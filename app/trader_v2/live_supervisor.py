@@ -70,8 +70,14 @@ def _inherited_activity(root,broker,now):
                 "exits_today":verified.exits_today,
                 "reentry_cooldown_symbols":len(verified.reentry_blocked_symbols),
                 "all_buys_blocked":verified.all_buys_blocked}
+    except V1InheritanceUnavailable as exc:
+        return {"state":"V1_DAILY_LIMITS_NOT_VERIFIED",
+                "first_blocker":exc.code,
+                "entries_today":None,"exits_today":None,
+                "reentry_cooldown_symbols":None,"all_buys_blocked":None}
     except Exception:
         return {"state":"V1_DAILY_LIMITS_NOT_VERIFIED",
+                "first_blocker":"V1_SOURCE_INHERITANCE_UNAVAILABLE",
                 "entries_today":None,"exits_today":None,
                 "reentry_cooldown_symbols":None,"all_buys_blocked":None}
 
@@ -161,6 +167,9 @@ def public_status(state_dir,*,now=None):
         safe.append({"broker":broker,"verified_gates":count,
                      "total_gates":total,
                      "v1_daily_limits_inherited":checked,
+                     "v1_inheritance_blocker":None if checked else str(
+                          (activity or {}).get("first_blocker") or
+                          "V1_SOURCE_INHERITANCE_UNAVAILABLE")[:90],
                      "v1_entries_today":activity.get("entries_today") if checked else None,
                      "v1_exits_today":activity.get("exits_today") if checked else None,
                      "v1_telemetry_recent":isinstance(worker,dict) and

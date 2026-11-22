@@ -21,6 +21,7 @@ test("authenticated operations shows verified standby vs live writer",()=>{
  assert.match(ui,/V2 live writer: NOT ACTIVE/);
  assert.match(ui,/V1 day limits inherited/);
  assert.match(ui,/SIGNED CHECKED/);
+ assert.match(ui,/v1_inheritance_blocker/);
  assert.match(status,/live_supervisor_status\(state_dir\)/);
  assert.doesNotMatch(ui,/innerHTML|submit_order\(|place_order\(/);
 });

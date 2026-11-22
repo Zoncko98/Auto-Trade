@@ -1,3 +1,11 @@
+## v1.3.48 - Safe original-order identity, V1 managed inventory and local AI latency
+
+The V2 executor prevents the same broker-confirmed managed holding from generating a second live SELL order merely because a new market quote arrived. A quote remains mandatory for validation; order identity instead binds to the original signed position lot so duplicate scans reconcile one existing order across worker restarts. V2 now has read-only source-backed managed-lot and per-account exit-policy loaders for Robinhood and Webull. Schwab historical cost basis remains unverified, so automatic V2 adoption is blocked.
+
+The existing Ollama model qwen3.5:4b was independently reached on TrueNAS. It completed a strictly typed V2 mock candidate review; configured timeout bounds now allow normal responses while continuing to reject stale quote prices after model latency. This does not imply positive trading performance or production broker acceptance.
+
+Current V1 order writers remain the sole authorized brokerage writers. No live V2 orders were submitted, no broker was automatically armed, and all pending user/broker acceptance requirements stay blocked. Deployment updates the existing TrueNAS application in place with a retained pre-update Compose backup and ZFS snapshot.
+
 ## v1.3.47 - V1 daily risk inheritance for V2 account cutover
 
 V2 preserves the selected original broker account's historical order counts, pending-order safety, daily exit limit, specific Robinhood reentry cooldown and Schwab's separate total-day new-entry ceiling without starving independently authorized protective exits. A fresh signed broker account and fully reconciled V1 order-history preflight are required before any inherited count is accepted. Unknown data does not default to zero.

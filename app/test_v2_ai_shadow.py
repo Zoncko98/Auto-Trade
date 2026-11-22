@@ -25,6 +25,20 @@ class ShadowAITests(unittest.TestCase):
         self.assertFalse(result["changed_order_authority"])
         net.assert_not_called()
 
+    def test_ollama_shadow_uses_bounded_latency_compatible_with_real_model(self):
+        sent=[]
+        def mock_transport(prompt,timeout):
+            sent.append(timeout)
+            return '{"symbol":"BTCUSD","state":"PASS","reason":"valid candle"}'
+        with patch("trader_v2.ai_shadow.OllamaReviewTransport",
+                   return_value=mock_transport):
+            outcome=shadow_review(self.candidate,self.quote,
+                  env={"AI_MODEL":"synthetic","AI_OLLAMA_URL":"http://localhost:11434"})
+        self.assertEqual(outcome["state"],"PASS")
+        self.assertGreaterEqual(sent[0],15)
+        self.assertLessEqual(sent[0],30)
+        self.assertFalse(outcome["changed_order_authority"])
+
     def test_model_pass_is_typed_and_time_bounded(self):
         response='{"symbol":"BTCUSD","state":"PASS","reason":"qualified pattern"}'
         with patch("trader_v2.ai_shadow.OllamaReviewTransport",

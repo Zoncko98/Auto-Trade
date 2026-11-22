@@ -8,6 +8,7 @@ intents are reconciled by their ORIGINAL ID instead of re-posted.
 """
 from __future__ import annotations
 from datetime import datetime,timezone,timedelta
+import hashlib
 from decimal import Decimal
 from pathlib import Path
 import json,sqlite3
@@ -22,7 +23,8 @@ from .contracts import TradingBroker
 from .account_exit_rules import (
     ManagedExitLot, ExitPolicy, exit_trigger, ExitParityUnavailable,
 )
-from .v1_order_inheritance import InheritedOrderLimits
+from .v1_order_inheritance import InheritedOrderLimits,read_inherited
+from .v1_managed_lots import managed_v1_lot,legacy_exit_policy
 
 class LiveScanUnavailable(ValueError):
     def __init__(self,code):
@@ -205,9 +207,13 @@ class AutonomousLiveScan:
             return self._status("V2_RISK_POLICY_UNVERIFIED",
                 "Signed account risk or validated AI entry configuration unavailable")
         try:
-            if not callable(self.v1_activity_provider):
-                raise ValueError("Legacy V1 activity provider required")
-            inherited=self.v1_activity_provider(account,now)
+            if self.v1_activity_provider is not None:
+                if not callable(self.v1_activity_provider):
+                    raise ValueError("Legacy V1 activity provider invalid")
+                inherited=self.v1_activity_provider(account,now)
+            else:
+                inherited=read_inherited(self.state,self.broker.provider_id,
+                    self.writer_scope,now=now)
             if (not isinstance(inherited,InheritedOrderLimits) or
                 inherited.broker!=self.broker.provider_id or
                 inherited.account!=self.writer_scope or
@@ -238,7 +244,9 @@ class AutonomousLiveScan:
         # Missing cost basis, signed availability or quote provenance blocks
         # new entries as well as exits, rather than silently skipping a hold.
         managed=[sym for sym,qty in sorted(account.positions.items()) if qty>0]
-        if managed and (not callable(self.exit_evidence_provider) or
+        if managed and (self.exit_evidence_provider is not None and
+                        not callable(self.exit_evidence_provider) or
+                        self.exit_policy_provider is not None and
                         not callable(self.exit_policy_provider)):
             return self._status("V2_EXIT_EVIDENCE_UNVERIFIED",
                 "Broker-confirmed managed lot and original V1 exit policy required")
@@ -247,8 +255,14 @@ class AutonomousLiveScan:
                 reading=self.quote_feed(symbol)
                 if not isinstance(reading,MarketSnapshot):
                     raise ExitParityUnavailable("SIGNED_EXIT_QUOTE_MISSING")
-                evidence=self.exit_evidence_provider(symbol,account)
-                exit_policy=self.exit_policy_provider(account)
+                evidence=(self.exit_evidence_provider(symbol,account)
+                    if callable(self.exit_evidence_provider) else
+                    managed_v1_lot(self.state,self.broker.provider_id,
+                        self.writer_scope,symbol,account,now=now))
+                exit_policy=(self.exit_policy_provider(account)
+                    if callable(self.exit_policy_provider) else
+                    legacy_exit_policy(self.state,self.broker.provider_id,
+                        self.writer_scope))
                 if not isinstance(evidence,ManagedExitLot) or not isinstance(exit_policy,ExitPolicy):
                     raise ExitParityUnavailable("V2_MANAGED_EXIT_PROVIDERS_UNVERIFIED")
                 if (evidence.quantity!=account.positions[symbol] or
@@ -274,6 +288,13 @@ class AutonomousLiveScan:
                         signal_at=reading.observed_at,
                         evidence={"reason":mode,
                                   "broker_exit_rules":"SIGNED_BOT_LOT_AND_BID",
+                                  "managed_lot_fingerprint":hashlib.sha256(
+                                      ("|".join((
+                                        self.broker.provider_id,self.writer_scope,
+                                        symbol,evidence.opened_at.isoformat(),
+                                        str(evidence.quantity.normalize()),
+                                        str(evidence.cost_basis.normalize())
+                                      ))).encode()).hexdigest(),
                                   "asset":self.asset_class.value}))
             except Exception:
                 return self._status("V2_EXIT_EVIDENCE_UNVERIFIED",
