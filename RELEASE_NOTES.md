@@ -1,3 +1,9 @@
+## v1.3.39 — Shared V2 autonomous market-to-order engine
+
+The three signed live adapters now have a common, tested V2 candidate-to-execution cycle. Official closed stock candles and genuine observed Coinbase minute bars produce typed strategies; per-broker signed quotes provide actual order pricing, Ollama reviews entries, and the durable broker journal reconciles original orders. A valid V2 writer lease and verified V1 risk/exit strategy parity are REQUIRED before this code can issue a real order.
+
+The existing TrueNAS application remains the only deployment. V1 orders still own all accounts until live signed account funding, market session, settled orders, V1-inventory adoption and exclusive handoff are independently verified. The release does not mark 3/3 live or activate any V2 production order workers.
+
 ## v1.3.38 — V2 stock execution adapters and genuine cumulative order accounting
 
 The same V2 live risk-and-order pipeline now has source implementations for Schwab and Webull stock alongside Robinhood crypto. Account cash, tradability, whole-share pricing, public-vs-broker quote provenance, broker preview, risk caps, and single-account writer locks are enforced. For Schwab the raw broker hash used by V1 remains the exact lock identity, even though V2's journal stores a safe account alias.

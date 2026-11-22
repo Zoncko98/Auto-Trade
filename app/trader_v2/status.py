@@ -14,7 +14,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.34","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.35","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
@@ -53,7 +53,11 @@ def summary(state_dir)->dict:
                                    "v2_verified_fee_inventory":"READ_ONLY_CUMULATIVE_BROKER_RECEIPTS",
                                    "v2_stock_limit_ticks":"BROKER_SPECIFIC_CENTS_AND_WHOLE_SHARES",
                                    "v2_schwab_raw_writer_scope":"MATCHES_EXISTING_V1_LOCK",
-                                   "v2_protective_exits":"DETERMINISTIC_RISK_WITHOUT_AI_ENTRY_VETO"}}
+                                   "v2_protective_exits":"DETERMINISTIC_RISK_WITHOUT_AI_ENTRY_VETO",
+                                   "autonomous_v2_live_scanner":"SOURCE_IMPLEMENTED_SIGNED_HANDOFF_REQUIRED",
+                                   "signed_market_candles":"SCHWAB_WEBULL_M5_AND_REAL_COINBASE_CLOSED_MINUTES",
+                                   "realized_loss_gate":"MANDATORY_NO_DEFAULT_ZERO",
+                                   "v1_exit_parity_gate":"MANDATORY_AND_UNVERIFIED_IN_PRODUCTION"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.
         status["broker_adapters"]=[
