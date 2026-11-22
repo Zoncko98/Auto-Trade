@@ -52,7 +52,9 @@ def evaluate_risk(account:Account,candidate:Candidate,quote:MarketSnapshot,
         if exits_today>=policy.max_exit_orders_per_day:
             return blocked("EXIT_ORDER_LIMIT")
         if held<=0:return blocked("NO_LONG_HOLDING")
-        price=(quote.bid*Decimal("0.995")).quantize(Decimal("0.00000001"),rounding=ROUND_DOWN)
+        tick=account.capability.price_increment
+        price=((quote.bid*Decimal("0.995"))/tick).to_integral_value(
+            rounding=ROUND_DOWN)*tick
         quantity=held
         if quantity*price<account.capability.min_notional:
             return blocked("BROKER_MINIMUM_EXIT_NOTIONAL")
@@ -68,7 +70,9 @@ def evaluate_risk(account:Account,candidate:Candidate,quote:MarketSnapshot,
     current_symbol_value=held*quote.ask
     position_headroom=max(Decimal("0"),position_limit-current_symbol_value)
     # Leave room for both marketable price slippage and simulated/executable fees.
-    limit_price=(quote.ask*Decimal("1.005")).quantize(Decimal("0.00000001"),rounding=ROUND_UP)
+    tick=account.capability.price_increment
+    limit_price=((quote.ask*Decimal("1.005"))/tick).to_integral_value(
+        rounding=ROUND_UP)*tick
     effective=min(policy.max_order_notional,strategy_headroom,position_headroom,
                   cash_headroom/(Decimal("1")+fee_rate))
     if effective<=0:return blocked("CASH_OR_EXPOSURE_EXHAUSTED")

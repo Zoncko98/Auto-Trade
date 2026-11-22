@@ -1,0 +1,42 @@
+"use strict";
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const path=require("node:path");
+const root=path.resolve(__dirname,"..");
+const read=p=>fs.readFileSync(path.join(root,p),"utf8");
+test("V2 stock broker adapters have a shared journal and raw account writer fence",()=>{
+ const schwab=read("app/trader_v2/schwab_stock_live_adapter.py");
+ const webull=read("app/trader_v2/webull_stock_live_adapter.py");
+ const live=read("app/trader_v2/live_pipeline.py");
+ assert.match(schwab,/class SchwabStockLiveAdapter/);
+ assert.match(schwab,/writer_scope_account=account_hash/);
+ assert.match(schwab,/from live_worker import confirm_account/);
+ assert.match(schwab,/from live_worker import market_is_normal/);
+ assert.match(webull,/class WebullStockLiveAdapter/);
+ assert.match(webull,/self\.broker\.preview/);
+ assert.match(webull,/self\.broker\.open_orders/);
+ assert.match(webull,/self\.broker\.place/);
+ assert.match(live,/self\.writer_scope_account or candidate\.account_id/);
+ assert.match(live,/generation=proof\.generation/);
+ assert.match(live,/self\.store\.transition\(key,OrderState\.SUBMITTING/);
+});
+test("V2 price rounding and exits keep deterministic broker-side risk",()=>{
+ const models=read("app/trader_v2/models.py");
+ const risk=read("app/trader_v2/risk.py");
+ const live=read("app/trader_v2/live_pipeline.py");
+ assert.match(models,/price_increment:Decimal/);
+ assert.match(risk,/tick=account\.capability\.price_increment/);
+ assert.match(live,/candidate\.side is OrderSide\.BUY and policy\.ai_mode/);
+ assert.match(risk,/max_exit_orders_per_day/);
+});
+test("V2 real signed cumulative receipt portfolio remains read-only and no cutover is claimed",()=>{
+ const project=read("app/trader_v2/live_position_projection.py");
+ const status=read("app/trader_v2/status.py");
+ assert.match(project,/sha256\(raw\.encode\(\)\)\.hexdigest/);
+ assert.match(project,/latest,price,fees=filled,next_price,next_fee/);
+ assert.match(project,/V2_SELL_EXCEEDS_VERIFIED_INVENTORY/);
+ assert.doesNotMatch(project,/\.submit\(|\.place_order\(|\.cancel_order\(/);
+ assert.match(status,/SOURCE_IMPLEMENTED_NO_RUNTIME_CUTOVER/);
+ assert.match(status,/live_order_authority":False/);
+});

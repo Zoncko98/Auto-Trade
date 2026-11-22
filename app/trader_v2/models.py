@@ -55,12 +55,15 @@ class Capability:
     shorting:bool=False
     min_notional:Decimal=Decimal("1")
     quantity_increment:Decimal=Decimal("0.00000001")
+    price_increment:Decimal=Decimal("0.00000001")
     def __post_init__(self):
         if not self.asset_classes or any(not isinstance(x,AssetClass) for x in self.asset_classes):
             raise ValueError("Invalid asset capabilities")
         object.__setattr__(self,"min_notional",amount(self.min_notional,"minimum notional",False))
         object.__setattr__(self,"quantity_increment",amount(self.quantity_increment,
                                   "broker quantity increment",False))
+        object.__setattr__(self,"price_increment",amount(self.price_increment,
+                                  "broker price increment",False))
 
 @dataclass(frozen=True)
 class Account:

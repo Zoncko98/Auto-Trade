@@ -1,3 +1,12 @@
+## v1.3.38 — Native signed V2 Schwab + Webull stock adapters and broker-backed position accounting (2026-11-21)
+
+- Added full canonical live-adapter implementations for Schwab stock and Webull stock using the original signed SDK/account integrations, while retaining their account-specific V1 cash/margin restrictions, broker market sessions, signed live quote timestamps, whole shares, stock-cent price increments, account risk limits, deterministic receipt IDs where available, pre-order existing open-order checks and broker-specific stock previews.
+- Schwab V2 journal uses a privacy-preserving canonical alias while the V2 POST lock uses the EXACT raw Schwab account hash locked by V1; alias file locks cannot bypass the original. Both adapters remain unregistered in the production order supervisor pending independently signed account state and actual V1 stop/transfer.
+- V2 risk quantizes executable limit prices using the account's signed price increment, not universal 8-decimal crypto precision. Deterministic, risk-reducing exits are independent of entry AI availability while exit count, held-inventory, session and broker restrictions still apply.
+- Added read-only canonical V2 SQLite broker-fill position projection, including immutable intent hashes, cumulative partial fill accounting, canceled-partial fills, fee-adjusted weighted cost, and realized net P&L. Uncertain orders cannot be represented as completed fills, and no external holdings are implicitly declared bot owned.
+- Completed offline broker interface and LivePipeline tests covering signed Webull stock accepted mock order / signed GET fill / event-store reconciliation / no duplicate POST, broker rejection, account ownership, unknown fills and raw Schwab writer fencing.
+- No real V2 broker POST, operator cutover or V1 worker replacement has been made. Production launch still requires authenticated signed funding/holdings/order and market-session evidence, full autonomous strategy/AI/exit/cooldown parity, account-scoped supervisor handoff and live broker acceptance, and a privileged TrueNAS broker inspection channel.
+
 ## v1.3.37 — Supervised signed GET-only V2 Robinhood order recovery (2026-11-21)
 
 - Added an isolated Robinhood V2 order reconciler that is invoked by the existing unified supervisor only if a real canonical V2 order journal already exists and the configured Robinhood connection is present. It uses a two-minute minimum restart interval and hard limits each GET-only batch to six original V2 order intents.

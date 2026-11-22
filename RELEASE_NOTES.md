@@ -1,3 +1,9 @@
+## v1.3.38 — V2 stock execution adapters and genuine cumulative order accounting
+
+The same V2 live risk-and-order pipeline now has source implementations for Schwab and Webull stock alongside Robinhood crypto. Account cash, tradability, whole-share pricing, public-vs-broker quote provenance, broker preview, risk caps, and single-account writer locks are enforced. For Schwab the raw broker hash used by V1 remains the exact lock identity, even though V2's journal stores a safe account alias.
+
+A separate read-only projector turns verified broker order receipts into cumulative holdings and fee-adjusted P&L; no receipt and no invented inventory. The existing Trading Operations feature status describes this as source-implemented, not live deployed. Only the existing TrueNAS app is used; V1 workers are unchanged pending a signed cutover.
+
 ## v1.3.37 — V2 can safely recover original Robinhood order receipts after restart
 
 The existing TrueNAS app now contains a supervised read-only Robinhood V2 order recovery stage. If a real V2 event journal later contains submitted or uncertain intents, the worker can independently look up their original deterministic client IDs at the broker and reconcile fills/status without posting again. Unknown or unreconciled results remain blocked; never infer a missing order was canceled.

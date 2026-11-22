@@ -15,12 +15,12 @@ from .contracts import TradingBroker,AIReviewer,BrokerExecution,inspect_paper_ad
 from .engine import PaperPipeline,PipelineResult,candidate_key
 from .models import (
     AIReview,AIState,Account,Candidate,MarketSnapshot,
-    OrderIntent,OrderState,RiskPolicy,RiskDecision,utc,valid_id
+    OrderIntent,OrderState,OrderSide,RiskPolicy,RiskDecision,utc,valid_id
 )
 from .risk import evaluate_risk
 from .store import EventStore,IntentConflict
 from .simulation import SimulatedBroker
-from .writer_ownership import account_writer_scope,WriterOwnershipError
+from .writer_ownership import account_writer_scope,WriterOwnershipError,ACCOUNT
 from pathlib import Path
 
 SIGNED_SOURCES={
@@ -92,6 +92,15 @@ class LivePipeline(PaperPipeline):
         if not isinstance(ownership_root,(str,Path)):
             raise TypeError("Persistent account ownership root required")
         self.ownership_root=Path(ownership_root)
+        # Schwab's broker account hash may include +/= that are disallowed in
+        # canonical V2 journal IDs. V1 locks the raw hash. Use that same raw
+        # source account ID for the EXCLUSIVE V1/V2 writer lock rather than
+        # acquiring a second alias lock that V1 will not recognize.
+        raw=getattr(broker,"writer_scope_account",None)
+        if raw is not None and (not isinstance(raw,str) or
+                               ACCOUNT.fullmatch(raw) is None or ".." in raw):
+            raise TypeError("Unverified raw writer account identity")
+        self.writer_scope_account=raw
 
     def _handoff(self,candidate,now,generation=None):
         try:
@@ -124,8 +133,8 @@ class LivePipeline(PaperPipeline):
             return PipelineResult("BLOCKED","V1_TO_V2_SINGLE_WRITER_HANDOFF_UNVERIFIED",key)
         try:
             with account_writer_scope(self.ownership_root,self.broker.provider_id,
-                                      candidate.account_id,owner="V2",
-                                      generation=proof.generation):
+                                      self.writer_scope_account or candidate.account_id,
+                                      owner="V2",generation=proof.generation):
                 return self._evaluate_owned(candidate,quote,policy,now,explicit,
                            key,proof,daily_realized_loss,entries_today,exits_today)
         except WriterOwnershipError:
@@ -149,7 +158,9 @@ class LivePipeline(PaperPipeline):
         if risk.code!="PASS":
             self.store.review(key,candidate.account_id,risk.code,risk.reason)
             return PipelineResult("BLOCKED",risk.reason,key)
-        if policy.ai_mode!="OFF":
+        # A validated protective SELL must not wait on an optional or
+        # unavailable AI model. Deterministic risk/session/held limits apply.
+        if candidate.side is OrderSide.BUY and policy.ai_mode!="OFF":
             try:
                 ai=self.reviewer.review(candidate,quote) if self.reviewer else None
             except Exception:

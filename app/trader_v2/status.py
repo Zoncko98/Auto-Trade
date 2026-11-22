@@ -14,14 +14,17 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.33","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.34","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
-            "missing_components":["LIVE_BROKER_WRITE_ADAPTERS","AI_RUNTIME_CONFIGURATION_AND_VALIDATION",
-                "REAL_MARKET_REPLAY_VALIDATION","V2_ACCOUNT_TEMPLATE","LIVE_CUTOVER"],
+            "missing_components":["AUTONOMOUS_V2_LIVE_SUPERVISOR_AND_EXIT_CONTROLLERS",
+                "SIGNED_BROKER_FUNDING_SESSION_AND_ORDER_ACCEPTANCE",
+                "FULL_STRATEGY_AI_COOLDOWN_PARITY",
+                "V1_TO_V2_ACCOUNT_WRITER_HANDOFF",
+                "PRODUCTION_BROKER_EXECUTION_AND_RECONCILIATION"],
             "phase3_capabilities":{"typed_ai_review":"AVAILABLE_SHADOW_IF_MODEL_CONFIGURED",
                                    "ollama_review_transport":"AVAILABLE_SHADOW_IF_MODEL_CONFIGURED",
                                    "synthetic_candle_replay":"ON_DEMAND_HISTORICAL_CANDLES",
@@ -43,7 +46,14 @@ def summary(state_dir)->dict:
                                    "session_window":"EQUITY_TIME_WINDOW_WEEKENDS_CALENDAR_UNVERIFIED",
                                    "four_broker_navigation":"SIX_SHARED_SECTIONS_IN_EXISTING_WORKSPACES",
                                    "robinhood_dual_quote":"SIGNED_BROKER_BID_ASK_AND_INDEPENDENT_COINBASE_TRADE",
-                                   "writer_transfer":"ATOMIC_ACCOUNT_SCOPED_NO_AUTO_TRANSFER"}}
+                                   "writer_transfer":"ATOMIC_ACCOUNT_SCOPED_NO_AUTO_TRANSFER",
+                                   "schwab_signed_stock_adapter":"SOURCE_IMPLEMENTED_NO_RUNTIME_CUTOVER",
+                                   "webull_signed_stock_adapter":"SOURCE_IMPLEMENTED_NO_RUNTIME_CUTOVER",
+                                   "robinhood_signed_crypto_adapter":"SOURCE_IMPLEMENTED_NO_RUNTIME_CUTOVER",
+                                   "v2_verified_fee_inventory":"READ_ONLY_CUMULATIVE_BROKER_RECEIPTS",
+                                   "v2_stock_limit_ticks":"BROKER_SPECIFIC_CENTS_AND_WHOLE_SHARES",
+                                   "v2_schwab_raw_writer_scope":"MATCHES_EXISTING_V1_LOCK",
+                                   "v2_protective_exits":"DETERMINISTIC_RISK_WITHOUT_AI_ENTRY_VETO"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.
         status["broker_adapters"]=[
