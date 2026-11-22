@@ -12,6 +12,12 @@ def result_status(state, *, now=None):
     now=now or datetime.now(timezone.utc)
     path=Path(state)/"v2/broker_migration/webull.json"
     doc=private_json(path,maximum=16000)
+    # Cache from a previous schema must not satisfy new signed settlement
+    # verification rules. A first supervised run refreshes it using GETs.
+    if not isinstance(doc,dict) or doc.get("settlement_contract_version")!=1:
+        return {"state":"NOT_YET_VERIFIED_OR_STALE","broker":"webull",
+                "live_order_authority":False,"cutover_ready":False,
+                "first_blocker":"SIGNED_WEBULL_PREFLIGHT_SCHEMA_REFRESH_REQUIRED"}
     # A diagnostic can be displayed longer than an executable quote:
     # 20-minute TTL is observational ONLY; cutover_ready stays False.
     try:
@@ -27,7 +33,8 @@ def result_status(state, *, now=None):
                 "cutover_ready":False,"first_blocker":"SIGNED_WEBULL_PREFLIGHT_REQUIRED"}
     return {
         **{key: value for key,value in doc.items() if key in (
-            "schema","broker","checked_at","mode","first_blocker",
+            "schema","settlement_contract_version",
+            "broker","checked_at","mode","first_blocker",
             "broker_account_verified","funding_verified",
             "settled_cash_verified","broker_positions_verified","broker_position_inventory_reconciled",
             "broker_external_position_symbols",
@@ -53,7 +60,8 @@ def run_once(state, signed_broker=None, *, now=None):
     target.mkdir(mode=0o700,parents=True,exist_ok=True)
     if target.stat().st_mode&0o077:
         raise PermissionError("Migration journal permissions invalid")
-    result={"schema":1,"broker":"webull","mode":"AUTHENTICATED_WEBULL_READ_ONLY",
+    result={"schema":1,"settlement_contract_version":1,
+            "broker":"webull","mode":"AUTHENTICATED_WEBULL_READ_ONLY",
             "checked_at":now.isoformat(),"live_order_authority":False,
             "cutover_ready":False,"first_blocker":"SIGNED_WEBULL_PREFLIGHT_UNAVAILABLE",
             "live_v2_orders_submitted":0}

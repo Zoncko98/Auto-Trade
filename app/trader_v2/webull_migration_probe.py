@@ -104,6 +104,7 @@ def probe_webull(root, broker, policy, *, now=None):
         raise ValueError("Time must be timezone-aware")
     out = {
         "schema":1, "broker":"webull",
+        "settlement_contract_version":1,
         "checked_at":now.astimezone(timezone.utc).isoformat(),
         "mode":"AUTHENTICATED_WEBULL_READ_ONLY",
         "live_order_authority":False, "cutover_ready":False,

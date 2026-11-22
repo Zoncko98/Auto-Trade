@@ -43,7 +43,8 @@ def launch_status(state_dir,broker,*,now=None):
     expected_mode=({"robinhood_crypto":"AUTHENTICATED_SIGNED_READ_ONLY",
                     "webull":"AUTHENTICATED_WEBULL_READ_ONLY"}.get(broker))
     fresh=bool(expected_mode and _observed(probe,now) and
-               probe.get("broker")==broker and probe.get("mode")==expected_mode)
+               probe.get("broker")==broker and probe.get("mode")==expected_mode
+               and (broker!="webull" or probe.get("settlement_contract_version")==1))
     signed=probe if fresh else {}
     risk=mapping(root,broker)
     if broker=="robinhood_crypto":

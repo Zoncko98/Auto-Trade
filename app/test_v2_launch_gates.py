@@ -26,6 +26,7 @@ class LaunchGateTests(TestCase):
             "pairs_checked":2,"quote_timestamp_verified_symbols":1,
             "independent_trade_crosscheck_symbols":1,
             "broker_account_verified":True,"broker_positions_verified":False,
+            "settlement_contract_version":1,
             "broker_open_orders_verified":True,"signed_historical_fills_verified":True}
         base.update(overrides)
         p.write_text(json.dumps(base))

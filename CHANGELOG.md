@@ -1,3 +1,9 @@
+## v1.3.42 - Fresh signed Webull settlement contract after upgrade (2026-11-21)
+
+- Versioned the read-only signed Webull migration preflight settlement contract so upgraded workers cannot treat a cached pre-upgrade report as current validation evidence.
+- Both the status reader and broker launch gate fail closed on old report versions. A newly supervised authenticated GET-only probe refreshes the evidence without an order POST, account arming or V1 writer handoff.
+- Added regression tests for stale-but-timestamp-fresh prior-schema reports, typed contract regeneration and blocked live authority. The same signed settled-funding and inventory safeguards from v1.3.41 remain in force.
+
 ## v1.3.41 - Signed Webull settled USD funding gate (2026-11-21)
 
 - Added read-only, strict Webull USD settled-cash evidence requiring one signed USD balance record and explicit settled, held, and frozen fields. Missing or contradictory fields, margin usage or cash restrictions remain unverified instead of converting buying power into settled cash.

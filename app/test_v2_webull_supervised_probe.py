@@ -34,6 +34,7 @@ class AutoWebullProbeTests(TestCase):
         first=run_once(self.root,signed_broker=signed,now=self.now)
         self.assertEqual(first["first_blocker"],
           "WEBULL_SETTLEMENT_AND_SINGLE_WRITER_HANDOFF_REQUIRED")
+        self.assertEqual(first["settlement_contract_version"],1)
         self.assertTrue(first["broker_account_verified"])
         self.assertTrue(first["broker_open_orders_verified"])
         self.assertFalse(first["settled_cash_verified"])
@@ -49,6 +50,23 @@ class AutoWebullProbeTests(TestCase):
         cached=run_once(self.root,now=self.now)
         self.assertFalse(cached["live_order_authority"])
         self.assertEqual(len(signed.reads),old_calls)
+
+    def test_legacy_cache_cannot_claim_new_settlement_contract(self):
+        signed=SignedWebull()
+        run_once(self.root,signed_broker=signed,now=self.now)
+        path=self.root/"v2/broker_migration/webull.json"
+        old=json.loads(path.read_text())
+        del old["settlement_contract_version"]
+        path.write_text(json.dumps(old))
+        path.chmod(0o600)
+        cached=result_status(self.root,now=self.now)
+        self.assertEqual(cached["state"],"NOT_YET_VERIFIED_OR_STALE")
+        self.assertEqual(cached["first_blocker"],
+                         "SIGNED_WEBULL_PREFLIGHT_SCHEMA_REFRESH_REQUIRED")
+        self.assertFalse(cached["live_order_authority"])
+        fresh=run_once(self.root,signed_broker=signed,now=self.now)
+        self.assertEqual(fresh["settlement_contract_version"],1)
+        self.assertFalse(fresh["cutover_ready"])
 
     def test_expired_observation_never_claims_current_authorization(self):
         signed=SignedWebull()

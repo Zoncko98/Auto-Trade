@@ -1,3 +1,7 @@
+## v1.3.42 - Webull signed preflight freshness across deployment
+
+After upgrading, the supervised Webull migration preflight now rejects a report produced by earlier funding-validation rules, even if the report is younger than 20 minutes. The read-only signed GET check can then refresh evidence immediately. No old report can authorize an account and the V2 live broker writer remains unarmed. This is a same-app TrueNAS update, retaining all existing trading state and broker permissions.
+
 ## v1.3.41 - Webull settled funding and migration evidence
 
 A signed Webull USD cash record containing explicit settled-cash and reserve/holdback fields now yields a conservative read-only funding verification. Missing entries or contradictory totals never become synthetic cash. The V2 Webull live adapter caps potential buys to this budget. Trading Operations reports verified holdings and funding separately from live authority.
