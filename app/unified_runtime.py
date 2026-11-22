@@ -10,6 +10,7 @@ import json, os, secrets, signal, subprocess, sys, tempfile, time
 from pathlib import Path
 from unified_config import pairing_code, settings,credentials,configured
 from schwab_auth_health import reauth_required
+from trader_v2.worker_placement import v1_worker_placement
 
 STATE=Path(os.getenv("STATE_DIR","/state"))
 LOGS=Path(os.getenv("LOG_DIR","/logs"))
@@ -215,10 +216,12 @@ def main():
                           ["-m","trader_v2.live_supervisor",
                            "--state-dir",str(STATE)],minimal_env)
                 rh_ready=(STATE/"config"/"robinhood_crypto.json").is_file()
+                rh_v1=v1_worker_placement(STATE,"robinhood_crypto")
                 rh=CHILDREN.get("robinhood")
-                if rh_ready and (rh is None or rh.poll() is not None):
+                if rh_ready and rh_v1.may_run and (rh is None or rh.poll() is not None):
                     spawn("robinhood",["/app/robinhood_worker.py"],runtime_env)
-                if not rh_ready:stop_process("robinhood")
+                if not rh_ready or not rh_v1.may_run:
+                    stop_process("robinhood")
                 # Independently signed, read-only V2 migration preflight.
                 # Never places an order or starts a V2 live order writer.
                 rh_probe=CHILDREN.get("v2-robinhood-probe")
@@ -244,12 +247,13 @@ def main():
                               "--state-dir",str(STATE)],runtime_env)
                 else:stop_process("v2-robinhood-recovery")
                 wb_ready=(STATE/"config"/"webull_openapi.json").is_file()
+                wb_v1=v1_worker_placement(STATE,"webull")
                 wb=CHILDREN.get("webull")
-                if wb_ready and (wb is None or wb.poll() is not None):
+                if wb_ready and wb_v1.may_run and (wb is None or wb.poll() is not None):
                     if time.monotonic()-webull_last_spawn>=120 or wb is None and webull_last_spawn==0:
                         webull_last_spawn=time.monotonic()
                         spawn("webull",["/app/webull_worker.py"],runtime_env)
-                if not wb_ready:stop_process("webull")
+                if not wb_ready or not wb_v1.may_run:stop_process("webull")
                 # Auto-discover signed Webull migration blockers with only
                 # authenticated GET endpoints and shared SDK throttling.
                 # Never arms Webull, creates an order, or modifies V1 policy.
@@ -319,7 +323,9 @@ def main():
                             child.exit_checked=True;continue
                         spawn(name,command,runtime_env)
                     if not enabled[name]:stop_process(name)
-                if enabled["live"]:
+                schwab_v1=(v1_worker_placement(STATE,"schwab",config=cfg)
+                           if enabled["live"] else None)
+                if enabled["live"] and schwab_v1 is not None and schwab_v1.may_run:
                     if live_started_signature is None:
                         if reauth_required(STATE):
                             live_supervisor_event("REAUTH_REQUIRED",
@@ -378,7 +384,10 @@ def main():
                         live_supervisor_event("RUNNING",
                             "ORDER_GATE_CHECKS_APPLY",len(live_recovery_attempts))
                 else:
-                    if live_started_signature is not None:
+                    if schwab_v1 is not None and not schwab_v1.may_run:
+                        live_supervisor_event("ACCOUNT_WRITER_INACTIVE",
+                                             schwab_v1.reason)
+                    elif live_started_signature is not None:
                         live_supervisor_event("DISABLED","USER_OR_CONFIGURATION_DISABLED")
                     stop_process("live");live_started_signature=None
                     live_stop_logged=False

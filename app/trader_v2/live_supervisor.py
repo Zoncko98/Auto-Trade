@@ -15,6 +15,7 @@ from .models import utc
 from .readonly_adapters import private_json
 from .recorded_replay import _atomic_json
 from .v1_order_inheritance import read_inherited, V1InheritanceUnavailable
+from .worker_placement import v1_worker_placement
 
 _STOP=False
 POLL_SECONDS=30
@@ -81,6 +82,21 @@ def _inherited_activity(root,broker,now):
                 "entries_today":None,"exits_today":None,
                 "reentry_cooldown_symbols":None,"all_buys_blocked":None}
 
+def _v1_worker_owner(root,broker):
+    """Redacted placement check independent of worker heartbeat freshness."""
+    try:
+        if broker=="schwab":
+            from unified_config import settings
+            placement=v1_worker_placement(root,broker,config=settings(root))
+        else:
+            placement=v1_worker_placement(root,broker)
+        return {"state":placement.reason,"may_run":placement.may_run,
+                "v1_scopes":placement.v1_scopes,
+                "v2_scopes":placement.v2_scopes}
+    except Exception:
+        return {"state":"V1_WRITER_PLACEMENT_UNVERIFIED","may_run":False,
+                "v1_scopes":0,"v2_scopes":0}
+
 def assess(root,*,now=None):
     """Read only broker migration evidence, no owner-state change."""
     now=utc(now or datetime.now(timezone.utc))
@@ -92,6 +108,7 @@ def assess(root,*,now=None):
         accounts.append({
             "broker":broker,
             "v1_worker":_worker_readonly(root,broker,now),
+            "v1_worker_owner":_v1_worker_owner(root,broker),
             "inherited_v1_limits":_inherited_activity(root,broker,now),
             "signed_preflight_fresh":launch["signed_observation_fresh"],
             "verified_gate_count":sum(g["verified"] is True for g in gates),
@@ -158,6 +175,17 @@ def public_status(state_dir,*,now=None):
             return {"state":"INVALID_REPORT","v2_live_order_authority":False,
                     "cutover_accounts":0,"accounts":[]}
         worker=row.get("v1_worker")
+        placement=row.get("v1_worker_owner")
+        allowed_states={"V1_EXCLUSIVE_WRITER","V1_OTHER_ACCOUNT_ONLY",
+            "V2_ACCOUNT_OWNER_NO_V1_RESTART",
+            "V1_MONITOR_ONLY_NO_SELECTED_ACCOUNT",
+            "V1_SELECTED_ACCOUNT_UNVERIFIED",
+            "V1_WRITER_OWNERSHIP_UNVERIFIED",
+            "V1_WRITER_PLACEMENT_UNVERIFIED"}
+        owner_state=(placement.get("state") if isinstance(placement,dict)
+                     else "V1_WRITER_PLACEMENT_UNVERIFIED")
+        if owner_state not in allowed_states:
+            owner_state="V1_WRITER_PLACEMENT_UNVERIFIED"
         activity=row.get("inherited_v1_limits")
         checked=isinstance(activity,dict) and activity.get("state")=="SIGNED_V1_LIMITS_INHERITED"
         if checked and any(type(activity.get(k)) is not int or
@@ -167,6 +195,7 @@ def public_status(state_dir,*,now=None):
         safe.append({"broker":broker,"verified_gates":count,
                      "total_gates":total,
                      "v1_daily_limits_inherited":checked,
+                     "v1_worker_owner_state":owner_state,
                      "v1_inheritance_blocker":None if checked else str(
                           (activity or {}).get("first_blocker") or
                           "V1_SOURCE_INHERITANCE_UNAVAILABLE")[:90],

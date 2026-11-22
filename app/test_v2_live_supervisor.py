@@ -64,6 +64,23 @@ class SupervisorTests(TestCase):
         self.assertNotIn("private-account",str(public))
         self.assertFalse(record.get("v2_live_order_authority",False))
 
+    def test_v1_worker_ownership_honored_without_exposing_account_scope(self):
+        from trader_v2.worker_placement import V1WorkerPlacement
+        with patch("trader_v2.live_supervisor.v1_worker_placement",
+                   return_value=V1WorkerPlacement("schwab",False,
+                      "V2_ACCOUNT_OWNER_NO_V1_RESTART",0,1,0)):
+            with patch("unified_config.settings",
+                       return_value={"live_account_hash":"private-account-hash"}):
+                doc=write_status(self.root,now=NOW)
+        row=next(x for x in doc["accounts"] if x["broker"]=="schwab")
+        self.assertFalse(row["v1_worker_owner"]["may_run"])
+        visible=public_status(self.root,now=NOW)
+        item=next(x for x in visible["accounts"] if x["broker"]=="schwab")
+        self.assertEqual(item["v1_worker_owner_state"],
+                         "V2_ACCOUNT_OWNER_NO_V1_RESTART")
+        self.assertNotIn("private-account-hash",str(visible))
+        self.assertFalse(visible["v2_live_order_authority"])
+
     def test_no_broker_signed_proof_never_reports_positive_v1_counts(self):
         public=write_status(self.root,now=NOW)
         for item in public["accounts"]:

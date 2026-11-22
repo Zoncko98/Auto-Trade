@@ -1,3 +1,9 @@
+## v1.3.50 ? V1 worker lifecycle observes exclusive V2 ownership
+
+The existing TrueNAS supervisor now checks the durable account-specific V1/V2 ownership record before launching or restarting Schwab, Webull or Robinhood's original execution workers. This closes a restart race in the eventual V2 account handoff. Mixed-account Webull processing remains restricted by the already-existing per-account POST lock. Unknown account ownership fails closed.
+
+The authenticated Trading Operations view shows source-validated V1 writer placement for each broker. This is a prerequisite for cutover, not proof that any V2 order writer has been authorized or that a broker accepted a trade. No V1-to-V2 transfer or change of current user trading restrictions is made by this release.
+
 ## v1.3.49 - Robinhood legacy V1 order history compatibility
 
 V2 now counts older Robinhood broker-confirmed fills and terminal order resolutions conservatively when the original V1 journal lacks a local created_at timestamp. This preserves daily risk and symbol reentry cooldown limits without manufacturing timestamps or modifying any original order. Remaining unverified records still fail closed and appear as redacted diagnostic codes in the authenticated V2 Operations view.

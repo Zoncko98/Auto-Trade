@@ -149,6 +149,9 @@ document.addEventListener("DOMContentLoaded",()=>{
           String(envelope.preliminary_budget_usd))+
         (envelope.buying_power_preliminary_ceiling_usd==null?"":" · Buying-power-only ceiling $"+
           String(envelope.buying_power_preliminary_ceiling_usd))+
+        " ? V1 account writer lifecycle: "+
+          String(supervisedAccounts.get(item.broker)?.v1_worker_owner_state||
+            "V1_WRITER_PLACEMENT_UNVERIFIED")+
         " · V1 day limits inherited: "+(
           supervisedAccounts.get(item.broker)?.v1_daily_limits_inherited===true?
           "SIGNED CHECKED, BUY intents "+

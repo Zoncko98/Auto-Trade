@@ -1,3 +1,12 @@
+## v1.3.50 ? Exclusive account owner-aware V1 process lifecycle (2026-11-22)
+
+- Wired the original unified TrueNAS process supervisor to independently inspect each selected broker account's durable V1/V2 writer ownership before spawning or restarting the existing Schwab, Webull or Robinhood worker. If a selected account has a signed local V2 ownership record, its V1 worker will not be restarted; existing V1 account order locks remain in place at the actual broker POST boundary.
+- On Webull, verified stock and crypto account scopes remain independent: when a stock account transfers to V2 but a different crypto account remains V1-owned, the original worker stays available for the unrelated V1 account, while every attempted stock POST still hits the precise account-scoped ownership lock.
+- A missing, contradictory or unreadable owner record for an active selected account fails closed instead of assuming V1 or silently respawning the worker. No action here grants V2 execution privileges, changes the original user arm or transfers ownership.
+- The authenticated V2 Operations view now displays a redacted V1 worker placement reason for every broker, independently of its heartbeat and historical daily risk counts. This makes the eventual V1-to-V2 exclusive process handoff visible without exposing selected account IDs.
+- Added account-ownership restart, mixed-account Webull, invalid owner, parent runtime static wiring, broker writer lock and redacted supervisor tests. Existing TrueNAS deployment is updated in place only after CI, with original rollback, risk settings and order journals preserved.
+- This release does not arm a V2 live order worker or submit any new V2 brokerage orders; broker-specific full exit/entry parity and signed trading permissions are still prerequisites.
+
 ## v1.3.49 - Safely inherit legacy Robinhood signed order timestamps (2026-11-22)
 
 - Production V2 read-only migration observation identified a V1 journal timestamp compatibility problem: some older Robinhood order records omit a local created_at even though their broker-confirmed fill or durable terminal resolution timestamps exist.

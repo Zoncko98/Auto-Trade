@@ -65,6 +65,7 @@ jobs:
           node tests/test_v2_phase2_ui.cjs
           node tests/test_v2_schwab_signed_migration_ui.cjs
           node tests/test_v2_account_supervisor_ui.cjs
+          node tests/test_v2_parent_account_ownership_ui.cjs
           node tests/test_v2_signed_exit_migration_ui.cjs
           node --check web/setup.js
           node tests/test_setup_pages.cjs

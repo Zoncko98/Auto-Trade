@@ -15,7 +15,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.45","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.46","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_6_SIGNED_READONLY_MIGRATION_GATED",
@@ -61,6 +61,7 @@ def summary(state_dir)->dict:
                                    "v1_exit_parity_gate":"MANDATORY_AND_UNVERIFIED_IN_PRODUCTION",
                                    "v2_broker_exit_compatibility":"SOURCE_TESTED_SIGNED_LOT_PROOF_REQUIRED",
                                    "v1_order_limit_inheritance":"SIGNED_SOURCE_VERIFIED_PER_ACCOUNT_OR_BLOCKED",
+                                   "v1_parent_worker_ownership":"ACCOUNT_SCOPED_V1_V2_RESTART_EXCLUSION",
                                    "managed_v1_lot_reader":"READ_ONLY_OR_FAIL_CLOSED",
                                    "lot_stable_exit_idempotency":"SOURCE_IMPLEMENTED_TESTED",
                                    "ollama_review_latency":"BOUND_TIMEOUT_SIGNED_REQUOTE_REQUIRED"}}
