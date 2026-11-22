@@ -1,3 +1,7 @@
+## v1.3.62 ? Explain Robinhood V2 account handoff blockers precisely
+
+When source-validated broker history and ETH quote have been observed but a V2 activation preflight fails, the authenticated operations interface now displays exactly which signed account, order quote or completed candle stage failed for BTC and ETH. A source-specific held-asset exposure risk reason is preserved without revealing prices or selected account identity. Handoff approval, signed funding, market and order limits, exclusive V1/V2 locks and rollback remain mandatory. No live orders are permitted solely from this diagnostic.
+
 ## v1.3.61 ? Fix authenticated Robinhood held-asset exposure preflight
 
 The signed Robinhood Crypto V2 best-bid-ask endpoint can omit venue timestamps. That previously prevented the V2 account adapter from conservatively valuing any externally held asset for account risk. This change validates fresh independent Coinbase trade time alongside authenticated signed broker bid/ask and counts the higher original signed price in total exposure, including a narrowly crossed aggregate book ONLY for exposure marking. It never allows a crossed quote to execute a buy or sell, create a synthetic price, authorize an external position sale, or replace a broker receipt. The original operator-approved account-specific cutover and all V1 safeguards remain active.

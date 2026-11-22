@@ -69,6 +69,20 @@ class AtomicRobinhoodCutoverTests(TestCase):
   self.assertEqual(out["reason"],"LEGACY_MANAGED_LOTS_REQUIRE_ADOPTION")
   self.assertTrue(self.running)
   self.transferred.assert_not_called()
+ def test_private_pair_stages_never_leak_identifiers_or_arm_writer(self):
+  stages={"BTC-USD":"SIGNED_ACCOUNT_SIGNED_HOLDING_MARK_SPREAD_UNVERIFIED",
+          "UNSUPPORTED":"HIDDEN","ETH-USD":"SIGNED_ORDER_QUOTE_SOURCE_UNAVAILABLE"}
+  self.preflight.side_effect=CutoverBlocked(
+    "NO_REAL_SIGNED_QUOTE_AND_CLOSED_BARS",stages)
+  out=attempt(self.root,stop_v1=self.stop,live_worker_ready=True,
+              operator_approved=True,approved_account_digest=self.approved_digest)
+  self.assertEqual(out["state"],"BLOCKED")
+  self.assertEqual(len(out["pair_preflight_stages"]),2)
+  self.assertNotIn("UNSUPPORTED",str(out))
+  self.assertNotIn("HIDDEN",str(out))
+  self.assertTrue(self.running)
+  self.transferred.assert_not_called()
+
  def test_signed_readout_failure_after_stop_never_transfers(self):
   self.signed.side_effect=[({},None),CutoverBlocked("SIGNED_ACCOUNT_UNAVAILABLE")]
   out=attempt(self.root,stop_v1=self.stop,live_worker_ready=True,

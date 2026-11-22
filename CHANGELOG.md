@@ -1,3 +1,11 @@
+## v1.3.62 ? Exact broker-stage diagnostics for approved Robinhood V2 handoff (2026-11-22)
+
+- Robinhood's source-validated launch probe now sometimes proves a permitted ETH signed quote and complete contiguous public crypto candles, but the separate account-specific V2 activation preflight still reported a generic NO_REAL_SIGNED_QUOTE_AND_CLOSED_BARS. The controller swallowed the true per-pair reason, hiding whether account holdings, signed order-side quotes, or completed market bars failed.
+- Replaced that silent exception-swallowing with private, sanitized per-pair stage diagnostics: SIGNED_ACCOUNT, SIGNED_ORDER_QUOTE and COMPLETED_SOURCE_CANDLES. Source-defined error codes are retained within a strict uppercase allowlist without exposing account IDs, order IDs, private keys, balances, raw prices, or broker HTTP response text.
+- Restored source-specific signed held-asset risk mark failures through the Robinhood V2 account adapter so a signed public quote mismatch or unsuitable held portfolio cannot masquerade as a technical signal/candle failure. No existing risk or order permissions are relaxed.
+- Added the private handoff reason and signed per-pair preflight stages to the existing authenticated Trading Operations display, preserving independent V1 writer ownership and actual broker acceptance reporting. This does not create another broker dashboard.
+- Added tests for redacted allowed pairs, denied account detail leakage, stale source failures, live writer lock and unchanged fail-closed handoff sequencing. The approved owner transfer is still blocked when any real signed gate fails, and the parent retains the original V1 worker.
+
 ## v1.3.61 ? Source-faithful Robinhood v2 held-asset exposure marks (2026-11-22)
 
 - Fixed the Robinhood V2 signed account portfolio valuation preflight: API v2 best_bid_ask normally has no venue timestamp or last trade. The original exposure-only signed holdings mark incorrectly demanded a broker venue timestamp, which could prevent ALL held crypto assets being included in authenticated account risk, even if the independent venue-timed trade and signed broker bid/ask were otherwise fresh.

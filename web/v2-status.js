@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
   if(!target)return;
   void refreshWebullProbe();
-  function showCutover(report,robinhoodProbe,launch,recovery,supervisor){
+  function showCutover(report,robinhoodProbe,launch,recovery,supervisor,cutoverHealth){
     if(!cutover)return;
     cutover.replaceChildren();
     const intro=document.createElement("strong");
@@ -118,6 +118,11 @@ document.addEventListener("DOMContentLoaded",()=>{
           :"")+
         (item.broker==="robinhood_crypto"?
           " · Signed V2 broker audit: "+String((robinhoodProbe||{}).first_blocker||"NOT_RUN")+
+          " ? Cutover attempt: "+String(cutoverHealth?.reason||"NOT_ATTEMPTED")+
+          " ? Signed pair preflight stages: "+
+            ["BTC-USD","ETH-USD"].filter(x=>
+              (cutoverHealth?.pair_preflight_stages||{})[x]).map(x=>
+              x+" "+String(cutoverHealth.pair_preflight_stages[x])).join(", ")+
           " · Broker account: "+((robinhoodProbe||{}).account_verified===true?"signed":"unverified")+
           " · Holdings: "+((robinhoodProbe||{}).holdings_verified===true?"signed":"unverified")+
           " · Complete broker order history: "+((robinhoodProbe||{}).broker_history_verified===true?"verified":"unverified")+
@@ -283,7 +288,8 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
       showCutover(data.cutover_preflight,data.robinhood_signed_migration_probe,
-                  data.v2_live_launch,data.v2_live_reconciliation,data.v2_live_supervisor);
+                  data.v2_live_launch,data.v2_live_reconciliation,
+                  data.v2_live_supervisor,data.robinhood_cutover_health);
       void readStockShadowStatus();
       void readFreshPaperStatus();
       void readRecordedReplay();

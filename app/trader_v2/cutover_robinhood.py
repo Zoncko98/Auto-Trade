@@ -22,8 +22,9 @@ from .trusted_crypto_live import (signed_v1_worker_stopped,v1_inventory,
    verified_robinhood_parity,closed_crypto_bars)
 
 class CutoverBlocked(ValueError):
-    def __init__(self,code):
+    def __init__(self,code,pair_stages=None):
         self.code=code
+        self.pair_stages=dict(pair_stages or {})
         super().__init__(code)
 
 def _require(ok,code):
@@ -40,9 +41,17 @@ def _root_private(root):
             raise CutoverBlocked("CUTOVER_PRIVATE_DIR_UNSAFE")
     return target
 
-def _redacted(root,state,reason):
+def _redacted(root,state,reason,pair_stages=None):
     out={"schema":1,"checked_at":datetime.now(timezone.utc).isoformat(),
          "broker":"robinhood_crypto","state":state,"reason":reason}
+    if isinstance(pair_stages,dict):
+        # Explicit BTC/ETH and uppercase source/status code allowlists.
+        # No broker tokens, selected IDs, quantities, prices or API text.
+        import re
+        out["pair_preflight_stages"]={
+           k:v for k,v in pair_stages.items()
+           if k in ("BTC-USD","ETH-USD") and isinstance(v,str)
+           and re.fullmatch(r"[A-Z][A-Z0-9_]{2,89}",v)}
     _atomic_json(_root_private(root)/"health.json",out)
     return out
 
@@ -92,22 +101,32 @@ def _preflight(root,account):
        timeout_seconds=18,ttl_seconds=45)
     now=datetime.now(timezone.utc)
     eligible=[]
+    failed={}
     client=RobinhoodCryptoAdapter.from_state(root)
+    from .robinhood_signed_receipts import BrokerEvidenceUnavailable
+    from .autonomous_live import LiveScanUnavailable
     for pair in ("BTC-USD","ETH-USD"):
+        stage="SIGNED_ACCOUNT"
         try:
             reading=RobinhoodLiveAdapter(client,account,policy,pair,
               verified_managed_positions={},public_trade_feed=fetch_ticker)
             profile=reading.account(account)
             _require(profile.account_id==account and
                      profile.trading_enabled,"LIVE_ACCOUNT_READ_UNVERIFIED")
+            stage="SIGNED_ORDER_QUOTE"
             quote=reading.quote()
+            stage="COMPLETED_SOURCE_CANDLES"
             candles=accepted_bars(closed_crypto_bars(root,pair,now=now),
                                   pair,quote.asset_class,now)
             if candles:
                 eligible.append(pair)
+        except (BrokerEvidenceUnavailable,LiveScanUnavailable,CutoverBlocked) as exc:
+            code=getattr(exc,"code","UNVERIFIED")
+            failed[pair]=stage+"_"+str(code)[:55]
         except Exception:
-            continue
-    _require(bool(eligible),"NO_REAL_SIGNED_QUOTE_AND_CLOSED_BARS")
+            failed[pair]=stage+"_SOURCE_UNAVAILABLE"
+    if not eligible:
+        raise CutoverBlocked("NO_REAL_SIGNED_QUOTE_AND_CLOSED_BARS",failed)
     return eligible
 
 def attempt(root,*,stop_v1,live_worker_ready,operator_approved,
@@ -172,4 +191,5 @@ def attempt(root,*,stop_v1,live_worker_ready,operator_approved,
         # Never include exception text; it may contain signed broker data.
         reason=(exc.code if isinstance(exc,CutoverBlocked) else
                 "SIGNED_CUTOVER_VALIDATION_UNAVAILABLE")
-        return _redacted(root,"BLOCKED",reason)
+        return _redacted(root,"BLOCKED",reason,
+            exc.pair_stages if isinstance(exc,CutoverBlocked) else None)

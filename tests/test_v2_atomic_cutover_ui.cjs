@@ -27,6 +27,8 @@ test("existing broker UI shows verified owner count and actual engine outcome",(
  assert.match(ui,/Migrated brokers: /);
  assert.match(ui,/OWNER TRANSFERRED/);
  assert.match(ui,/Latest signed V2 scan result:/);
+ assert.match(ui,/Signed pair preflight stages/);
+ assert.match(ui,/robinhood_cutover_health/);
  assert.match(supervisor,/confirmed_owners/);
  assert.match(supervisor,/v2_account_owner/);
  assert.doesNotMatch(ui,/innerHTML/);

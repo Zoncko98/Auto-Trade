@@ -231,7 +231,11 @@ class RobinhoodLiveAdapter:
             # fresh signed bid/ask suffices for gross exposure only.
             try:
                 ask=self._signed_holding_ask(symbol)
-            except (BrokerEvidenceUnavailable,ValueError,TypeError):
+            except BrokerEvidenceUnavailable as exc:
+                # Allowlisted source-specific reason survives into private
+                # preflight status; never include signed broker response text.
+                raise BrokerEvidenceUnavailable(exc.code) from None
+            except (ValueError,TypeError):
                 raise BrokerEvidenceUnavailable("SIGNED_POSITION_MARK_UNVERIFIED") from None
             signed_positions[symbol]=qty
             market_exposure+=qty*ask

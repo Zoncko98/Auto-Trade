@@ -15,7 +15,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.57","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.58","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_6_SIGNED_READONLY_MIGRATION_GATED",
@@ -101,6 +101,22 @@ def summary(state_dir)->dict:
         probe["report_fresh"]=True
         probe["v2_live_order_authority"]=False
         probe["cutover_ready"]=False
+    # Account-selected cutover attempt stage is a redacted, private,
+    # authenticated read-only diagnostic. It is never a trading permit.
+    from re import fullmatch
+    cut=private_json(Path(state_dir)/"v2/cutover_robinhood/health.json",
+                     maximum=5000) or {}
+    pairs=cut.get("pair_preflight_stages")
+    status["robinhood_cutover_health"]={
+      "state":cut.get("state") if cut.get("state") in
+              ("BLOCKED","TRANSFERRED") else "UNVERIFIED",
+      "reason":str(cut.get("reason") or "NOT_ATTEMPTED")[:85],
+      "pair_preflight_stages":{
+        pair:reason for pair,reason in (pairs or {}).items()
+        if pair in ("BTC-USD","ETH-USD") and isinstance(reason,str)
+        and fullmatch(r"[A-Z][A-Z0-9_]{2,89}",reason)}
+        if isinstance(pairs,dict) else {},
+    }
     # Observational gate explanations never grant live order authority;
     # no unauthenticated API can expose this authenticated status object.
     status["readiness_diagnostics"]=explain(
