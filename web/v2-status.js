@@ -118,6 +118,12 @@ document.addEventListener("DOMContentLoaded",()=>{
           ((recovery||{}).still_unresolved==null?"": " · V2 pending: "+
             Number(recovery.still_unresolved))+
           " (GET-only, no new orders)" +
+          " ? Signed spot USD spending allowance: "+(
+            robinhoodProbe?.spot_buying_power_verified===true?
+            "VERIFIED (not settled stock cash)":"NOT VERIFIED")+
+          " ? Signed crypto 24/7 capability: "+(
+            robinhoodProbe?.crypto_24x7_access_verified===true?
+            "VERIFIED (maintenance may apply)":"NOT VERIFIED")+
           " · Signed quote timestamps: "+Number((robinhoodProbe||{}).quote_timestamp_verified_symbols||0)+
           " · Independent venue-timed trade crosschecks: "+Number((robinhoodProbe||{}).independent_trade_crosscheck_symbols||0)+
           (Object.keys((robinhoodProbe||{}).quote_validation_failures||{}).length

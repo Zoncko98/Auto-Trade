@@ -32,6 +32,8 @@ def _probe(state,client,policy,*,now=None,public_feed=None):
         "broker_history_verified":False,"local_journal_matched":False,
         "broker_open_order_count":None,"local_unresolved_count":None,
         "funding_source":"UNVERIFIED","settled_cash_verified":False,
+        "spot_buying_power_verified":False,
+        "crypto_24x7_access_verified":False,
         "broker_session_verified":False,
         "quote_timestamp_verified_symbols":0,
         "independent_trade_crosscheck_symbols":0,
@@ -56,9 +58,13 @@ def _probe(state,client,policy,*,now=None,public_feed=None):
             report["first_blocker"]="SIGNED_ACCOUNT_UNAVAILABLE_OR_INELIGIBLE"
             return report
         account=selected[0]
+        # Signed Robinhood spot Crypto API buying_power is the directly
+        # executable USD spending allowance, NOT US-equity settled cash.
+        # 0 is still a verified signed allowance (entry risk then blocks).
         amount(account.get("buying_power"),"USD buying power")
         report["account_verified"]=True
-        report["funding_source"]="SIGNED_USD_BUYING_POWER_NOT_SETTLED_CASH"
+        report["spot_buying_power_verified"]=True
+        report["funding_source"]="SIGNED_CRYPTO_SPOT_USD_BUYING_POWER_NOT_SETTLED_CASH"
     except Exception:
         report["first_blocker"]="SIGNED_ACCOUNT_OR_BUYING_POWER_READ_FAILED"
         return report
@@ -197,6 +203,11 @@ def _probe(state,client,policy,*,now=None,public_feed=None):
         if count==0:
             report["first_blocker"]="SIGNED_PAIR_PERMISSIONS_UNVERIFIED"
             return report
+        # Crypto has no US-equity RTH session: signed active account and
+        # API-tradable pair permit 24x7 capability, subject to maintenance,
+        # independent live bid/ask proof and fresh order-time checks.
+        # No stock-market entitlement or past broker fill is fabricated.
+        report["crypto_24x7_access_verified"]=report["account_verified"] is True
     except BrokerEvidenceUnavailable as exc:
         report["pair_failure_category"]=exc.code
         report["first_blocker"]="SIGNED_PAIR_INCREMENT_OR_MINIMUM_UNVERIFIED"

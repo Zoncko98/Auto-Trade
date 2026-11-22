@@ -1,3 +1,9 @@
+## v1.3.53 ? Crypto funding/session proof without stock-market assumptions
+
+The V2 Robinhood Crypto migration preflight now models Robinhood's authenticated USD buying power and API-tradable 24/7 crypto product capability as distinct signed evidence. It never calls that balance stock settled cash, assumes open maintenance windows, or relaxes the separately verified broker spread and quote freshness. Schwab and Webull stock cash/session requirements are unchanged.
+
+This fixes two incorrectly permanent V2 crypto cutover blockers. The existing V1 brokers retain exclusive trading authority while independent quote, risk, parity, order acceptance and replacement-worker handoff checks remain outstanding.
+
 ## v1.3.52 ? V2 account execution coordinator and admission telemetry
 
 The same original TrueNAS app now supervises a dedicated, single-instance V2 execution coordinator. Account-specific V2 execution is blocked until signed brokerage data, validated V1 strategy/exit policy parity, inherited history, an exclusive V2 ownership record and an independent short-lived broker handoff have all passed. The new process has no default privileged broker factory and cannot mint permission from a dashboard checkbox or a worker heartbeat.

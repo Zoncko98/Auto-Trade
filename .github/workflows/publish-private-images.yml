@@ -68,6 +68,7 @@ jobs:
           node tests/test_v2_parent_account_ownership_ui.cjs
           node tests/test_robinhood_stale_buy_ui.cjs
           node tests/test_v2_live_executor_ui.cjs
+          node tests/test_v2_crypto_spot_ui.cjs
           node tests/test_v2_signed_exit_migration_ui.cjs
           node --check web/setup.js
           node tests/test_setup_pages.cjs

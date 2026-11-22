@@ -1,3 +1,11 @@
+## v1.3.53 ? Signed Robinhood spot funding and 24/7 product capability in V2 admission (2026-11-22)
+
+- Corrected the permanent Robinhood V2 admission mismatch between crypto spot execution and US-stock settlement hours. Robinhood's signed active API-tradable Crypto trading account reports USD buying_power as its spendable spot allowance; this is now an explicit verified spot-funding input. It is NOT reported as equity settled_cash.
+- The independently signed API-tradable crypto pairs now establish a 24/7 *product capability*, subject to broker maintenance and a separate current executable signed bid/ask, bounded spread, order-history, current AI/risk, exact account ownership and fresh single-writer proof at execution. This change never represents a market-data GET as broker POST acceptance.
+- Webull and Schwab still require independently verified brokerage settled funds and stock market session; neither accepts Robinhood's crypto buying-power evidence. All broker order minimums, fees, exposure, duplicate-order and V1?V2 parity gates remain mandatory.
+- Authenticated V2 Operations now distinguishes signed spot USD buying power, crypto 24/7 capability, verified order-book pricing and original stock settlement. Added mocked signed-account and cross-broker isolation tests and frontend CI contract tests.
+- No V1/V2 owner transfer, new V2 broker POST or broker fill occurred in this release. Robinhood's currently rejected bid/ask spread cannot be bypassed by these corrected funding/session types.
+
 ## v1.3.52 ? Register V2 execution coordinator inside original TrueNAS app (2026-11-22)
 
 - Added the dedicated, single-instance V2 account execution coordinator as a supervised original application child, with private redacted health and an exclusive filesystem lock. V1 continues holding every account broker writer lock until an independently attested transfer.
