@@ -1,3 +1,10 @@
+## v1.3.44 ? Supervised read-only V2 broker migration coordinator (2026-11-22)
+
+- Added an independently supervised V2 migration heartbeat for Schwab, Webull, and Robinhood in the existing TrueNAS application. The child observes signed preflight freshness, all fifteen broker launch gates, V1 worker heartbeat recency, and cutover blockers, without receiving broker credentials or touching broker order APIs.
+- The coordinator is safely restarted on failure, stopped during application unconfiguration or shutdown, and writes only owner-private redacted V2 status. Its heartbeat cannot grant V2 order authority; V1 retains all existing account locks and permissions.
+- Authenticated Trading Operations distinguishes supervised **read-only standby** from a registered V2 live order writer, and reports stale/offline supervisor state instead of treating a running container as proof of migration.
+- Added fail-closed unit and UI tests for no account-authority transfer, worker-telemetry observation, private journal boundaries and stale/tampered status. Full V1/V2 parity and account-specific funding/session/handoff remain separate unverified launch gates.
+
 ## v1.3.43 ? Signed Schwab account migration preflight without dual OAuth writers (2026-11-21)
 
 - Added a read-only signed Schwab V2 preflight invoked periodically using the already-authenticated V1 Schwab worker client; it does not create a second token refresher, broker POST, or live order writer. The probe checks independently signed account/holdings/cash, complete bounded order history, local journal matching, explicit settled-cash evidence, current market hours, and signed fresh executable quotes.

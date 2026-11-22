@@ -1,3 +1,9 @@
+## v1.3.44 ? Account-scoped V2 migration supervisor, read-only standby
+
+The existing TrueNAS Auto Trader supervisor now starts and monitors a V2 account migration observer (no brokerage credentials, no ability to submit or cancel broker orders). The worker continuously reports all three broker's signed prerequisites and V1 telemetry while keeping V1 account order writers authoritative. Trading Operations explicitly differentiates a healthy V2 standby coordinator from a live execution worker.
+
+This is migration infrastructure only: no V1/V2 writer handoff, new order, revised risk limit, trading-mode arm, or broker configuration change is made by this release. Future V2 order execution remains blocked until broker-specific funding/session/order proof, strategy-exit parity, and an exclusive account-scoped authorized transfer are verified.
+
 ## v1.3.43 ? Signed Schwab V2 migration evidence
 
 The active Schwab V1 worker now periodically observes authenticated account and order data using its existing signed client, then emits a private, redacted Schwab V2 migration preflight. It records current market-session and funding evidence only when independently established. Trading Operations lists Schwab beside Robinhood and Webull for the same fifteen launch acceptance gates.

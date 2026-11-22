@@ -9,18 +9,19 @@ from .market_sources import cached_market_status
 from .readiness import explain
 from .cutover_preflight import preflight
 from .launch_gates import all_launch_status
+from .live_supervisor import public_status as live_supervisor_status
 
 def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.39","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.40","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_6_SIGNED_READONLY_MIGRATION_GATED",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
-            "missing_components":["AUTONOMOUS_V2_LIVE_SUPERVISOR_AND_EXIT_CONTROLLERS",
+            "missing_components":["V2_ORDER_WRITER_SUPERVISOR_AND_EXIT_CONTROLLERS",
                 "SIGNED_BROKER_FUNDING_SESSION_AND_ORDER_ACCEPTANCE",
                 "FULL_STRATEGY_AI_COOLDOWN_PARITY",
                 "V1_TO_V2_ACCOUNT_WRITER_HANDOFF",
@@ -101,6 +102,7 @@ def summary(state_dir)->dict:
     status["cutover_preflight"]=preflight(
         state_dir,status["broker_adapters"],status["market_sources"])
     status["v2_live_launch"]=all_launch_status(state_dir)
+    status["v2_live_supervisor"]=live_supervisor_status(state_dir)
     recovery=private_json(Path(state_dir)/"v2"/"live_reconciliation"/
                           "robinhood_crypto.json",maximum=8000)
     if isinstance(recovery,dict):

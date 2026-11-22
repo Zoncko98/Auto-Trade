@@ -47,12 +47,15 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
   if(!target)return;
   void refreshWebullProbe();
-  function showCutover(report,robinhoodProbe,launch,recovery){
+  function showCutover(report,robinhoodProbe,launch,recovery,supervisor){
     if(!cutover)return;
     cutover.replaceChildren();
     const intro=document.createElement("strong");
     intro.textContent="V2 live-account migration preflight · read-only · no automatic cutover";
     cutover.append(intro);
+    const s=document.createElement("p");
+    s.textContent="V2 account coordinator: "+(supervisor?.state==="READ_ONLY_STANDBY"?"SUPERVISED READ-ONLY STANDBY":"OFFLINE / STALE")+" | V2 live writer: NOT ACTIVE | Migrated brokers: 0/3";
+    cutover.append(s);
     if(!report||report.live_order_authority!==false||
        report.automatic_cutover_allowed!==false||!Array.isArray(report.accounts)){
       const failure=document.createElement("p");
@@ -233,7 +236,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         " · Recorded historical paper replay: on demand, broker-independent";
       showAdapters(data.broker_adapters,data.market_sources,data.readiness_diagnostics);
       showCutover(data.cutover_preflight,data.robinhood_signed_migration_probe,
-                  data.v2_live_launch,data.v2_live_reconciliation);
+                  data.v2_live_launch,data.v2_live_reconciliation,data.v2_live_supervisor);
       void readStockShadowStatus();
       void readFreshPaperStatus();
       void readRecordedReplay();
