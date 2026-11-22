@@ -102,6 +102,20 @@ class RobinhoodV2AdapterTest(TestCase):
         with self.assertRaises(BrokerEvidenceUnavailable):
             self.adapter.quote()
 
+    def test_native_quote_wide_spread_never_bypasses_broker_execution_guard(self):
+        row=self.client.quote_rows["BTC-USD"]["results"][0]
+        row["bid"]="9.00";row["ask"]="10.01"
+        with self.assertRaises(BrokerEvidenceUnavailable):
+            self.adapter.quote()
+        self.assertEqual(self.client.posts,[])
+
+    def test_native_quote_older_than_20_seconds_never_orders(self):
+        row=self.client.quote_rows["BTC-USD"]["results"][0]
+        row["quote_timestamp"]=(self.now-timedelta(seconds=25)).isoformat()
+        with self.assertRaises(BrokerEvidenceUnavailable):
+            self.adapter.quote()
+        self.assertEqual(self.client.posts,[])
+
     def test_policy_disabled_cross_account_wrong_pair_block(self):
         with self.assertRaises(ValueError):
             RobinhoodLiveAdapter(self.client,"account123",

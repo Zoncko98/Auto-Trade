@@ -90,7 +90,14 @@ class RobinhoodLiveAdapter:
         completed=datetime.now(timezone.utc)
         try:
             reading=robinhood_market_quote(raw,symbol,now=completed)
-            if reading.last is not None and reading.source_tradable:
+            # Native broker-LAST readings require the same strict book
+            # spread and 20-second signed-venue freshness as dual quotes.
+            # A successful GET with a stale or excessively wide book cannot
+            # become an executable order source.
+            signed_age=(completed-reading.observed_at).total_seconds()
+            if (reading.last is not None and reading.source_tradable and
+                -2<=signed_age<=20 and reading.bid>0 and reading.ask>=reading.bid and
+                (reading.ask-reading.bid)/reading.ask<=Decimal("0.015")):
                 return MarketSnapshot(symbol,AssetClass.CRYPTO,
                     "robinhood_signed",reading.observed_at,reading.received_at,
                     reading.bid,reading.ask,reading.last,True)

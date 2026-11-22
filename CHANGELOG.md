@@ -1,3 +1,11 @@
+## v1.3.55 ? V2 pre-submission recovery and Robinhood native quote parity (2026-11-22)
+
+- Closed an execution deadlock: a V2 order with a freshly persisted intent may lose exclusive account handoff or its broker quote before any POST. The original code returned BLOCKED but left INTENT_PERSISTED permanently unresolved. Now it persists a terminal REJECTED original-intent event with explicit broker_post_attempted=False, allowing later valid independent candidates without resubmitting the rejected idempotency key.
+- If that terminal journal write fails, the original intent remains unresolved and requires reconciliation. Actual SUBMITTING/UNKNOWN_REQUIRES_RECONCILIATION states are unchanged and never automatically retried or cleared. Every check still occurs while holding the exact V1/V2 account writer lock.
+- Harmonized Robinhood signed native-LAST quote validation with the independently attested signed-bid-ask path: native signed venue quotes must be <=20 seconds old and have bid>0, ask>=bid and spread <=1.5%. Fresh signed GET without valid executable book does not become a V2 trading signal.
+- Updated the signed Robinhood migration preflight to apply that same native-source spread/age validation before counting a quote. All Webull/Schwab independent stock funding/session restrictions remain unchanged.
+- Added mocked live-owner handoff loss, durable pre-POST terminal recovery, storage-failure retention, duplicate-POST exclusion, stale native quote and wide signed spread regression tests. This release does not transfer account ownership or fabricate a broker fill.
+
 ## v1.3.54 ? Production signed Robinhood quote diagnostics (2026-11-22)
 
 - Deployment troubleshooting found real BTC/ETH signed broker best-bid/ask sometimes fails executable quote validation even when authenticated account, V1 signed history and crypto technical signals work.

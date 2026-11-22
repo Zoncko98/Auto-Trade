@@ -192,8 +192,20 @@ class LivePipeline(PaperPipeline):
         if (self._handoff(candidate,now,proof.generation) is None
                 or (now-quote.observed_at).total_seconds()< -2
                 or (now-quote.observed_at).total_seconds()>policy.max_snapshot_age_seconds):
+            # This is unambiguously PRE-POST: no broker write was attempted.
+            # Abort the original intent durably so a lost handoff does not
+            # permanently jam account reconciliation. If journaling fails,
+            # leave INTENT_PERSISTED unresolved instead of guessing success.
+            try:
+                self.store.transition(key,OrderState.REJECTED,
+                    evidence={"reason":"HANDOFF_OR_QUOTE_EXPIRED_PRE_POST",
+                              "broker_post_attempted":False})
+            except Exception:
+                return PipelineResult("RECONCILIATION_REQUIRED",
+                    "PRE_POST_INTENT_TERMINAL_WRITE_UNVERIFIED",key,
+                    OrderState.INTENT_PERSISTED.value)
             return PipelineResult("BLOCKED","HANDOFF_OR_QUOTE_EXPIRED_BEFORE_ORDER",key,
-                                  OrderState.INTENT_PERSISTED.value)
+                                  OrderState.REJECTED.value)
         self.store.transition(key,OrderState.SUBMITTING,
             evidence={"mode":"LIVE_V2_SINGLE_WRITER",
                       "broker":self.broker.provider_id,

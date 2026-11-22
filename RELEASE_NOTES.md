@@ -1,3 +1,9 @@
+## v1.3.55 ? Live V2 pre-POST recovery and broker source parity
+
+A V2 signal that loses its handoff before broker submission now records a definitive pre-POST rejection instead of permanently blocking the account with an unresolved intent. If durability cannot be confirmed, the account remains blocked for reconciliation. Uncertain real brokerage submissions still retain their original idempotency locks.
+
+Robinhood native signed LAST quotes now share the V2 signed broker spread and 20-second freshness thresholds, including in signed migration admission. This release keeps all operator risk rules, broker restrictions, V1 account owner and rollback capability intact. No V1-to-V2 ownership transfer occurs in this patch.
+
 ## v1.3.54 ? Production Robinhood quote failures
 
 Now identify crossed signed broker books separately from wide spreads or missing prices. V2 continues to block unexecutable quotes; no limit, broker permission, AI/risk rule or account ownership rule changes. Existing V1 traders remain in control until an independently validated V2 migration.

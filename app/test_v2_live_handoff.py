@@ -161,13 +161,41 @@ class TestLiveCutover(TestCase):
         out=self.evaluate()
         self.assertEqual(out.reason,"HANDOFF_OR_QUOTE_EXPIRED_BEFORE_ORDER")
         self.assertEqual(self.broker.sends,0)
-        self.assertEqual(self.store.summary()["unresolved"],1)
+        self.assertEqual(self.store.summary()["unresolved"],0)
+        self.assertEqual(out.order_state,"REJECTED")
+        self.assertEqual(self.store.get(out.intent_key)["state"],"REJECTED")
+        self.assertEqual(self.broker.sends,0)
+        events=self.store.events(out.intent_key)
+        self.assertFalse(any(event["state"]=="SUBMITTING" for event in events))
+        self.assertTrue(events[-1]["evidence"]["broker_post_attempted"] is False)
+        again=self.evaluate()
+        self.assertEqual(self.broker.sends,0)
+        self.assertEqual(self.store.summary()["unresolved"],0)
 
     def test_handoff_generation_change_no_post(self):
         calls=[self.proof(),self.proof(generation="handoff-2")]
         self.gate.side_effect=lambda:calls.pop(0)
         out=self.evaluate()
         self.assertEqual(out.reason,"HANDOFF_OR_QUOTE_EXPIRED_BEFORE_ORDER")
+        self.assertEqual(out.order_state,"REJECTED")
+        self.assertEqual(self.store.summary()["unresolved"],0)
+        self.assertEqual(self.broker.sends,0)
+
+    def test_pre_post_abort_journal_failure_retains_reconciliation_lock(self):
+        # Separate one genuine first-stage permit from the second revoked
+        # check, then make durable abort fail as a storage failure.
+        calls=[self.proof(),None]
+        self.gate.side_effect=lambda:calls.pop(0)
+        original=self.store.transition
+        def fail_abort(key,target,**kwargs):
+            if target.value=="REJECTED":
+                raise OSError("storage not writable")
+            return original(key,target,**kwargs)
+        self.store.transition=fail_abort
+        out=self.evaluate()
+        self.assertEqual(out.code,"RECONCILIATION_REQUIRED")
+        self.assertEqual(out.reason,"PRE_POST_INTENT_TERMINAL_WRITE_UNVERIFIED")
+        self.assertEqual(self.store.summary()["unresolved"],1)
         self.assertEqual(self.broker.sends,0)
 
     def test_signed_quote_still_needs_live_market_session(self):
