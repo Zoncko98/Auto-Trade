@@ -70,6 +70,10 @@ document.addEventListener("DOMContentLoaded",()=>{
       (Array.isArray(launch?.accounts)?launch.accounts:[]).filter(
         item=>item&&typeof item.broker==="string").map(
         item=>[item.broker,item]));
+    const supervisedAccounts=new Map(
+      (Array.isArray(supervisor?.accounts)?supervisor.accounts:[]).filter(
+        item=>item&&typeof item.broker==="string").map(
+        item=>[item.broker,item]));
     for(const item of report.accounts){
       if(!item||!Object.hasOwn(titles,item.broker))continue;
       const section=document.createElement("p");
@@ -145,6 +149,13 @@ document.addEventListener("DOMContentLoaded",()=>{
           String(envelope.preliminary_budget_usd))+
         (envelope.buying_power_preliminary_ceiling_usd==null?"":" · Buying-power-only ceiling $"+
           String(envelope.buying_power_preliminary_ceiling_usd))+
+        " · V1 day limits inherited: "+(
+          supervisedAccounts.get(item.broker)?.v1_daily_limits_inherited===true?
+          "SIGNED CHECKED, BUY intents "+
+            Number(supervisedAccounts.get(item.broker)?.v1_entries_today||0)+
+            ", SELL intents "+
+            Number(supervisedAccounts.get(item.broker)?.v1_exits_today||0):
+          "NOT VERIFIED")+
         " · Does NOT authorize any V2 order";
       cutover.append(section);
       const decision=launchChecks.get(item.broker);

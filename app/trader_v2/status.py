@@ -15,7 +15,7 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.42","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.43","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
             "stage":"PHASE_6_SIGNED_READONLY_MIGRATION_GATED",
@@ -59,7 +59,8 @@ def summary(state_dir)->dict:
                                    "signed_market_candles":"SCHWAB_WEBULL_M5_AND_REAL_COINBASE_CLOSED_MINUTES",
                                    "realized_loss_gate":"MANDATORY_NO_DEFAULT_ZERO",
                                    "v1_exit_parity_gate":"MANDATORY_AND_UNVERIFIED_IN_PRODUCTION",
-                                   "v2_broker_exit_compatibility":"SOURCE_TESTED_SIGNED_LOT_PROOF_REQUIRED"}}
+                                   "v2_broker_exit_compatibility":"SOURCE_TESTED_SIGNED_LOT_PROOF_REQUIRED",
+                                   "v1_order_limit_inheritance":"SIGNED_SOURCE_VERIFIED_PER_ACCOUNT_OR_BLOCKED"}}
     try:
         # Always read-only; status never refreshes broker OAuth or sends SDK calls.
         status["broker_adapters"]=[

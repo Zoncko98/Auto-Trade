@@ -11,6 +11,7 @@ from trader_v2.live_pipeline import WriterHandoff
 from trader_v2.writer_ownership import _paths
 from trader_v2.autonomous_live import AutonomousLiveScan,accepted_bars,LiveScanUnavailable
 from trader_v2.account_exit_rules import ManagedExitLot,ExitPolicy
+from trader_v2.v1_order_inheritance import InheritedOrderLimits
 import json
 
 NOW=datetime.now(timezone.utc).replace(microsecond=0)
@@ -65,6 +66,8 @@ class AutonomousLiveScanTests(TestCase):
       max_total_exposure=D("75"),max_position_fraction=D(".5"),
       max_entries_per_day=2,max_exit_orders_per_day=3,ai_mode="REQUIRED")
   self.loss=lambda account:D("0")
+  self.legacy=InheritedOrderLimits("robinhood_crypto","acct",0,0,
+        frozenset(),False,True,True)
   self.make_lot=lambda symbol,account:ManagedExitLot(
     symbol,account.positions[symbol],account.positions[symbol],D("12"),
     self.now-timedelta(minutes=30),high_water_bid=D("11"),
@@ -78,7 +81,8 @@ class AutonomousLiveScanTests(TestCase):
     realized_loss_provider=self.loss,
     strategy_parity_provider=lambda:True,clock=lambda:self.now,
     exit_evidence_provider=lambda symbol,account:self.make_lot(symbol,account),
-    exit_policy_provider=lambda account:ExitPolicy("robinhood_crypto"))
+    exit_policy_provider=lambda account:ExitPolicy("robinhood_crypto"),
+    v1_activity_provider=lambda account,now:self.legacy)
  def own_v2(self):
   _,rec,digest=_paths(self.state,"robinhood_crypto","acct")
   rec.write_text(json.dumps({"schema":1,"broker":"robinhood_crypto",
@@ -191,6 +195,53 @@ class AutonomousLiveScanTests(TestCase):
   eng=self.engine(direction="BUY")
   eng.exit_evidence_provider=lambda symbol,account:None
   self.assertEqual(eng.run_once()["state"],"V2_EXIT_EVIDENCE_UNVERIFIED")
+  self.assertEqual(self.broker.posts,0)
+
+ def test_missing_v1_daily_order_history_blocks_before_any_broker_post(self):
+  self.own_v2()
+  eng=self.engine();eng.v1_activity_provider=None
+  status=eng.run_once()
+  self.assertEqual(status["state"],"V2_V1_ACTIVITY_UNVERIFIED")
+  self.assertEqual(self.broker.posts,0)
+
+ def test_inherited_v1_entry_limit_prevents_migration_day_reset(self):
+  self.own_v2()
+  self.policy=RiskPolicy(max_order_notional=D("15"),
+      max_total_exposure=D("75"),max_position_fraction=D(".5"),
+      max_entries_per_day=1,max_exit_orders_per_day=3,ai_mode="REQUIRED")
+  self.legacy=InheritedOrderLimits("robinhood_crypto","acct",1,0,
+      frozenset(),False,True,True)
+  result=self.engine().run_once()
+  self.assertEqual(result["state"],"BLOCKED")
+  self.assertEqual(result["reason"],"ENTRY_DAILY_COUNT_LIMIT")
+  self.assertEqual(self.broker.posts,0)
+
+ def test_inherited_reentry_cooldown_skips_new_buy(self):
+  self.own_v2()
+  self.legacy=InheritedOrderLimits("robinhood_crypto","acct",0,0,
+      frozenset({"BTC-USD"}),False,True,True)
+  result=self.engine().run_once()
+  self.assertEqual(result["state"],"NO_VALIDATED_V2_SIGNAL")
+  self.assertEqual(self.broker.posts,0)
+
+ def test_v1_handover_wrong_account_cannot_authorize_order(self):
+  self.own_v2()
+  self.legacy=InheritedOrderLimits("robinhood_crypto","wrong-account",0,0,
+      frozenset(),False,True,True)
+  self.assertEqual(self.engine().run_once()["state"],"V2_V1_ACTIVITY_UNVERIFIED")
+  self.assertEqual(self.broker.posts,0)
+
+ def test_inherited_exits_still_limit_protective_sell(self):
+  self.own_v2()
+  self.broker.held={"BTC-USD":D("1")}
+  self.policy=RiskPolicy(max_order_notional=D("15"),
+      max_total_exposure=D("75"),max_position_fraction=D(".5"),
+      max_entries_per_day=2,max_exit_orders_per_day=1,ai_mode="REQUIRED")
+  self.legacy=InheritedOrderLimits("robinhood_crypto","acct",0,1,
+      frozenset(),False,True,True)
+  out=self.engine(direction="SELL").run_once()
+  self.assertEqual(out["state"],"BLOCKED")
+  self.assertEqual(out["reason"],"EXIT_ORDER_LIMIT")
   self.assertEqual(self.broker.posts,0)
 
  def test_valid_protective_sell_without_model_while_daily_entry_limit_spent(self):

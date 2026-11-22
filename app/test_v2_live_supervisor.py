@@ -3,6 +3,7 @@ from datetime import datetime,timezone,timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from unittest.mock import patch
 import json
 from trader_v2.live_supervisor import assess,write_status,public_status
 from trader_v2.launch_gates import BROKERS
@@ -46,6 +47,30 @@ class SupervisorTests(TestCase):
         doc["accounts"][0]["verified_gate_count"]=99
         p.write_text(json.dumps(doc))
         self.assertEqual(public_status(self.root,now=NOW)["state"],"INVALID_REPORT")
+    def test_signed_inherited_counts_are_redacted_not_account_metadata(self):
+        from trader_v2.v1_order_inheritance import InheritedOrderLimits
+        inherited=InheritedOrderLimits("robinhood_crypto","private-account",2,1,
+                   frozenset({"BTC-USD"}),False,True,True)
+        with patch("robinhood_policy.read_policy",
+                   return_value={"account":"private-account"}),patch(
+             "trader_v2.live_supervisor.read_inherited",return_value=inherited):
+            doc=write_status(self.root,now=NOW)
+        row=next(x for x in doc["accounts"] if x["broker"]=="robinhood_crypto")
+        self.assertEqual(row["inherited_v1_limits"]["state"],"SIGNED_V1_LIMITS_INHERITED")
+        public=public_status(self.root,now=NOW)
+        record=next(x for x in public["accounts"] if x["broker"]=="robinhood_crypto")
+        self.assertTrue(record["v1_daily_limits_inherited"])
+        self.assertEqual((record["v1_entries_today"],record["v1_exits_today"]),(2,1))
+        self.assertNotIn("private-account",str(public))
+        self.assertFalse(record.get("v2_live_order_authority",False))
+
+    def test_no_broker_signed_proof_never_reports_positive_v1_counts(self):
+        public=write_status(self.root,now=NOW)
+        for item in public["accounts"]:
+            self.assertEqual(item["inherited_v1_limits"]["state"],
+                             "V1_DAILY_LIMITS_NOT_VERIFIED")
+            self.assertIsNone(item["inherited_v1_limits"]["entries_today"])
+
     def test_recent_v1_heartbeat_is_not_writer_handoff(self):
         live=self.root/"live"
         live.mkdir(mode=0o700)

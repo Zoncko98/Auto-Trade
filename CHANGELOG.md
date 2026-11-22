@@ -1,3 +1,11 @@
+## v1.3.47 - Preserve V1 order counts and cooldowns on account migration (2026-11-22)
+
+- Added read-only, account-specific V1 order-history inheritance from the original Schwab JSON ledger, Webull SQLite journal and Robinhood Crypto protected order history. Original V1 BUY/SELL order intents, Robinhood symbol-specific reentry cooldowns (including broker-verified manual/external sales), and Schwab's separate maximum saved daily total-order limit are enforced by V2 before a fresh entry or protective exit.
+- The shared autonomous V2 live scanner now requires a typed, signed, fresh V1 account-matched inherited-order record in addition to exact V1/V2 ownership transfer and full strategy-parity proof. Unknown or pending legacy orders, mismatched account selection, expired broker signed reconciliation or missing saved limits block V2 execution; old legacy activity cannot be reset by creating a fresh V2 event store.
+- Existing V1 orders and V2 intents are added for both entry and exit rate limits; inherited Robinhood reentry restrictions prevent immediate buy-back after a V1 sale. Schwab's separate combined order/action cap blocks further orders when reached. These controls do not remove existing broker risk or operator permissions.
+- The supervised, authenticated V2 Trading Operations view reports whether inherited V1 daily activity was independently verified and shows redacted BUY/SELL intent counts only when the signed source remains fresh. Supervisor status does not disclose account identifiers or grant live V2 broker writer authority.
+- Added broker-specific journal parsing, unknown/future/duplicated orders, manual external sell, same-session settlement and account-history/scope tests. No live V2 brokerage orders or V1-to-V2 writer transfer was performed.
+
 ## v1.3.46 - Signed bot-lot protective exits and V1 stock continuation (2026-11-22)
 
 - Added deterministic, broker-specific V2 protective-exit rule evaluations for Schwab's confirmed 3/5-bar bearish crossover and same-day buy hold, Webull's cost/hold/stop/profit/high-water rules and Robinhood Crypto's separately estimated sell-fee and stop-reference costs. Unknown bot-owned cost basis, signed available quantity, opening time or historical receipts block both a SELL and fresh BUY for that account.

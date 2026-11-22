@@ -14,6 +14,7 @@ from .launch_gates import BROKERS, launch_status
 from .models import utc
 from .readonly_adapters import private_json
 from .recorded_replay import _atomic_json
+from .v1_order_inheritance import read_inherited, V1InheritanceUnavailable
 
 _STOP=False
 POLL_SECONDS=30
@@ -48,6 +49,32 @@ def _worker_readonly(root,broker,now):
             "recent":True,
             "observed_state":str(field)[:50] if isinstance(field,str) else "NOT_VERIFIED"}
 
+def _inherited_activity(root,broker,now):
+    """Never emit selected account IDs or unverified local-only counts."""
+    try:
+        if broker=="schwab":
+            from unified_config import settings
+            account=settings(root).get("live_account_hash")
+        elif broker=="webull":
+            from webull_trade_config import read
+            cfg=read(root)
+            account=cfg.get("stock_account") if cfg.get("trade_stocks") is True else None
+        else:
+            from robinhood_policy import read_policy
+            account=read_policy(root).get("account")
+        if not isinstance(account,str) or not account:
+            raise V1InheritanceUnavailable("V1_SELECTED_ACCOUNT_UNVERIFIED")
+        verified=read_inherited(root,broker,account,now=now)
+        return {"state":"SIGNED_V1_LIMITS_INHERITED",
+                "entries_today":verified.entries_today,
+                "exits_today":verified.exits_today,
+                "reentry_cooldown_symbols":len(verified.reentry_blocked_symbols),
+                "all_buys_blocked":verified.all_buys_blocked}
+    except Exception:
+        return {"state":"V1_DAILY_LIMITS_NOT_VERIFIED",
+                "entries_today":None,"exits_today":None,
+                "reentry_cooldown_symbols":None,"all_buys_blocked":None}
+
 def assess(root,*,now=None):
     """Read only broker migration evidence, no owner-state change."""
     now=utc(now or datetime.now(timezone.utc))
@@ -59,6 +86,7 @@ def assess(root,*,now=None):
         accounts.append({
             "broker":broker,
             "v1_worker":_worker_readonly(root,broker,now),
+            "inherited_v1_limits":_inherited_activity(root,broker,now),
             "signed_preflight_fresh":launch["signed_observation_fresh"],
             "verified_gate_count":sum(g["verified"] is True for g in gates),
             "total_gate_count":len(gates),
@@ -124,8 +152,17 @@ def public_status(state_dir,*,now=None):
             return {"state":"INVALID_REPORT","v2_live_order_authority":False,
                     "cutover_accounts":0,"accounts":[]}
         worker=row.get("v1_worker")
+        activity=row.get("inherited_v1_limits")
+        checked=isinstance(activity,dict) and activity.get("state")=="SIGNED_V1_LIMITS_INHERITED"
+        if checked and any(type(activity.get(k)) is not int or
+            not 0<=activity[k]<=20000 for k in ("entries_today","exits_today")):
+            return {"state":"INVALID_REPORT","v2_live_order_authority":False,
+                    "cutover_accounts":0,"accounts":[]}
         safe.append({"broker":broker,"verified_gates":count,
                      "total_gates":total,
+                     "v1_daily_limits_inherited":checked,
+                     "v1_entries_today":activity.get("entries_today") if checked else None,
+                     "v1_exits_today":activity.get("exits_today") if checked else None,
                      "v1_telemetry_recent":isinstance(worker,dict) and
                           worker.get("recent") is True,
                      "first_blocker":str(row.get("first_blocker") or "NOT_VERIFIED")[:100]})

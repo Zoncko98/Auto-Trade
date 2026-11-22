@@ -22,6 +22,7 @@ from .contracts import TradingBroker
 from .account_exit_rules import (
     ManagedExitLot, ExitPolicy, exit_trigger, ExitParityUnavailable,
 )
+from .v1_order_inheritance import InheritedOrderLimits
 
 class LiveScanUnavailable(ValueError):
     def __init__(self,code):
@@ -74,7 +75,8 @@ class AutonomousLiveScan:
                  symbols,asset_class:AssetClass,candle_feed,quote_feed,
                  gate,reviewer=None,clock=None,policy_provider=None,
                  realized_loss_provider=None,strategy_parity_provider=None,
-                 exit_evidence_provider=None,exit_policy_provider=None):
+                 exit_evidence_provider=None,exit_policy_provider=None,
+                 v1_activity_provider=None):
         if not isinstance(broker,TradingBroker) or broker.provider_id not in (
                 "schwab","webull","robinhood_crypto"):
             raise TypeError("Canonical signed live broker required")
@@ -105,6 +107,9 @@ class AutonomousLiveScan:
         # NEVER the whole account position list or estimated entry fills.
         self.exit_evidence_provider=exit_evidence_provider
         self.exit_policy_provider=exit_policy_provider
+        # Signed V1 order counts, settlement and symbol-specific cooldown
+        # must be inherited at the exact V1->V2 writer handoff.
+        self.v1_activity_provider=v1_activity_provider
         self.controller=(
             StockController(include_continuation=True)
             if asset_class is AssetClass.STOCK else CryptoController())
@@ -199,6 +204,30 @@ class AutonomousLiveScan:
         except Exception:
             return self._status("V2_RISK_POLICY_UNVERIFIED",
                 "Signed account risk or validated AI entry configuration unavailable")
+        try:
+            if not callable(self.v1_activity_provider):
+                raise ValueError("Legacy V1 activity provider required")
+            inherited=self.v1_activity_provider(account,now)
+            if (not isinstance(inherited,InheritedOrderLimits) or
+                inherited.broker!=self.broker.provider_id or
+                inherited.account!=self.writer_scope or
+                inherited.signed_broker_history_fresh is not True or
+                inherited.local_journal_terminal is not True):
+                raise ValueError("Legacy signed V1 activity unavailable")
+            entries+=inherited.entries_today
+            exits+=inherited.exits_today
+            # Schwab V1 additionally limits ALL order actions in a day.
+            # Neither the shared V2 entry counter nor the exit counter
+            # alone represents this separate saved user safety ceiling.
+            if self.broker.provider_id=="schwab":
+                if inherited.max_daily_total_orders is None:
+                    raise ValueError("Schwab all-order cap not verified")
+                if entries+exits>=inherited.max_daily_total_orders:
+                    return self._status("V1_DAILY_TOTAL_ORDER_LIMIT",
+                        "Schwab V1 total daily order cap already reached")
+        except Exception:
+            return self._status("V2_V1_ACTIVITY_UNVERIFIED",
+                "Signed V1 trade counts, settlement and symbol cooldowns required")
         checked=0;eligible=0;first_error=None;prioritized=[]
         verified_exit_quotes={}
         # Every bot-managed holding must first be checked for V1-compatible
@@ -264,14 +293,19 @@ class AutonomousLiveScan:
                     # verified cost/hold/stop/peak exit policy above.
                     continue
                 elif candidate.side is OrderSide.BUY:
-                    if held>0:continue
+                    if (held>0 or inherited.all_buys_blocked or
+                        symbol in inherited.reentry_blocked_symbols):
+                        continue
                     prioritized.append(candidate)
                 eligible+=1
             except (LiveScanUnavailable,ValueError,TypeError,KeyError) as exc:
                 if first_error is None:first_error=getattr(exc,"code","V2_CANDLES_UNAVAILABLE")
                 continue
         if not prioritized:
-            return self._status("NO_VALIDATED_V2_SIGNAL",first_error or "No eligible closed-bar crossover",
+            blocker=("V1_BUY_SETTLEMENT_COOLDOWN_ACTIVE"
+                     if inherited.all_buys_blocked else
+                     "No eligible closed-bar crossover or entry cooldown")
+            return self._status("NO_VALIDATED_V2_SIGNAL",first_error or blocker,
                                 checked=checked,signals=0)
         for candidate in prioritized:
             try:
