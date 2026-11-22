@@ -59,7 +59,8 @@ def launch_status(state_dir,broker,*,now=None):
         account_ok=_true(signed.get("broker_account_verified"))
         # Webull currently confirms signed position response, NOT complete
         # product-specific holdings reconciliation.
-        holdings=_true(signed.get("broker_positions_verified"))
+        holdings=(_true(signed.get("broker_positions_verified")) and
+                  _true(signed.get("broker_position_inventory_reconciled")))
         history=_true(signed.get("signed_historical_fills_verified"))
         quote=False
         open_orders=signed.get("broker_open_order_count")

@@ -1,3 +1,9 @@
+## v1.3.40 - Webull signed portfolio inventory preflight
+
+This release adds a signed GET-only Webull position audit and compares the current broker inventory with broker-confirmed historical bot fills before considering holdings reconciled. Invalid symbols, duplicate/fractional/short holdings and inventory deficits stay blocked. Trading Operations now accurately labels verified read-only order history and does not represent it as live V2 activation.
+
+Robinhood, Webull and Schwab remain on their existing V1 order writers. V2 production cutover is NOT authorized until signed settlement/session conditions, V1 strategy/exit parity, and a single verified account-writer handoff are satisfied. No live V2 orders were submitted as part of this release.
+
 ## v1.3.39 — Shared V2 autonomous market-to-order engine
 
 The three signed live adapters now have a common, tested V2 candidate-to-execution cycle. Official closed stock candles and genuine observed Coinbase minute bars produce typed strategies; per-broker signed quotes provide actual order pricing, Ollama reviews entries, and the durable broker journal reconciles original orders. A valid V2 writer lease and verified V1 risk/exit strategy parity are REQUIRED before this code can issue a real order.

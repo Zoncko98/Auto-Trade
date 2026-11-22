@@ -29,7 +29,8 @@ def result_status(state, *, now=None):
         **{key: value for key,value in doc.items() if key in (
             "schema","broker","checked_at","mode","first_blocker",
             "broker_account_verified","funding_verified",
-            "settled_cash_verified","broker_positions_verified",
+            "settled_cash_verified","broker_positions_verified","broker_position_inventory_reconciled",
+            "broker_external_position_symbols",
             "broker_open_orders_verified","broker_open_order_count",
             "local_order_count","local_unresolved_count",
             "signed_historical_fill_count","signed_historical_fills_verified",

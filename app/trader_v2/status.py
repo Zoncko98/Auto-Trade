@@ -14,10 +14,10 @@ def enabled()->bool:
     return os.environ.get("AUTO_TRADER_V2_ENABLED","false").lower()=="true"
 
 def summary(state_dir)->dict:
-    status={"version":"2.0.0-alpha.35","feature_enabled":enabled(),
+    status={"version":"2.0.0-alpha.36","feature_enabled":enabled(),
             "live_order_authority":False,"execution_mode":"PAPER_ONLY",
             "legacy_live_workers_untouched":True,
-            "stage":"PHASE_2_SIGNED_SOURCE_GAPS_AND_READONLY_JOURNAL_PRECHECK",
+            "stage":"PHASE_6_SIGNED_READONLY_MIGRATION_GATED",
             "store":"DISABLED" if not enabled() else "NOT_INITIALIZED",
             "intents":0,"unresolved":0,
             "missing_components":["AUTONOMOUS_V2_LIVE_SUPERVISOR_AND_EXIT_CONTROLLERS",

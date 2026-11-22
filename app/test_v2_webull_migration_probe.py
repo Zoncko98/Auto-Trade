@@ -53,9 +53,9 @@ class WebullPreflightTests(TestCase):
             db.execute("""CREATE TABLE orders(
               client_id TEXT, account TEXT, status TEXT, quantity TEXT,
               filled_qty TEXT, filled_price TEXT, fee TEXT, broker_id TEXT,
-              side TEXT, asset TEXT, created_at TEXT)""")
+              side TEXT, asset TEXT, created_at TEXT, symbol TEXT DEFAULT 'AAPL')""")
             for record in rows:
-                db.execute("INSERT INTO orders VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                db.execute("INSERT INTO orders(client_id,account,status,quantity,filled_qty,filled_price,fee,broker_id,side,asset,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                            record)
         p.chmod(0o600)
         return p
@@ -123,8 +123,10 @@ class WebullPreflightTests(TestCase):
     def test_local_terminal_signed_fill_verified_still_no_cutover(self):
         path=self.journal([self.record()])
         mtime=path.stat().st_mtime_ns
-        b=SignedWebull()
+        b=SignedWebull(positions=[{"instrument_type":"EQUITY","symbol":"AAPL","quantity":"2"}])
         report=probe_webull(self.root,b,self.policy)
+        self.assertTrue(report["broker_positions_verified"])
+        self.assertTrue(report["broker_position_inventory_reconciled"])
         self.assertEqual(report["signed_historical_fill_count"],1)
         self.assertTrue(report["signed_historical_fills_verified"])
         self.assertFalse(report["cutover_ready"])
@@ -132,6 +134,31 @@ class WebullPreflightTests(TestCase):
         self.assertFalse(report["v1_writer_handoff_verified"])
         self.assertEqual(report["live_v2_orders_submitted"],0)
         self.assertEqual(path.stat().st_mtime_ns,mtime)
+    def test_structural_signed_positions_do_not_prove_funding_or_handoff(self):
+        self.journal([])
+        b=SignedWebull(positions=[{"instrument_type":"EQUITY","symbol":"AAPL","quantity":"5"}])
+        report=probe_webull(self.root,b,self.policy)
+        self.assertTrue(report["broker_positions_verified"])
+        self.assertTrue(report["broker_position_inventory_reconciled"])
+        self.assertEqual(report["broker_external_position_symbols"],1)
+        self.assertFalse(report["settled_cash_verified"])
+        self.assertFalse(report["cutover_ready"])
+
+    def test_malformed_signed_stock_position_fails_closed(self):
+        self.journal([])
+        b=SignedWebull(positions=[{"instrument_type":"EQUITY","symbol":"AAPL","quantity":"1.5"}])
+        report=probe_webull(self.root,b,self.policy)
+        self.assertEqual(report["first_blocker"],"WEBULL_FRACTIONAL_POSITION_UNSUPPORTED")
+        self.assertFalse(report["broker_position_inventory_reconciled"])
+
+    def test_signed_holdings_below_bot_inventory_fails_closed(self):
+        self.journal([self.record()])
+        b=SignedWebull(positions=[{"instrument_type":"EQUITY","symbol":"AAPL","quantity":"1"}])
+        report=probe_webull(self.root,b,self.policy)
+        self.assertEqual(report["first_blocker"],"WEBULL_BOT_INVENTORY_EXCEEDS_SIGNED_HOLDINGS")
+        self.assertFalse(report["broker_position_inventory_reconciled"])
+        self.assertFalse(report["cutover_ready"])
+
     def test_webull_invalid_signed_fill_economics_fail_closed(self):
         self.journal([self.record()])
         b=SignedWebull()

@@ -85,7 +85,10 @@ document.addEventListener("DOMContentLoaded",()=>{
             (local.local_record_count==null?"":" · V1 records: "+Number(local.local_record_count))+
             (local.local_filled_count==null?"":" · Local filled records: "+Number(local.local_filled_count))+
             (local.incomplete_fill_details==null?"":" · Incomplete local fill evidence: "+Number(local.incomplete_fill_details))+
-            " · Signed broker reconciliation: NOT VERIFIED"
+            " · Signed broker history: "+(
+            (launchChecks.get(item.broker)?.signed_observation_fresh===true &&
+             (launchChecks.get(item.broker)?.gates||[]).some(g=>g.name==="SIGNED_ORDER_HISTORY"&&g.verified===true))
+            ?"SIGNED V1 HISTORY CHECKED (READ-ONLY)":"NOT VERIFIED")
           :"")+
         (item.broker==="robinhood_crypto"?
           " · Signed V2 broker audit: "+String((robinhoodProbe||{}).first_blocker||"NOT_RUN")+

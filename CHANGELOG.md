@@ -1,3 +1,10 @@
+## v1.3.40 - Webull signed position reconciliation and honest V2 migration status (2026-11-21)
+
+- Webull V2 signed read-only preflight now checks every broker-held equity position for unambiguous symbol, nonnegative whole-share quantity, unsupported/short positions and duplicate symbols, then verifies bot-owned net fill inventory against the signed holdings after checking historical signed receipts.
+- Contradictory or insufficient signed positions, local histories, or broker order details block cutover. Externally held positions are observed but never adopted as bot inventory; funding, market-session and exclusive-writer handoff remain mandatory independent gates.
+- Trading Operations now distinguishes verified read-only signed V1 order history from actual V2 live-order acceptance, without marking any broker live or changing any account ownership.
+- Added regression cases for fractional holdings, inventory discrepancy and staged signed-history handling; original TrueNAS state and V1 execution remain unchanged.
+
 ## v1.3.39 — Shared V2 live scan and order lifecycle with signed closed candles (2026-11-21)
 
 - Implemented an account-scoped autonomous V2 cycle for all three signed broker adapter types. The same typed stock 3/5 and crypto 4/8 completed-candle crossover controllers feed validated signed executable broker quotes into SharedAIReviewer, the shared deterministic account RiskPolicy, durable SQLite intent and broker receipt reconciliation through LivePipeline.

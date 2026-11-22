@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import sqlite3
+import re
 from .webull_signed_receipts import (
     WebullReceiptUnverified, client_order_id, normalize_webull_order,
 )
@@ -39,7 +40,7 @@ def _local_rows(root, account):
             db.execute("PRAGMA query_only=ON")
             rows = db.execute(
                 "SELECT client_id,status,quantity,filled_qty,filled_price,fee,"
-                "broker_id,side,asset FROM orders WHERE account=? "
+                "broker_id,side,asset,symbol FROM orders WHERE account=? "
                 "ORDER BY created_at,client_id LIMIT 151", (account,)
             ).fetchall()
     except sqlite3.Error:
@@ -47,7 +48,53 @@ def _local_rows(root, account):
     if len(rows) > 150:
         raise WebullReceiptUnverified("LOCAL_WEBULL_JOURNAL_REQUIRES_PAGINATION")
     return [dict(zip(("client_id","status","quantity","filled_qty","filled_price",
-                      "fee","broker_id","side","asset"), row)) for row in rows]
+                      "fee","broker_id","side","asset","symbol"), row)) for row in rows]
+
+
+def _signed_stock_positions(positions):
+    # V2 stock orders must account for every signed holding, including external
+    # inventory. No journal data can replace the current broker response.
+    if not isinstance(positions,list):
+        raise WebullReceiptUnverified("WEBULL_POSITIONS_NOT_LIST")
+    signed={}
+    for row in positions:
+        if not isinstance(row,dict) or row.get("instrument_type")!="EQUITY":
+            raise WebullReceiptUnverified("WEBULL_UNSUPPORTED_SIGNED_POSITION")
+        sym=row.get("symbol")
+        if not isinstance(sym,str) or not re.fullmatch(r"[A-Z][A-Z0-9.]{0,9}",sym) or sym in signed:
+            raise WebullReceiptUnverified("WEBULL_POSITION_SYMBOL_UNVERIFIED")
+        qty=_money(row.get("quantity"),"WEBULL_HELD_QUANTITY")
+        if qty!=qty.to_integral_value():
+            raise WebullReceiptUnverified("WEBULL_FRACTIONAL_POSITION_UNSUPPORTED")
+        short=row.get("short_quantity")
+        if short is not None and _money(short,"WEBULL_SHORT_QUANTITY")!=0:
+            raise WebullReceiptUnverified("WEBULL_SHORT_POSITION_UNSUPPORTED")
+        signed[sym]=qty
+    return signed
+
+
+def _legacy_bot_inventory(rows,signed):
+    # All local fills must first have been matched to exact signed receipts.
+    # Local inventory is a SUBSET of brokerage inventory; external holdings
+    # are included in exposure, never silently adopted as bot-owned.
+    bot={}
+    for row in rows:
+        if row["status"]!="FILLED":continue
+        sym=row.get("symbol")
+        if (row.get("asset")!="EQUITY" or not isinstance(sym,str)
+                or not re.fullmatch(r"[A-Z][A-Z0-9.]{0,9}",sym)
+                or row.get("side") not in ("BUY","SELL")):
+            raise WebullReceiptUnverified("WEBULL_LEGACY_INVENTORY_IDENTITY_INVALID")
+        qty=_money(row.get("filled_qty"),"WEBULL_LOCAL_FILLED_QUANTITY")
+        if qty<=0 or qty!=qty.to_integral_value():
+            raise WebullReceiptUnverified("WEBULL_LEGACY_INVENTORY_QUANTITY_INVALID")
+        old=bot.get(sym,Decimal("0"))
+        if row["side"]=="SELL" and qty>old:
+            raise WebullReceiptUnverified("WEBULL_LEGACY_SELL_EXCEEDS_BOT_HOLDINGS")
+        bot[sym]=old+(qty if row["side"]=="BUY" else -qty)
+    if any(qty>signed.get(sym,Decimal("0")) for sym,qty in bot.items()):
+        raise WebullReceiptUnverified("WEBULL_BOT_INVENTORY_EXCEEDS_SIGNED_HOLDINGS")
+    return sum(1 for sym,qty in signed.items() if qty>bot.get(sym,Decimal("0")))
 
 
 def probe_webull(root, broker, policy, *, now=None):
@@ -61,6 +108,7 @@ def probe_webull(root, broker, policy, *, now=None):
         "live_order_authority":False, "cutover_ready":False,
         "broker_account_verified":False, "funding_verified":False,
         "settled_cash_verified":False, "broker_positions_verified":False,
+        "broker_position_inventory_reconciled":False,
         "broker_open_orders_verified":False, "broker_open_order_count":None,
         "local_order_count":None, "local_unresolved_count":None,
         "signed_historical_fills_verified":False,
@@ -113,11 +161,12 @@ def probe_webull(root, broker, policy, *, now=None):
             raise ValueError("Positions unavailable")
         # Broker position quantities and long/short are product-specific;
         # the new V2 adapter must normalize all positions before cutover.
-        for row in positions:
-            if not isinstance(row,dict):
-                raise ValueError("Malformed broker position")
+        signed_positions=_signed_stock_positions(positions)
         out["broker_position_rows_observed"]=len(positions)
-        out["broker_positions_verified"]=False
+        out["broker_positions_verified"]=True
+    except WebullReceiptUnverified as exc:
+        out["first_blocker"]=exc.code
+        return out
     except Exception:
         out["first_blocker"]="WEBULL_SIGNED_HOLDINGS_UNVERIFIED"
         return out
@@ -168,6 +217,8 @@ def probe_webull(root, broker, policy, *, now=None):
             matched+=1
         out["signed_historical_fill_count"]=matched
         out["signed_historical_fills_verified"]=True
+        out["broker_external_position_symbols"]=_legacy_bot_inventory(rows,signed_positions)
+        out["broker_position_inventory_reconciled"]=True
     except WebullReceiptUnverified as exc:
         out["first_blocker"]=exc.code
         return out

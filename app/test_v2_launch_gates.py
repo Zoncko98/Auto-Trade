@@ -73,6 +73,15 @@ class LaunchGateTests(TestCase):
         self.assertFalse(wrong["signed_observation_fresh"])
 
     @patch("trader_v2.launch_gates.mapping")
+    def test_webull_structural_positions_without_inventory_match_stay_blocked(self,mapping):
+        mapping.return_value={"state":"SAVED_V1_NUMERIC_LIMITS_VALIDATED"}
+        self.save("webull",broker_positions_verified=True,
+                  broker_position_inventory_reconciled=False)
+        row=launch_status(self.root,"webull",now=NOW)
+        self.assertIn("SIGNED_PORTFOLIO_RECONCILIATION_REQUIRED",row["blockers"])
+        self.assertFalse(row["live_v2_order_authority"])
+
+    @patch("trader_v2.launch_gates.mapping")
     def test_open_orders_or_string_zero_are_not_clear(self,mapping):
         mapping.return_value={"state":"SAVED_V1_NUMERIC_LIMITS_VALIDATED"}
         self.save("robinhood_crypto",broker_open_order_count="0")

@@ -25,7 +25,7 @@ class AutoWebullProbeTests(TestCase):
             db.execute("""CREATE TABLE orders (
                client_id TEXT,account TEXT,status TEXT,quantity TEXT,
                filled_qty TEXT,filled_price TEXT,fee TEXT,broker_id TEXT,
-               side TEXT,asset TEXT,created_at TEXT)""")
+               side TEXT,asset TEXT,created_at TEXT,symbol TEXT DEFAULT 'AAPL')""")
         journal.chmod(0o600)
         self.now=datetime.now(timezone.utc).replace(microsecond=0)
 
