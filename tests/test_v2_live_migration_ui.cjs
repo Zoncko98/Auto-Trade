@@ -22,7 +22,7 @@ test("Source-faithful production status is displayed in existing operations pane
   assert.match(status,/robinhood_signed_migration_probe/);
   assert.match(ui,/Signed V2 broker audit:/);
   assert.match(ui,/Signed quote timestamps:/);
-  assert.match(ui,/showCutover\(data\.cutover_preflight,data\.robinhood_signed_migration_probe,\s*data\.v2_live_launch,\s*data\.v2_live_reconciliation\)/);
+  assert.match(ui,/showCutover\(data\.cutover_preflight,data\.robinhood_signed_migration_probe,\s*data\.v2_live_launch,\s*data\.v2_live_reconciliation,\s*data\.v2_live_supervisor\)/);
   assert.ok(server.indexOf('if not nonce:')<
              server.indexOf('if UNIFIED_APP and path == "/api/v2/status"'));
   assert.doesNotMatch(ui,/submit_order\(|place_order\(/);
